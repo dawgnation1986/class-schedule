@@ -5,7 +5,16 @@ import { useRouter } from 'expo-router';
 
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { usePageBackground } from '@/lib/background';
 import { getThemeMode, saveThemeMode, subscribeTheme, themeModeLabel, type ThemeMode } from '@/lib/theme';
+import {
+  clearBackground,
+  getBackground,
+  pickBackground,
+  setBackgroundOpacity,
+  subscribeBackground,
+  type BgSetting,
+} from '@/lib/background';
 import { loadAccount, saveAccount, type StartPage } from '@/lib/account';
 import { loadSettings } from '@/lib/settings';
 import {
@@ -186,6 +195,7 @@ function JsonImportModal({
 export default function ProfileScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const pageBg = usePageBackground(colors);
   const router = useRouter();
 
   const [username, setUsername] = useState('');
@@ -199,10 +209,13 @@ export default function ProfileScreen() {
   const [jsonOpen, setJsonOpen] = useState(false);
   const [times, setTimes] = useState<PeriodTimes>(getPeriodTimes());
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => getThemeMode());
+  const [bg, setBg] = useState<BgSetting>(() => getBackground());
 
   useEffect(() => subscribeTheme(() => setThemeMode(getThemeMode())), []);
+  useEffect(() => subscribeBackground(() => setBg({ ...getBackground() })), []);
 
   const THEME_OPTIONS: ThemeMode[] = ['auto', 'light', 'dark'];
+  const BG_OPACITIES = [0.2, 0.35, 0.5, 0.75];
 
   useEffect(() => {
     const sync = () => {
@@ -234,7 +247,7 @@ export default function ProfileScreen() {
   }, [username, password, startPage]);
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={[styles.title, { color: colors.text }]}>我的</Text>
 
@@ -368,6 +381,44 @@ export default function ProfileScreen() {
               </Pressable>
             ))}
           </View>
+        </View>
+
+        {/* 自定义背景 */}
+        <View style={[styles.section, { backgroundColor: colors.backgroundElement }]}>
+          <Text style={{ color: colors.text, fontWeight: '700' }}>自定义背景</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
+            {bg.uri ? '已设置背景图片，全App生效' : '未设置，使用默认纯色背景'}
+          </Text>
+          <View style={[styles.timesBtnRow, { marginTop: 10 }]}>
+            <Pressable
+              onPress={() => void pickBackground()}
+              style={[styles.timesBtn, { backgroundColor: colors.backgroundSelected, flex: 1 }]}>
+              <Text style={{ color: colors.text, fontSize: 12 }}>{bg.uri ? '更换图片' : '选择图片'}</Text>
+            </Pressable>
+            <Pressable
+              disabled={!bg.uri}
+              onPress={() => void clearBackground()}
+              style={[styles.timesBtn, { backgroundColor: colors.backgroundSelected, flex: 1, opacity: bg.uri ? 1 : 0.4 }]}>
+              <Text style={{ color: colors.text, fontSize: 12 }}>清除背景</Text>
+            </Pressable>
+          </View>
+          {!!bg.uri && (
+            <View style={[styles.timesBtnRow, { marginTop: 8, marginBottom: 0 }]}>
+              {BG_OPACITIES.map((op) => (
+                <Pressable
+                  key={op}
+                  onPress={() => void setBackgroundOpacity(op)}
+                  style={[
+                    styles.timesBtn,
+                    { backgroundColor: bg.opacity === op ? '#2563eb' : colors.backgroundSelected, flex: 1 },
+                  ]}>
+                  <Text style={{ color: bg.opacity === op ? '#fff' : colors.text, fontSize: 11 }}>
+                    {Math.round(op * 100)}%
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
         </View>
 
         <UpdateCard colors={colors} />

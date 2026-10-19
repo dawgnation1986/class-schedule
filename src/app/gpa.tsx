@@ -7,11 +7,13 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { usePageBackground } from '@/lib/background';
 import { getGradesStat, scoreToGpa, type GradesStat } from '@/lib/school-data';
 
 export default function GpaScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const pageBg = usePageBackground(colors);
   const router = useRouter();
 
   const [stat, setStat] = useState<GradesStat | null>(null);
@@ -37,7 +39,7 @@ export default function GpaScreen() {
   const maxAvg = stat ? Math.max(80, ...stat.terms.map((t) => t.avg)) : 100;
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color={colors.text} />

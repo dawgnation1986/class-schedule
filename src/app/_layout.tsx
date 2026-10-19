@@ -6,6 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { UpdatePrompt } from '@/components/update-prompt';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { BackgroundLayer, primeBackground } from '@/lib/background';
 import { primeScheduleTimes } from '@/lib/schedule-times';
 import { primeThemeMode } from '@/lib/theme';
 
@@ -14,16 +15,18 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
-  // 启动时预热作息时间表与外观模式(自定义/季节选择), 供倒计时/通知/今日课程使用
+  // 启动时预热作息时间表/外观模式/自定义背景
   useEffect(() => {
     void primeScheduleTimes();
     void primeThemeMode();
+    void primeBackground();
   }, []);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <AnimatedSplashOverlay />
-      {/* 启动后自动检查更新, 发现新版本弹窗提示 */}
+      {/* 自定义背景图层(页面背景透明时露出) */}
+      <BackgroundLayer />
       <UpdatePrompt />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />

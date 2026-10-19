@@ -8,6 +8,7 @@ import * as Sharing from 'expo-sharing';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { usePageBackground } from '@/lib/background';
 import {
   beijingNow,
   loadInitial,
@@ -147,6 +148,7 @@ function DatePickModal({
 export default function ScheduleScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const pageBg = usePageBackground(colors);
   const router = useRouter();
 
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -358,7 +360,7 @@ export default function ScheduleScreen() {
 
   if (!settings) {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
         <View style={styles.emptyWrap}>
           <Text style={[styles.emptyTitle, { color: colors.text }]}>还没有配置班级</Text>
           <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
@@ -373,7 +375,7 @@ export default function ScheduleScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
       <View style={styles.header}>
         <Pressable style={{ flex: 1 }} onPress={() => setDatePickerOpen(true)}>
           <View style={styles.titleRow}>
