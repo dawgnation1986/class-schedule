@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Image, StyleSheet } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { Colors } from '@/constants/theme';
@@ -76,10 +76,22 @@ export function usePageBackground(colors: (typeof Colors)[keyof typeof Colors]):
   return bg.uri ? 'transparent' : colors.background;
 }
 
-/** 全局背景图层(渲染在根布局最底层, 页面透明时可见) */
+/** 全局背景图层(渲染在根布局最底层, 标签栏等透明区域可见) */
 export function BackgroundLayer() {
   const [bg, setBg] = useState<BgSetting>(() => cache);
   useEffect(() => subscribeBackground(() => setBg({ ...cache })), []);
   if (!bg.uri) return null;
   return <Image source={{ uri: bg.uri }} style={[StyleSheet.absoluteFill, { opacity: bg.opacity }]} resizeMode="cover" />;
+}
+
+/** 页面级背景图层(渲染在每页 SafeAreaView 内, 穿透导航容器的遮挡, 不拦截触摸) */
+export function PageBackdrop() {
+  const [bg, setBg] = useState<BgSetting>(() => cache);
+  useEffect(() => subscribeBackground(() => setBg({ ...cache })), []);
+  if (!bg.uri) return null;
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <Image source={{ uri: bg.uri }} style={[StyleSheet.absoluteFill, { opacity: bg.opacity }]} resizeMode="cover" />
+    </View>
+  );
 }
