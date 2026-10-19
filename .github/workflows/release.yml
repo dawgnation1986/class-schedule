@@ -60,8 +60,14 @@ jobs:
           URL=$(node -e "const a=require('./build-meta.json');const b=Array.isArray(a)?a[a.length-1]:a;console.log((b.artifacts&&b.artifacts.buildUrl)||'')")
           echo "APK URL: $URL"
           test -n "$URL"
-          curl -L --retry 3 -o class-schedule.apk "$URL"
-          ls -la class-schedule.apk
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            APK_NAME="class-schedule-${GITHUB_REF_NAME}.apk"
+          else
+            APK_NAME="class-schedule-v$(node -e "console.log(require('./app.json').expo.version)").apk"
+          fi
+          echo "APK_NAME=$APK_NAME" >> "$GITHUB_ENV"
+          curl -L --retry 3 -o "$APK_NAME" "$URL"
+          ls -la "$APK_NAME"
 
       - name: Create GitHub Release and upload APK
         env:
@@ -75,7 +81,7 @@ jobs:
           TITLE="课表助手 $TAG"
           NOTES="自动构建于 $(date -u '+%Y-%m-%d %H:%M UTC')
 
-          - 下载 class-schedule.apk 直接安装
+          - 下载 $APK_NAME 直接安装
           - 覆盖安装不会丢失课表设置与本地数据"
-          gh release create "$TAG" class-schedule.apk --title "$TITLE" --notes "$NOTES" \
-            || gh release upload "$TAG" class-schedule.apk --clobber
+          gh release create "$TAG" "$APK_NAME" --title "$TITLE" --notes "$NOTES" \
+            || gh release upload "$TAG" "$APK_NAME" --clobber
