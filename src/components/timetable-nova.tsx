@@ -9,7 +9,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { usePageBackground } from '@/lib/background';
+import { PageBackdrop, usePageBackground } from '@/lib/background';
 import {
   beijingNow,
   loadInitial,
@@ -156,7 +156,7 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
-      {/* 顶栏 */}
+      <PageBackdrop />      {/* 顶栏 */}
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={{ color: colors.text, fontSize: 20, fontWeight: '800' }} numberOfLines={1}>

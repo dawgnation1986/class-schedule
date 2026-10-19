@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { usePageBackground } from '@/lib/background';
+import { PageBackdrop, usePageBackground } from '@/lib/background';
 import { PickerField } from '@/components/picker-field';
 import {
   loadInitial,
@@ -113,7 +113,7 @@ export default function TempQueryScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <PageBackdrop />      <ScrollView contentContainerStyle={styles.content}>
         <Pressable onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.backgroundElement }]}>
           <Text style={{ color: colors.text, fontSize: 14 }}>← 返回</Text>
         </Pressable>

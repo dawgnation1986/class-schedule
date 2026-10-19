@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { usePageBackground } from '@/lib/background';
+import { PageBackdrop, usePageBackground } from '@/lib/background';
 import { getThemeMode, saveThemeMode, subscribeTheme, themeModeLabel, type ThemeMode } from '@/lib/theme';
 import {
   clearBackground,
@@ -254,7 +254,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <PageBackdrop />      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={[styles.title, { color: colors.text }]}>我的</Text>
 
         <Text style={[styles.label, { color: colors.textSecondary }]}>主站账号（学号）</Text>

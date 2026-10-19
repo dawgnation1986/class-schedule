@@ -8,7 +8,7 @@ import * as Sharing from 'expo-sharing';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { usePageBackground } from '@/lib/background';
+import { PageBackdrop, usePageBackground } from '@/lib/background';
 import {
   beijingNow,
   loadInitial,
@@ -374,7 +374,7 @@ function ClassicScreen() {
   if (!settings) {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
-        <View style={styles.emptyWrap}>
+      <PageBackdrop />        <View style={styles.emptyWrap}>
           <Text style={[styles.emptyTitle, { color: colors.text }]}>还没有配置班级</Text>
           <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
             先去设置里选择系部、专业和班级，之后打开 APP 就会自动查询本周课表。
@@ -389,7 +389,7 @@ function ClassicScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
-      <View style={styles.header}>
+      <PageBackdrop />      <View style={styles.header}>
         <Pressable style={{ flex: 1 }} onPress={() => setDatePickerOpen(true)}>
           <View style={styles.titleRow}>
             <Text style={[styles.classTitle, { color: colors.text, flexShrink: 1 }]}>{settings.bjLabel}</Text>

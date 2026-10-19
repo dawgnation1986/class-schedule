@@ -8,7 +8,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { usePageBackground } from '@/lib/background';
+import { PageBackdrop, usePageBackground } from '@/lib/background';
 import {
   beijingNow,
   loadInitial,
@@ -114,7 +114,7 @@ export default function TodayScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
-      <View style={styles.header}>
+      <PageBackdrop />      <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color={colors.text} />
           <Text style={{ color: colors.text, fontSize: 16 }}>返回</Text>
