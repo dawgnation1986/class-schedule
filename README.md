@@ -1,56 +1,45 @@
-# Welcome to your Expo app 👋
+# 课表助手 (class-schedule)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+长沙环境保护职业技术学院的专属课表 App，基于 React Native + Expo 开发，原生渲染、轻量快速。
 
-## Get started
+> ⚠️ 仅供学习交流使用，请勿用于任何商业用途。数据来自学校教务系统公开接口。
 
-1. Install dependencies
+## 功能
 
-   ```bash
-   npm install
-   ```
+- **班级课表查询** — 无需登录，全系/专业/班级课表直查，支持本周实时课表与原始课表切换
+- **今日课程** — 时间轴式呈现当天课程，自动标记上课中 / 下一节 / 已结束
+- **上课倒计时** — 顶部实时显示"本节课还剩 X 分钟"，快下课变橙色
+- **上课提醒** — 按最新课表自动排期未来 7 天，上课前 10 分钟本地通知
+- **临时查课** — 查看其他班级课表，一键回到自己班级
+- **课程详情** — 点课表格子弹出教室 / 教师 / 周次详情卡
+- **课程颜色区分** — 每门课固定专属底色，一眼分清
+- **作业清单** — 本地待办，可关联到某节课
+- **成绩 GPA 统计** — 加权平均分 / 绩点 / 按学期趋势图
+- **考试倒计时** — "距高数考试还有 5 天"卡片
+- **课表长图分享** — 一键生成横版周课表图片发同学
+- **天气小组件** — 按 IP 定位，实时天气 + 30 分钟缓存
+- **综合管理平台** — 账号登录 + 应用列表搜索 + 会话持久化（过期自动降级登录页）
+- **检查更新** — 自动读取 GitHub Releases 比对版本，应用内直接下载 APK
 
-2. Start the app
+## 技术栈
 
-   ```bash
-   npx expo start
-   ```
+- React Native 0.83 · Expo SDK 57（expo-router 文件路由）
+- ASP.NET 教务系统接口逆向（WebForms 回发链：__VIEWSTATE → 系部 → 专业 → 班级 → 课表）
+- expo-notifications 本地通知 · react-native-view-shot 长图分享
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## 开发
 
 ```bash
-npm run reset-project
+npm install
+npx expo start        # Expo Go 或 Android 设备
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## 自动构建发版
 
-### Other setup steps
+推送 `v*` 标签（或手动触发 Actions）→ GitHub Actions 调 EAS 云构建 APK → 构建完成后自动创建 GitHub Release 并上传 APK。
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+App 内设置页可"检查更新"，拉取最新 Release 的 APK 直链。
 
-## Learn more
+## License
 
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+MIT
