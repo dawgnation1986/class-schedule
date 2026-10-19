@@ -6,6 +6,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { AboutGithub } from '@/components/about-github';
 import { PORTAL_SITE, clearSession, loadLoginPage, submitLogin, tryRestoreSession, type LoginState, type PortalApp } from '@/lib/portal';
 import { loadAccount, saveAccount } from '@/lib/account';
 
@@ -246,6 +247,8 @@ export default function PortalScreen() {
             )}
           </View>
         )}
+
+        <AboutGithub colors={colors} />
       </ScrollView>
     </SafeAreaView>
   );
