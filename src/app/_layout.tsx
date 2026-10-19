@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { UpdatePrompt } from '@/components/update-prompt';
 import { primeScheduleTimes } from '@/lib/schedule-times';
 
 SplashScreen.preventAutoHideAsync();
@@ -20,6 +21,8 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <AnimatedSplashOverlay />
+      {/* 启动后自动检查更新, 发现新版本弹窗提示 */}
+      <UpdatePrompt />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="settings" />
