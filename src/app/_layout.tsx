@@ -1,21 +1,23 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
-import { useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { UpdatePrompt } from '@/components/update-prompt';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { primeScheduleTimes } from '@/lib/schedule-times';
+import { primeThemeMode } from '@/lib/theme';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
-  // 启动时预热作息时间表(自定义/季节选择), 供倒计时/通知/今日课程使用
+  // 启动时预热作息时间表与外观模式(自定义/季节选择), 供倒计时/通知/今日课程使用
   useEffect(() => {
     void primeScheduleTimes();
+    void primeThemeMode();
   }, []);
 
   return (
