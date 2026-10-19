@@ -15,6 +15,24 @@ const KEY = 'settings.timetable.v1';
 
 export const DEFAULT_QUERY_TYPE: QueryType = 'realtime';
 
+/** 课表界面风格: classic=经典网格(默认) / nova=新界面日程时间轴 */
+export type TimetableUI = 'classic' | 'nova';
+
+const UI_KEY = 'settings.timetable-ui.v1';
+
+export async function loadTimetableUI(): Promise<TimetableUI> {
+  try {
+    const raw = await AsyncStorage.getItem(UI_KEY);
+    return raw === 'nova' ? 'nova' : 'classic';
+  } catch {
+    return 'classic';
+  }
+}
+
+export async function saveTimetableUI(ui: TimetableUI): Promise<void> {
+  await AsyncStorage.setItem(UI_KEY, ui);
+}
+
 export async function loadSettings(): Promise<Settings | null> {
   try {
     const raw = await AsyncStorage.getItem(KEY);

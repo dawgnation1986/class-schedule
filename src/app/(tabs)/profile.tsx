@@ -17,6 +17,7 @@ import {
 } from '@/lib/background';
 import { loadAccount, saveAccount, type StartPage } from '@/lib/account';
 import { loadSettings } from '@/lib/settings';
+import { loadTimetableUI, saveTimetableUI, type TimetableUI } from '@/lib/settings';
 import {
   activeSourceLabel,
   clearCustomTimes,
@@ -216,6 +217,11 @@ export default function ProfileScreen() {
 
   const THEME_OPTIONS: ThemeMode[] = ['auto', 'light', 'dark'];
   const BG_OPACITIES = [0.2, 0.35, 0.5, 0.75];
+  const [ttUI, setTtUI] = useState<TimetableUI>('classic');
+
+  useEffect(() => {
+    void loadTimetableUI().then(setTtUI);
+  }, []);
 
   useEffect(() => {
     const sync = () => {
@@ -399,7 +405,7 @@ export default function ProfileScreen() {
               disabled={!bg.uri}
               onPress={() => void clearBackground()}
               style={[styles.timesBtn, { backgroundColor: colors.backgroundSelected, flex: 1, opacity: bg.uri ? 1 : 0.4 }]}>
-              <Text style={{ color: colors.text, fontSize: 12 }}>清除背景</Text>
+              <Text style={{ color: colors.text, fontSize: 12 }}>恢复默认背景</Text>
             </Pressable>
           </View>
           {!!bg.uri && (
@@ -419,6 +425,31 @@ export default function ProfileScreen() {
               ))}
             </View>
           )}
+        </View>
+
+        {/* 课表界面风格 */}
+        <View style={[styles.section, { backgroundColor: colors.backgroundElement }]}>
+          <Text style={{ color: colors.text, fontWeight: '700' }}>课表界面</Text>
+          <View style={[styles.timesBtnRow, { marginTop: 10, marginBottom: 0 }]}>
+            {(
+              [
+                ['classic', '旧版网格'],
+                ['nova', '新版日程'],
+              ] as [TimetableUI, string][]
+            ).map(([v, label]) => (
+              <Pressable
+                key={v}
+                onPress={() => {
+                  setTtUI(v);
+                  void saveTimetableUI(v);
+                }}
+                style={[styles.timesBtn, { backgroundColor: ttUI === v ? '#2563eb' : colors.backgroundSelected, flex: 1 }]}>
+                <Text style={{ color: ttUI === v ? '#fff' : colors.text, fontSize: 12, fontWeight: ttUI === v ? '700' : '400' }}>
+                  {label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
 
         <UpdateCard colors={colors} />

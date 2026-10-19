@@ -18,12 +18,13 @@ import {
   type QueryType,
   type Timetable,
 } from '@/lib/timetable';
-import { DEFAULT_QUERY_TYPE, loadSettings, type Settings } from '@/lib/settings';
+import { DEFAULT_QUERY_TYPE, loadSettings, loadTimetableUI, type Settings, type TimetableUI } from '@/lib/settings';
 import { getTempOverride, setTempOverride } from '@/lib/tempOverride';
 import { fetchWeather, fetchWeatherFull, type Weather, type WeatherFull } from '@/lib/weather';
 import { WeatherModal } from '@/components/weather-modal';
 import { scheduleClassReminders } from '@/lib/notifications';
 import { getPeriodTimes, subscribeTimes } from '@/lib/schedule-times';
+import { NovaTimetable } from '@/components/timetable-nova';
 import { getExams, type ExamInfo } from '@/lib/school-data';
 
 const WEEK_NAMES = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
@@ -145,7 +146,19 @@ function DatePickModal({
   );
 }
 
-export default function ScheduleScreen() {
+export default function TimetableEntry() {
+  const [ui, setUi] = useState<TimetableUI | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      void loadTimetableUI().then(setUi);
+    }, []),
+  );
+  if (ui === null) return null; // 等待读取设置, 避免闪屏
+  if (ui === 'nova') return <NovaTimetable onSwitchUI={(u) => setUi(u)} />;
+  return <ClassicScreen />;
+}
+
+function ClassicScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
   const pageBg = usePageBackground(colors);
@@ -463,6 +476,12 @@ export default function ScheduleScreen() {
           </Pressable>
           <Pressable onPress={() => shiftDate(1)} style={[styles.dayBtn, { backgroundColor: colors.backgroundElement }]}>
             <Text style={{ color: colors.text, fontSize: 13 }}>后一天</Text>
+          </Pressable>
+          <Pressable onPress={() => shiftDate(-7)} style={[styles.dayBtn, { backgroundColor: colors.backgroundElement }]}>
+            <Text style={{ color: colors.text, fontSize: 13 }}>上一周</Text>
+          </Pressable>
+          <Pressable onPress={() => shiftDate(7)} style={[styles.dayBtn, { backgroundColor: colors.backgroundElement }]}>
+            <Text style={{ color: colors.text, fontSize: 13 }}>下一周</Text>
           </Pressable>
           <Pressable onPress={shareSchedule} style={[styles.dayBtn, { backgroundColor: colors.backgroundElement }]}>
             <Ionicons name="share-social-outline" size={14} color={colors.text} />
