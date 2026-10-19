@@ -1,21 +1,20 @@
 {
   "expo": {
-    "name": "class-schedule",
+    "name": "学生综合管理平台",
     "slug": "class-schedule",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/student-icon.png",
     "scheme": "classschedule",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"
     },
     "android": {
+      "package": "com.classhoke.classschedule",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#1E88E5",
+        "foregroundImage": "./assets/images/student-icon.png"
       },
       "predictiveBackGestureEnabled": false
     },
@@ -29,14 +28,22 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#208AEF",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "image": "./assets/images/student-icon.png",
+          "imageWidth": 140
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "afa3fdf7-f1df-4b0c-94b8-ed54ef696a46"
+      }
+    },
+    "owner": "zhaoheming"
   }
 }

@@ -41,3 +41,10 @@ example
 # generated native folders
 /ios
 /android
+
+# local debug artifacts
+state8.json
+probe8*.mjs
+captcha8*.jpg
+q_*.html
+backup/
