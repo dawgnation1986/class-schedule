@@ -1,0 +1,70 @@
+name: Build & Release (Android APK)
+
+# 触发: 手动运行 (Actions 页面 Run workflow), 或推送 v* 标签 (如 v1.0.1)
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write # 创建 Release / 上传资产
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # 认证: 优先 EXPO_TOKEN (expo.dev Access Token);
+      # 否则恢复本地导出的 EAS 会话 (secrets.EAS_SESSION_JSON = ~/.expo/state.json 内容)
+      - name: Authenticate with EAS
+        run: |
+          mkdir -p ~/.expo
+          if [ -n "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "EXPO_TOKEN=${{ secrets.EXPO_TOKEN }}" >> "$GITHUB_ENV"
+          else
+            printf '%s' "${{ secrets.EAS_SESSION_JSON }}" > ~/.expo/state.json
+          fi
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+
+      - name: Build Android APK (EAS, waits for completion)
+        run: |
+          npx eas-cli@latest build \
+            --platform android \
+            --profile preview \
+            --non-interactive \
+            --wait \
+            --json > build-meta.json
+          cat build-meta.json
+
+      - name: Download APK
+        run: |
+          URL=$(node -e "const a=require('./build-meta.json');const b=Array.isArray(a)?a[a.length-1]:a;console.log((b.artifacts&&b.artifacts.buildUrl)||'')")
+          echo "APK URL: $URL"
+          test -n "$URL"
+          curl -L --retry 3 -o class-schedule.apk "$URL"
+          ls -la class-schedule.apk
+
+      - name: Create GitHub Release and upload APK
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="v$(node -e "console.log(require('./app.json').expo.version)")"
+          fi
+          TITLE="课表助手 $TAG"
+          NOTES="自动构建于 $(date -u '+%Y-%m-%d %H:%M UTC')
+
+          - 下载 class-schedule.apk 直接安装
+          - 覆盖安装不会丢失课表设置与本地数据"
+          gh release create "$TAG" class-schedule.apk --title "$TITLE" --notes "$NOTES" \
+            || gh release upload "$TAG" class-schedule.apk --clobber

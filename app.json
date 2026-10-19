@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "学生综合管理平台",
+    "slug": "class-schedule",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/student-icon.png",
+    "scheme": "classschedule",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "icon": "./assets/expo.icon"
+    },
+    "android": {
+      "package": "com.classhoke.classschedule",
+      "adaptiveIcon": {
+        "backgroundColor": "#1E88E5",
+        "foregroundImage": "./assets/images/student-icon.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#208AEF",
+          "image": "./assets/images/student-icon.png",
+          "imageWidth": 140
+        }
+      ],
+      "expo-sharing"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "afa3fdf7-f1df-4b0c-94b8-ed54ef696a46"
+      }
+    },
+    "owner": "zhaoheming"
+  }
+}
