@@ -9,7 +9,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { PageBackdrop, usePageBackground } from '@/lib/background';
+import { usePageBackground, useBgSetting } from '@/lib/background';
 import {
   beijingNow,
   loadInitial,
@@ -53,6 +53,10 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
   const isDark = scheme === 'dark';
   const colors = Colors[isDark ? 'dark' : 'light'];
   const pageBg = usePageBackground(colors);
+  const bgSetting = useBgSetting();
+  // 控件全透明模式: 只留文字 + 1px 外轮廓
+  const glass = !!bgSetting.uri && !!bgSetting.ctrl;
+  const glassLine = isDark ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
   const router = useRouter();
 
   const [className, setClassName] = useState('');
@@ -156,7 +160,7 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
-      <PageBackdrop />      {/* 顶栏 */}
+      {/* 顶栏 */}
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={{ color: colors.text, fontSize: 20, fontWeight: '800' }} numberOfLines={1}>
@@ -169,7 +173,7 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
         </View>
         <Pressable
           onPress={() => void switchUI('classic')}
-          style={[styles.headerBtn, { backgroundColor: colors.backgroundElement }]}>
+          style={[styles.headerBtn, glass ? { backgroundColor: 'transparent', borderWidth: 1, borderColor: glassLine } : null, { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
           <Ionicons name="grid-outline" size={14} color={colors.text} />
           <Text style={{ color: colors.text, fontSize: 12 }}>经典</Text>
         </Pressable>
@@ -183,7 +187,12 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
       </View>
 
       {/* 周日期条 */}
-      <View style={[styles.weekRow, { backgroundColor: colors.backgroundElement }]}>
+      <View
+        style={[
+          styles.weekRow,
+          glass ? { backgroundColor: 'transparent', borderWidth: 1, borderColor: glassLine } : null,
+          { backgroundColor: glass ? 'transparent' : colors.backgroundElement },
+        ]}>
         {weekDays.map((d, i) => {
           const active = sameDay(d, selected);
           const today = sameDay(d, now);
@@ -257,7 +266,9 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
                 <Pressable
                   style={[
                     styles.courseCard,
-                    { backgroundColor: cc.bg },
+                    glass
+                      ? { backgroundColor: 'transparent', borderWidth: 1, borderColor: cc.fg }
+                      : { backgroundColor: cc.bg },
                     st === 0 && { borderWidth: 2, borderColor: '#16a34a' },
                     st < 0 && { opacity: 0.5 },
                   ]}>

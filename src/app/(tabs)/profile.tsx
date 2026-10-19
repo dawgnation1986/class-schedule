@@ -5,13 +5,14 @@ import { useRouter } from 'expo-router';
 
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { PageBackdrop, usePageBackground } from '@/lib/background';
+import { usePageBackground } from '@/lib/background';
 import { getThemeMode, saveThemeMode, subscribeTheme, themeModeLabel, type ThemeMode } from '@/lib/theme';
 import {
   clearBackground,
   getBackground,
   pickBackground,
   setBackgroundOpacity,
+  setControlsTransparent,
   subscribeBackground,
   type BgSetting,
 } from '@/lib/background';
@@ -254,7 +255,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
-      <PageBackdrop />      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={[styles.title, { color: colors.text }]}>我的</Text>
 
         <Text style={[styles.label, { color: colors.textSecondary }]}>主站账号（学号）</Text>
@@ -423,6 +424,17 @@ export default function ProfileScreen() {
                   </Text>
                 </Pressable>
               ))}
+            </View>
+          )}
+          {!!bg.uri && (
+            <View style={[styles.timesBtnRow, { marginTop: 8, marginBottom: 0 }]}>
+              <Pressable
+                onPress={() => void setControlsTransparent(!bg.ctrl)}
+                style={[styles.timesBtn, { flex: 1, backgroundColor: bg.ctrl ? '#2563eb' : colors.backgroundSelected }]}>
+                <Text style={{ color: bg.ctrl ? '#fff' : colors.text, fontSize: 11 }}>
+                  控件全透明：{bg.ctrl ? '开' : '关'}（只留文字+1px轮廓）
+                </Text>
+              </Pressable>
             </View>
           )}
         </View>

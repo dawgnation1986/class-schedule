@@ -7,10 +7,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { Colors } from '@/constants/theme';
 
-export type BgSetting = { uri: string | null; opacity: number };
+export type BgSetting = { uri: string | null; opacity: number; ctrl?: boolean };
 
 const KEY = 'app-background-v1';
-const DEFAULT_BG: BgSetting = { uri: null, opacity: 0.25 };
+const DEFAULT_BG: BgSetting = { uri: null, opacity: 0.25, ctrl: false };
 
 let cache: BgSetting = DEFAULT_BG;
 const subs = new Set<() => void>();
@@ -67,6 +67,18 @@ export async function clearBackground(): Promise<void> {
 
 export async function setBackgroundOpacity(opacity: number): Promise<void> {
   await persist({ ...cache, opacity });
+}
+
+/** 控件全透明开关: 开启后按钮/卡片/表格只显示文字 + 1px 外轮廓 */
+export async function setControlsTransparent(ctrl: boolean): Promise<void> {
+  await persist({ ...cache, ctrl });
+}
+
+/** 读取完整背景设置(订阅变化) */
+export function useBgSetting(): BgSetting {
+  const [bg, setBg] = useState<BgSetting>(() => cache);
+  useEffect(() => subscribeBackground(() => setBg({ ...cache })), []);
+  return bg;
 }
 
 /** 页面背景色: 有自定义背景时页面透明露出底层图, 否则用主题色 */

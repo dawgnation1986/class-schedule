@@ -13,7 +13,7 @@ export default function AppTabs() {
       backgroundColor={usePageBackground(colors)}
       indicatorColor={colors.backgroundElement}
       labelStyle={{ selected: { color: colors.text } }}>
-      <NativeTabs.Trigger name="home">
+      <NativeTabs.Trigger name="home" contentStyle={{ backgroundColor: 'transparent' }}>
         <NativeTabs.Trigger.Label>主站</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           src={require('@/assets/images/tabIcons/explore.png')}
@@ -21,7 +21,7 @@ export default function AppTabs() {
         />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="timetable">
+      <NativeTabs.Trigger name="timetable" contentStyle={{ backgroundColor: 'transparent' }}>
         <NativeTabs.Trigger.Label>课表</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           src={require('@/assets/images/tabIcons/home.png')}
@@ -29,7 +29,7 @@ export default function AppTabs() {
         />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="profile">
+      <NativeTabs.Trigger name="profile" contentStyle={{ backgroundColor: 'transparent' }}>
         <NativeTabs.Trigger.Label>我的</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           src={require('@/assets/images/tabIcons/person.png')}

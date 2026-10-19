@@ -8,7 +8,7 @@ import * as Sharing from 'expo-sharing';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { PageBackdrop, usePageBackground } from '@/lib/background';
+import { usePageBackground, useBgSetting } from '@/lib/background';
 import {
   beijingNow,
   loadInitial,
@@ -162,6 +162,14 @@ function ClassicScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
   const pageBg = usePageBackground(colors);
+  const bgSetting = useBgSetting();
+  // 控件全透明模式: 设了背景图且开启开关 → 按钮/卡片/表格只留文字 + 1px 外轮廓
+  const glass = !!bgSetting.uri && !!bgSetting.ctrl;
+  const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
+  const btnBg = (active = false): string | null =>
+    glass ? (active ? 'rgba(37,99,235,0.15)' : 'transparent') : null;
+  const glassBorder = (active = false) =>
+    glass ? { borderWidth: 1, borderColor: active ? 'rgba(37,99,235,0.55)' : glassLine } : null;
   const router = useRouter();
 
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -374,7 +382,7 @@ function ClassicScreen() {
   if (!settings) {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
-      <PageBackdrop />        <View style={styles.emptyWrap}>
+        <View style={styles.emptyWrap}>
           <Text style={[styles.emptyTitle, { color: colors.text }]}>还没有配置班级</Text>
           <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
             先去设置里选择系部、专业和班级，之后打开 APP 就会自动查询本周课表。
@@ -389,7 +397,7 @@ function ClassicScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
-      <PageBackdrop />      <View style={styles.header}>
+      <View style={styles.header}>
         <Pressable style={{ flex: 1 }} onPress={() => setDatePickerOpen(true)}>
           <View style={styles.titleRow}>
             <Text style={[styles.classTitle, { color: colors.text, flexShrink: 1 }]}>{settings.bjLabel}</Text>
@@ -405,7 +413,7 @@ function ClassicScreen() {
                       .finally(() => setWxLoading(false));
                   }
                 }}>
-                <View style={[styles.weatherChip, { backgroundColor: colors.backgroundElement }]}>
+                <View style={[styles.weatherChip, glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }]}>
                   <Ionicons
                     name={weather.icon as React.ComponentProps<typeof Ionicons>['name']}
                     size={15}
@@ -437,7 +445,7 @@ function ClassicScreen() {
         <Pressable
           onPress={() => refresh()}
           disabled={loading}
-          style={[styles.refreshBtn, { backgroundColor: colors.backgroundElement }]}>
+          style={[styles.refreshBtn, glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }]}>
           <Text style={{ color: colors.text }}>{loading ? '查询中…' : '刷新'}</Text>
         </Pressable>
       </View>
@@ -458,7 +466,8 @@ function ClassicScreen() {
             onPress={() => switchType(v)}
             style={[
               styles.typeTab,
-              { backgroundColor: queryType === v ? colors.backgroundSelected : colors.backgroundElement },
+              glassBorder(queryType === v),
+              { backgroundColor: btnBg(queryType === v) ?? (queryType === v ? colors.backgroundSelected : colors.backgroundElement) },
             ]}>
             <Text style={{ color: colors.text, fontSize: 13, fontWeight: queryType === v ? '700' : '400' }}>
               {label}
@@ -468,29 +477,29 @@ function ClassicScreen() {
         <View style={styles.dayBtnRow}>
           <Pressable
             onPress={() => router.push('/temp-query')}
-            style={[styles.dayBtn, { backgroundColor: colors.backgroundElement }]}>
+            style={[styles.dayBtn, glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }]}>
             <Text style={{ color: colors.text, fontSize: 13 }}>查其他班级</Text>
           </Pressable>
           <Pressable
             disabled={isToday}
             onPress={() => confirmDate(beijingNow())}
-            style={[styles.dayBtn, { backgroundColor: isToday ? 'rgba(37,99,235,0.10)' : '#2563eb', opacity: isToday ? 0.6 : 1 }]}>
+            style={[styles.dayBtn, glassBorder(isToday), { backgroundColor: glass ? (isToday ? 'rgba(37,99,235,0.15)' : 'transparent') : isToday ? 'rgba(37,99,235,0.10)' : '#2563eb', opacity: isToday && !glass ? 0.6 : 1 }]}>
             <Ionicons name="today-outline" size={14} color={isToday ? '#2563eb' : '#fff'} />
             <Text style={{ color: isToday ? '#2563eb' : '#fff', fontSize: 13, fontWeight: isToday ? '400' : '700' }}>回到今天</Text>
           </Pressable>
-          <Pressable onPress={() => shiftDate(-1)} style={[styles.dayBtn, { backgroundColor: colors.backgroundElement }]}>
+          <Pressable onPress={() => shiftDate(-1)} style={[styles.dayBtn, glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }]}>
             <Text style={{ color: colors.text, fontSize: 13 }}>前一天</Text>
           </Pressable>
-          <Pressable onPress={() => shiftDate(1)} style={[styles.dayBtn, { backgroundColor: colors.backgroundElement }]}>
+          <Pressable onPress={() => shiftDate(1)} style={[styles.dayBtn, glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }]}>
             <Text style={{ color: colors.text, fontSize: 13 }}>后一天</Text>
           </Pressable>
-          <Pressable onPress={() => shiftDate(-7)} style={[styles.dayBtn, { backgroundColor: colors.backgroundElement }]}>
+          <Pressable onPress={() => shiftDate(-7)} style={[styles.dayBtn, glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }]}>
             <Text style={{ color: colors.text, fontSize: 13 }}>上一周</Text>
           </Pressable>
-          <Pressable onPress={() => shiftDate(7)} style={[styles.dayBtn, { backgroundColor: colors.backgroundElement }]}>
+          <Pressable onPress={() => shiftDate(7)} style={[styles.dayBtn, glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }]}>
             <Text style={{ color: colors.text, fontSize: 13 }}>下一周</Text>
           </Pressable>
-          <Pressable onPress={shareSchedule} style={[styles.dayBtn, { backgroundColor: colors.backgroundElement }]}>
+          <Pressable onPress={shareSchedule} style={[styles.dayBtn, glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }]}>
             <Ionicons name="share-social-outline" size={14} color={colors.text} />
             <Text style={{ color: colors.text, fontSize: 13 }}>分享</Text>
           </Pressable>
@@ -539,7 +548,7 @@ function ClassicScreen() {
             return (
               <View
                 key={`${e.course}-${e.date}-${i}`}
-                style={[styles.examCard, { backgroundColor: colors.backgroundElement }]}>
+                style={[styles.examCard, glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }]}>
                 <Text style={[styles.examDays, { color: urgent ? '#ef4444' : '#2563eb' }]}>
                   {e.daysLeft === 0 ? '今天考' : `${e.daysLeft} 天`}
                 </Text>
@@ -569,7 +578,15 @@ function ClassicScreen() {
             {/* 左侧固定节次列(不随横向滚动, 按实测行位置绝对对齐) */}
             <View style={[styles.pinCol, { height: tableH || undefined }]}>
               <View
-                style={[styles.pinCell, { top: 0, height: headerH || 34, backgroundColor: colors.backgroundElement }]}>
+                style={[
+                  styles.pinCell,
+                  glassBorder(),
+                  {
+                    top: 0,
+                    height: headerH || 34,
+                    backgroundColor: glass ? 'transparent' : colors.backgroundElement,
+                  },
+                ]}>
                 <Text style={[styles.cellText, { color: colors.textSecondary }]}>节次</Text>
               </View>
               {timetable.rows.map((row) => {
@@ -581,10 +598,11 @@ function ClassicScreen() {
                     key={row.index}
                     style={[
                       styles.pinCell,
+                      glassBorder(isTarget),
                       {
                         top: m.y,
                         height: m.h,
-                        backgroundColor: isTarget ? '#2563eb' : colors.backgroundElement,
+                        backgroundColor: isTarget ? '#2563eb' : glass ? 'transparent' : colors.backgroundElement,
                       },
                     ]}>
                     <Text
@@ -616,7 +634,8 @@ function ClassicScreen() {
                       style={[
                         styles.cell,
                         styles.cellHead,
-                        { backgroundColor: i === todayCol ? colors.backgroundSelected : colors.backgroundElement },
+                        glassBorder(i === todayCol),
+                        { backgroundColor: glass ? (i === todayCol ? 'rgba(37,99,235,0.15)' : 'transparent') : i === todayCol ? colors.backgroundSelected : colors.backgroundElement },
                       ]}>
                       <Text style={{ color: i === todayCol ? colors.text : colors.textSecondary, fontSize: 12 }}>
                         {d}
@@ -649,7 +668,8 @@ function ClassicScreen() {
                             style={[
                               styles.cell,
                               isCross && styles.cellCross,
-                              { backgroundColor: i === todayCol ? colors.backgroundSelected : colors.backgroundElement },
+                              glassBorder(i === todayCol),
+                              { backgroundColor: glass ? (i === todayCol ? 'rgba(37,99,235,0.15)' : 'transparent') : i === todayCol ? colors.backgroundSelected : colors.backgroundElement },
                             ]}>
                             {isCross && courses.length === 0 ? (
                               <Text style={{ color: colors.textSecondary, fontSize: 11, textAlign: 'center' }}>
