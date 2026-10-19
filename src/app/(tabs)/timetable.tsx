@@ -471,6 +471,13 @@ function ClassicScreen() {
             style={[styles.dayBtn, { backgroundColor: colors.backgroundElement }]}>
             <Text style={{ color: colors.text, fontSize: 13 }}>查其他班级</Text>
           </Pressable>
+          <Pressable
+            disabled={isToday}
+            onPress={() => confirmDate(beijingNow())}
+            style={[styles.dayBtn, { backgroundColor: isToday ? 'rgba(37,99,235,0.10)' : '#2563eb', opacity: isToday ? 0.6 : 1 }]}>
+            <Ionicons name="today-outline" size={14} color={isToday ? '#2563eb' : '#fff'} />
+            <Text style={{ color: isToday ? '#2563eb' : '#fff', fontSize: 13, fontWeight: isToday ? '400' : '700' }}>回到今天</Text>
+          </Pressable>
           <Pressable onPress={() => shiftDate(-1)} style={[styles.dayBtn, { backgroundColor: colors.backgroundElement }]}>
             <Text style={{ color: colors.text, fontSize: 13 }}>前一天</Text>
           </Pressable>
