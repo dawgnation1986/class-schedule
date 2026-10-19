@@ -15,7 +15,9 @@ import {
 import { DEFAULT_QUERY_TYPE, loadSettings, saveSettings, type Settings } from '@/lib/settings';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { PickerField } from '@/components/picker-field';
-import { checkUpdate, currentVersion, openDownload, type UpdateInfo } from '@/lib/updates';
+import { ApkDownload } from '@/components/download-view';
+import { AboutGithub } from '@/components/about-github';
+import { checkUpdate, currentVersion, type UpdateInfo } from '@/lib/updates';
 
 type FieldKey = 'xb' | 'zy' | 'bj';
 
@@ -231,14 +233,12 @@ export default function SettingsScreen() {
               {!!update.notes && (
                 <Text style={[styles.updateMsg, { color: colors.textSecondary }]}>{update.notes}</Text>
               )}
-              <Pressable
-                onPress={() => openDownload(update)}
-                style={{ backgroundColor: '#2563eb', borderRadius: 10, alignItems: 'center', paddingVertical: 11 }}>
-                <Text style={{ color: '#fff', fontWeight: '700' }}>下载 APK 安装包</Text>
-              </Pressable>
+              <ApkDownload info={update} colors={colors} />
             </View>
           )}
         </View>
+
+        <AboutGithub colors={colors} />
       </ScrollView>
     </SafeAreaView>
   );
