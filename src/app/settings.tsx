@@ -14,6 +14,7 @@ import {
 } from '@/lib/timetable';
 import { DEFAULT_QUERY_TYPE, loadSettings, saveSettings, type Settings } from '@/lib/settings';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { usePageBackground } from '@/lib/background';
 import { PickerField } from '@/components/picker-field';
 import { ApkDownload } from '@/components/download-view';
 import { AboutGithub } from '@/components/about-github';
@@ -29,6 +30,7 @@ const QUERY_TYPES: { value: QueryType; label: string; hint: string }[] = [
 export default function SettingsScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const pageBg = usePageBackground(colors);
   const router = useRouter();
 
   const [state, setState] = useState<PageState | null>(null);
@@ -120,7 +122,7 @@ export default function SettingsScreen() {
   const ready = sel.xb && sel.zy && sel.bj;
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
         <Pressable onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.backgroundElement }]}>
           <Text style={{ color: colors.text, fontSize: 14 }}>← 返回</Text>

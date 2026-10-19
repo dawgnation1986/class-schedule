@@ -8,6 +8,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { usePageBackground } from '@/lib/background';
 import {
   beijingNow,
   loadInitial,
@@ -36,6 +37,7 @@ function fmtDate(d: Date): string {
 export default function TodayScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const pageBg = usePageBackground(colors);
   const router = useRouter();
 
   const [timetable, setTimetable] = useState<Timetable | null>(null);
@@ -111,7 +113,7 @@ export default function TodayScreen() {
   const nextIdx = items.findIndex((it) => statusOf(it.period) >= 0);
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color={colors.text} />
