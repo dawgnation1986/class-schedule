@@ -22,14 +22,14 @@ jobs:
 
       # 认证: 优先 EXPO_TOKEN (expo.dev Access Token);
       # 否则恢复本地导出的 EAS 会话 (secrets.EAS_SESSION_JSON = ~/.expo/state.json 内容)
+      # 注意必须用 env 传递而不是 ${{ }} 内插: secret 值含 \" 转义, 内插会被 bash 二次处理导致 JSON 损坏
       - name: Authenticate with EAS
+        env:
+          EAS_SESSION_JSON: ${{ secrets.EAS_SESSION_JSON }}
         run: |
           mkdir -p ~/.expo
-          if [ -n "${{ secrets.EXPO_TOKEN }}" ]; then
-            echo "EXPO_TOKEN=${{ secrets.EXPO_TOKEN }}" >> "$GITHUB_ENV"
-          else
-            printf '%s' "${{ secrets.EAS_SESSION_JSON }}" > ~/.expo/state.json
-          fi
+          printf '%s' "$EAS_SESSION_JSON" > ~/.expo/state.json
+          node -e "JSON.parse(require('fs').readFileSync(process.env.HOME+'/.expo/state.json','utf8')); console.log('state.json valid')"
 
       - name: Install dependencies
         run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
