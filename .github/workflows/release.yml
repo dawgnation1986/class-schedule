@@ -35,14 +35,25 @@ jobs:
         run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
       - name: Build Android APK (EAS, waits for completion)
+        shell: bash
         run: |
+          set +e
           npx eas-cli@latest build \
             --platform android \
             --profile preview \
             --non-interactive \
             --wait \
-            --json > build-meta.json
-          cat build-meta.json
+            --json > build-meta.json 2> build-err.log
+          code=$?
+          echo "exit code: $code"
+          echo "--- stdout ---"
+          cat build-meta.json || true
+          echo "--- stderr ---"
+          cat build-err.log || true
+          if [ $code -ne 0 ] || [ ! -s build-meta.json ]; then
+            echo "::error::EAS build command failed (see stdout/stderr above)"
+            exit 1
+          fi
 
       - name: Download APK
         run: |
