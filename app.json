@@ -2,7 +2,7 @@
   "expo": {
     "name": "学生综合管理平台",
     "slug": "class-schedule",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "orientation": "portrait",
     "icon": "./assets/images/student-icon.png",
     "scheme": "classschedule",
@@ -12,6 +12,7 @@
     },
     "android": {
       "package": "com.classhoke.classschedule",
+      "permissions": ["REQUEST_INSTALL_PACKAGES"],
       "adaptiveIcon": {
         "backgroundColor": "#1E88E5",
         "foregroundImage": "./assets/images/student-icon.png"

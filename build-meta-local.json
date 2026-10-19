@@ -1,0 +1,67 @@
+﻿node.exe : ★ eas-cli@25.2.0 is now available.
+At line:1 char:1
++ & "D:\node/node.exe" "D:\node/node_modules/npm/bin/npx-cli.js" eas-cl ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (★ eas-cli@25.2.0 is now available.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+To upgrade, run:
+npm install -g eas-cli
+Proceeding with outdated version.
+
+Resolved "preview" environment for the build. Learn more: https://docs.expo.dev/eas/environment-variables/#setting-the-
+environment-for-your-builds
+No environment variables with visibility "Plain text" and "Sensitive" found for the "preview" environment on EAS.
+
+
+
+✔ Using remote Android credentials (Expo server)
+✔ Using Keystore from configuration: Build Credentials VSEyMj9hi8 (default)
+
+Compressing project files and uploading to EAS Build. Learn more: https://expo.fyi/eas-build-archive
+- Compressing project files
+- Uploading to EAS Build (0 / 3.0 MB)
+✔ Uploaded to EAS 16s
+- Computing project fingerprint
+✔ Computed project fingerprint
+
+See logs: https://expo.dev/accounts/zhaoheming/projects/class-schedule/builds/a00d4513-5133-4c03-b099-ac8490b8d792
+
+[
+  {
+    "id": "a00d4513-5133-4c03-b099-ac8490b8d792",
+    "status": "NEW",
+    "platform": "ANDROID",
+    "artifacts": {},
+    "fingerprint": {
+      "id": "01a06db6-db44-7db4-87ff-527d8f8a3a63",
+      "hash": "123b5725eed12bd07ace28e6a4c6563ae1aa1ce5"
+    },
+    "initiatingActor": {
+      "id": "9cafce5d-0c0f-43c0-8568-e9db633386cd",
+      "displayName": "zhaoheming"
+    },
+    "logFiles": [],
+    "project": {
+      "id": "afa3fdf7-f1df-4b0c-94b8-ed54ef696a46",
+      "name": "class-schedule",
+      "slug": "class-schedule",
+      "ownerAccount": {
+        "id": "5d311ac7-d96f-46e9-baf0-6c39e01b5c2f",
+        "name": "zhaoheming"
+      }
+    },
+    "distribution": "INTERNAL",
+    "buildProfile": "preview",
+    "sdkVersion": "57.0.0",
+    "appVersion": "1.0.0",
+    "appBuildVersion": "1",
+    "gitCommitHash": "e6b004d7b084f127a73d2f15d66fb354f5d1d03e",
+    "gitCommitMessage": "docs: README",
+    "priority": "NORMAL",
+    "createdAt": "2026-10-19T04:57:50.334Z",
+    "updatedAt": "2026-10-19T04:57:50.334Z",
+    "expirationDate": "2026-11-02T04:57:50.364Z",
+    "isForIosSimulator": false
+  }
+]

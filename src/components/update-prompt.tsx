@@ -3,13 +3,15 @@ import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Colors } from '@/constants/theme';
+import { ApkDownload } from '@/components/download-view';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { checkUpdate, openDownload, type UpdateInfo } from '@/lib/updates';
+import { checkUpdate, type UpdateInfo } from '@/lib/updates';
 
 export function UpdatePrompt() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
   const [info, setInfo] = useState<UpdateInfo | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -28,7 +30,14 @@ export function UpdatePrompt() {
   if (!info) return null;
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={() => setInfo(null)}>
+    <Modal
+      visible
+      transparent
+      animationType="fade"
+      onRequestClose={() => {
+        setDownloading(false);
+        setInfo(null);
+      }}>
       <View style={styles.mask}>
         <View style={[styles.box, { backgroundColor: colors.background }]}>
           <Text style={[styles.title, { color: colors.text }]}>发现新版本 v{info.latest}</Text>
@@ -40,21 +49,22 @@ export function UpdatePrompt() {
               </Text>
             </ScrollView>
           )}
-          <View style={styles.btnRow}>
-            <Pressable
-              onPress={() => setInfo(null)}
-              style={[styles.btn, { backgroundColor: colors.backgroundElement }]}>
-              <Text style={{ color: colors.text, fontSize: 15 }}>取消</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                openDownload(info);
-                setInfo(null);
-              }}
-              style={[styles.btn, { backgroundColor: '#2563eb' }]}>
-              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>下载更新</Text>
-            </Pressable>
-          </View>
+          {downloading ? (
+            <ApkDownload info={info} colors={colors} />
+          ) : (
+            <View style={styles.btnRow}>
+              <Pressable
+                onPress={() => setInfo(null)}
+                style={[styles.btn, { backgroundColor: colors.backgroundElement }]}>
+                <Text style={{ color: colors.text, fontSize: 15 }}>取消</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setDownloading(true)}
+                style={[styles.btn, { backgroundColor: '#2563eb' }]}>
+                <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>下载更新</Text>
+              </Pressable>
+            </View>
+          )}
         </View>
       </View>
     </Modal>
