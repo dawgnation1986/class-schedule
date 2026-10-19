@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { getThemeMode, saveThemeMode, subscribeTheme, themeModeLabel, type ThemeMode } from '@/lib/theme';
 import { loadAccount, saveAccount, type StartPage } from '@/lib/account';
 import { loadSettings } from '@/lib/settings';
 import {
@@ -197,6 +198,11 @@ export default function ProfileScreen() {
   const [editOpen, setEditOpen] = useState(false);
   const [jsonOpen, setJsonOpen] = useState(false);
   const [times, setTimes] = useState<PeriodTimes>(getPeriodTimes());
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => getThemeMode());
+
+  useEffect(() => subscribeTheme(() => setThemeMode(getThemeMode())), []);
+
+  const THEME_OPTIONS: ThemeMode[] = ['auto', 'light', 'dark'];
 
   useEffect(() => {
     const sync = () => {
@@ -336,6 +342,31 @@ export default function ProfileScreen() {
               style={[styles.timesBtn, { backgroundColor: colors.backgroundSelected }]}>
               <Text style={{ color: colors.text, fontSize: 12 }}>JSON 导入</Text>
             </Pressable>
+          </View>
+        </View>
+
+        {/* 外观模式 */}
+        <View style={[styles.section, { backgroundColor: colors.backgroundElement }]}>
+          <Text style={{ color: colors.text, fontWeight: '700' }}>外观模式</Text>
+          <View style={[styles.timesBtnRow, { marginTop: 10, marginBottom: 0 }]}>
+            {THEME_OPTIONS.map((m) => (
+              <Pressable
+                key={m}
+                onPress={() => void saveThemeMode(m)}
+                style={[
+                  styles.timesBtn,
+                  { backgroundColor: themeMode === m ? '#2563eb' : colors.backgroundSelected, flex: 1 },
+                ]}>
+                <Text
+                  style={{
+                    color: themeMode === m ? '#fff' : colors.text,
+                    fontSize: 12,
+                    fontWeight: themeMode === m ? '700' : '400',
+                  }}>
+                  {themeModeLabel(m)}
+                </Text>
+              </Pressable>
+            ))}
           </View>
         </View>
 
