@@ -217,7 +217,7 @@ export default function ScheduleScreen() {
         date ?? selectedDateRef.current,
       );
       setTimetable(tt);
-      // 按最新课表重排未来 7 天的上课提醒(上课前 10 分钟, 静默失败)
+      // 按最新课表重排未来 7 天的提醒(上课前 5 分钟 + 下课前 1 分钟, 静默失败)
       scheduleClassReminders(tt);
     } catch (e) {
       setError(e instanceof Error ? e.message : '查询失败，请重试');
