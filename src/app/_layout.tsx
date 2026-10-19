@@ -28,7 +28,7 @@ export default function RootLayout() {
       {/* 自定义背景图层(页面背景透明时露出) */}
       <BackgroundLayer />
       <UpdatePrompt />
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="settings" />
         <Stack.Screen name="temp-query" />
