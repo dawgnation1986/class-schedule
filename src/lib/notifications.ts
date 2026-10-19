@@ -21,11 +21,15 @@ function loadNotifications(): NotificationsModule | null {
   }
 }
 
-/** 每个大节的开始时间(按当前作息时间表动态计算, 跳过"中午") */
-function periodStartMin(period: string): number | null {
-  const t = getPeriodTimes()[period];
-  if (!t) return null;
-  const [h, m] = t[0].split(':').map(Number);
+/** 把"当天第 mins 分钟"转成具体时间点 */
+function atMinutes(day: Date, mins: number): Date {
+  const d = new Date(day);
+  d.setHours(Math.floor(mins / 60), mins % 60, 0, 0);
+  return d;
+}
+
+function hmToMin(s: string): number {
+  const [h, m] = s.split(':').map(Number);
   return h * 60 + m;
 }
 
@@ -43,7 +47,7 @@ async function ensureChannel(Notifications: NotificationsModule) {
   configured = true;
 }
 
-/** 用课表重新排期未来 7 天的上课提醒(先清掉旧的) */
+/** 用课表重新排期未来 7 天的提醒: 上课前 5 分钟 + 下课前 1 分钟(先清掉旧的) */
 export async function scheduleClassReminders(timetable: Timetable) {
   try {
     if (!timetable?.rows?.length) return;
@@ -63,36 +67,54 @@ export async function scheduleClassReminders(timetable: Timetable) {
       // rows.days[0..6] 对应星期一~星期日
       const col = (day.getDay() + 6) % 7;
       for (const period of ['1-2', '3-4', '5-6', '7-8', '9-10']) {
-        const startMin = periodStartMin(period);
-        if (startMin == null) continue;
+        const t = getPeriodTimes()[period];
+        if (!t) continue;
+        const startMin = hmToMin(t[0]);
+        const endMin = hmToMin(t[1]);
         const row = timetable.rows.find((r) => r.period === period);
         const entries = row?.days[col] ?? [];
         const course = entries[0];
         if (!course?.name) continue;
 
-        const trigger = new Date(day);
-        trigger.setHours(Math.floor(startMin / 60), startMin % 60, 0, 0);
-        trigger.setMinutes(trigger.getMinutes() - 10); // 上课前 10 分钟
-        if (trigger.getTime() <= now.getTime()) continue;
+        // 上课前 5 分钟: 提醒下节是什么课、几点上课
+        const startAt = atMinutes(day, startMin - 5);
+        if (startAt.getTime() > now.getTime()) {
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: `5分钟后上课：${course.name}`,
+              body: [
+                course.location ? `教室：${course.location}` : '',
+                course.teacher ? `教师：${course.teacher}` : '',
+                `${period} 节 · ${t[0]} 开始上课`,
+              ]
+                .filter(Boolean)
+                .join('\n'),
+              sound: 'default',
+            },
+            trigger: {
+              type: Notifications.SchedulableTriggerInputTypes.DATE,
+              date: startAt,
+              channelId: Platform.OS === 'android' ? 'class-remind' : undefined,
+            },
+          });
+        }
 
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: `下节课：${course.name}`,
-            body: [
-              course.location ? `教室：${course.location}` : '',
-              course.teacher ? `教师：${course.teacher}` : '',
-              `${period} 节 · 10 分钟后上课`,
-            ]
-              .filter(Boolean)
-              .join('\n'),
-            sound: 'default',
-          },
-          trigger: {
-            type: Notifications.SchedulableTriggerInputTypes.DATE,
-            date: trigger,
-            channelId: Platform.OS === 'android' ? 'class-remind' : undefined,
-          },
-        });
+        // 下课前 1 分钟
+        const endAt = atMinutes(day, endMin - 1);
+        if (endAt.getTime() > now.getTime()) {
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: `1分钟后下课：${course.name}`,
+              body: `${period} 节 · ${t[1]} 下课`,
+              sound: 'default',
+            },
+            trigger: {
+              type: Notifications.SchedulableTriggerInputTypes.DATE,
+              date: endAt,
+              channelId: Platform.OS === 'android' ? 'class-remind' : undefined,
+            },
+          });
+        }
       }
     }
   } catch {
