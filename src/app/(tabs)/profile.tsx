@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { usePageBackground } from '@/lib/background';
+import { usePageBackground, useBgSetting } from '@/lib/background';
 import { getThemeMode, saveThemeMode, subscribeTheme, themeModeLabel, type ThemeMode } from '@/lib/theme';
 import {
   clearBackground,
@@ -198,6 +198,12 @@ export default function ProfileScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
   const pageBg = usePageBackground(colors);
+  const bgSetting = useBgSetting();
+  // 控件全透明模式: 设了背景图且开启开关 → 按钮/卡片/输入框只留文字 + 1px 外轮廓
+  const glass = !!bgSetting.uri && !!bgSetting.ctrl;
+  const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
+  const glassBorder = (active = false) =>
+    glass ? { borderWidth: 1, borderColor: active ? 'rgba(37,99,235,0.55)' : glassLine } : null;
   const router = useRouter();
 
   const [username, setUsername] = useState('');
@@ -264,7 +270,7 @@ export default function ProfileScreen() {
           onChangeText={setUsername}
           placeholder="请输入学号"
           placeholderTextColor={colors.textSecondary}
-          style={[styles.input, { backgroundColor: colors.backgroundElement, color: colors.text, borderColor: colors.backgroundElement }]}
+          style={[styles.input, { backgroundColor: glass ? 'transparent' : colors.backgroundElement, color: colors.text, borderColor: glass ? glassLine : colors.backgroundElement }]}
           autoCapitalize="none"
         />
         <Text style={[styles.label, { color: colors.textSecondary }]}>密码</Text>
@@ -273,7 +279,7 @@ export default function ProfileScreen() {
           onChangeText={setPassword}
           placeholder="请输入密码"
           placeholderTextColor={colors.textSecondary}
-          style={[styles.input, { backgroundColor: colors.backgroundElement, color: colors.text, borderColor: colors.backgroundElement }]}
+          style={[styles.input, { backgroundColor: glass ? 'transparent' : colors.backgroundElement, color: colors.text, borderColor: glass ? glassLine : colors.backgroundElement }]}
           secureTextEntry
         />
 
@@ -290,9 +296,10 @@ export default function ProfileScreen() {
               onPress={() => setStartPage(v)}
               style={[
                 styles.startBtn,
-                { backgroundColor: startPage === v ? '#2563eb' : colors.backgroundElement },
+                glassBorder(startPage === v),
+                { backgroundColor: glass ? (startPage === v ? 'rgba(37,99,235,0.15)' : 'transparent') : startPage === v ? '#2563eb' : colors.backgroundElement },
               ]}>
-              <Text style={{ color: startPage === v ? '#fff' : colors.text, fontSize: 13, fontWeight: startPage === v ? '700' : '400' }}>
+              <Text style={{ color: startPage === v && !glass ? '#fff' : colors.text, fontSize: 13, fontWeight: startPage === v ? '700' : '400' }}>
                 {label}
               </Text>
             </Pressable>
@@ -302,26 +309,30 @@ export default function ProfileScreen() {
         <Pressable
           disabled={!username || !password}
           onPress={save}
-          style={[styles.saveBtn, { backgroundColor: username && password ? '#2563eb' : colors.backgroundElement }]}>
-          <Text style={{ color: username && password ? '#fff' : colors.textSecondary, fontWeight: '700' }}>
+          style={[
+            styles.saveBtn,
+            glassBorder(!!(username && password)),
+            { backgroundColor: glass ? (username && password ? 'rgba(37,99,235,0.15)' : 'transparent') : username && password ? '#2563eb' : colors.backgroundElement },
+          ]}>
+          <Text style={{ color: username && password ? (glass ? colors.text : '#fff') : colors.textSecondary, fontWeight: '700' }}>
             {saved ? '已保存 ✓' : '保存'}
           </Text>
         </Pressable>
 
-        <View style={[styles.section, { backgroundColor: colors.backgroundElement }]}>
+        <View style={[styles.section, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
           <Text style={{ color: colors.text, fontWeight: '700' }}>班级课表设置</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 4 }}>
             当前班级：{classLabel ?? '未设置'}
           </Text>
           <Pressable
             onPress={() => router.push('/settings')}
-            style={[styles.linkBtn, { backgroundColor: colors.backgroundSelected }]}>
+            style={[styles.linkBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected }]}>
             <Text style={{ color: colors.text, fontSize: 13 }}>去设置系部 / 专业 / 班级</Text>
           </Pressable>
         </View>
 
         {/* 作息时间表 */}
-        <View style={[styles.section, { backgroundColor: colors.backgroundElement }]}>
+        <View style={[styles.section, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
           <Pressable onPress={() => setShowTimes((v) => !v)} style={styles.timesHead}>
             <Text style={{ color: colors.text, fontWeight: '700' }}>作息时间表</Text>
             <Text style={{ color: '#2563eb', fontSize: 13 }}>{showTimes ? '收起 ▲' : '查看 ▼'}</Text>
@@ -344,29 +355,29 @@ export default function ProfileScreen() {
           <View style={styles.timesBtnRow}>
             <Pressable
               onPress={() => useSeasonPreset('winter')}
-              style={[styles.timesBtn, { backgroundColor: colors.backgroundSelected }]}>
+              style={[styles.timesBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected }]}>
               <Text style={{ color: colors.text, fontSize: 12 }}>导入冬季</Text>
             </Pressable>
             <Pressable
               onPress={() => useSeasonPreset('summer')}
-              style={[styles.timesBtn, { backgroundColor: colors.backgroundSelected }]}>
+              style={[styles.timesBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected }]}>
               <Text style={{ color: colors.text, fontSize: 12 }}>导入夏季</Text>
             </Pressable>
             <Pressable
               onPress={() => setEditOpen(true)}
-              style={[styles.timesBtn, { backgroundColor: colors.backgroundSelected }]}>
+              style={[styles.timesBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected }]}>
               <Text style={{ color: colors.text, fontSize: 12 }}>手动编辑</Text>
             </Pressable>
             <Pressable
               onPress={() => setJsonOpen(true)}
-              style={[styles.timesBtn, { backgroundColor: colors.backgroundSelected }]}>
+              style={[styles.timesBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected }]}>
               <Text style={{ color: colors.text, fontSize: 12 }}>JSON 导入</Text>
             </Pressable>
           </View>
         </View>
 
         {/* 外观模式 */}
-        <View style={[styles.section, { backgroundColor: colors.backgroundElement }]}>
+        <View style={[styles.section, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
           <Text style={{ color: colors.text, fontWeight: '700' }}>外观模式</Text>
           <View style={[styles.timesBtnRow, { marginTop: 10, marginBottom: 0 }]}>
             {THEME_OPTIONS.map((m) => (
@@ -375,11 +386,12 @@ export default function ProfileScreen() {
                 onPress={() => void saveThemeMode(m)}
                 style={[
                   styles.timesBtn,
-                  { backgroundColor: themeMode === m ? '#2563eb' : colors.backgroundSelected, flex: 1 },
+                  glassBorder(themeMode === m),
+                  { backgroundColor: glass ? (themeMode === m ? 'rgba(37,99,235,0.15)' : 'transparent') : themeMode === m ? '#2563eb' : colors.backgroundSelected, flex: 1 },
                 ]}>
                 <Text
                   style={{
-                    color: themeMode === m ? '#fff' : colors.text,
+                    color: themeMode === m && !glass ? '#fff' : colors.text,
                     fontSize: 12,
                     fontWeight: themeMode === m ? '700' : '400',
                   }}>
@@ -391,7 +403,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* 自定义背景 */}
-        <View style={[styles.section, { backgroundColor: colors.backgroundElement }]}>
+        <View style={[styles.section, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
           <Text style={{ color: colors.text, fontWeight: '700' }}>自定义背景</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
             {bg.uri ? '已设置背景图片，全App生效' : '未设置，使用默认纯色背景'}
@@ -399,13 +411,13 @@ export default function ProfileScreen() {
           <View style={[styles.timesBtnRow, { marginTop: 10 }]}>
             <Pressable
               onPress={() => void pickBackground()}
-              style={[styles.timesBtn, { backgroundColor: colors.backgroundSelected, flex: 1 }]}>
+              style={[styles.timesBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected, flex: 1 }]}>
               <Text style={{ color: colors.text, fontSize: 12 }}>{bg.uri ? '更换图片' : '选择图片'}</Text>
             </Pressable>
             <Pressable
               disabled={!bg.uri}
               onPress={() => void clearBackground()}
-              style={[styles.timesBtn, { backgroundColor: colors.backgroundSelected, flex: 1, opacity: bg.uri ? 1 : 0.4 }]}>
+              style={[styles.timesBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected, flex: 1, opacity: bg.uri ? 1 : 0.4 }]}>
               <Text style={{ color: colors.text, fontSize: 12 }}>恢复默认背景</Text>
             </Pressable>
           </View>
@@ -417,9 +429,10 @@ export default function ProfileScreen() {
                   onPress={() => void setBackgroundOpacity(op)}
                   style={[
                     styles.timesBtn,
-                    { backgroundColor: bg.opacity === op ? '#2563eb' : colors.backgroundSelected, flex: 1 },
+                    glassBorder(bg.opacity === op),
+                    { backgroundColor: glass ? (bg.opacity === op ? 'rgba(37,99,235,0.15)' : 'transparent') : bg.opacity === op ? '#2563eb' : colors.backgroundSelected, flex: 1 },
                   ]}>
-                  <Text style={{ color: bg.opacity === op ? '#fff' : colors.text, fontSize: 11 }}>
+                  <Text style={{ color: bg.opacity === op && !glass ? '#fff' : colors.text, fontSize: 11 }}>
                     {Math.round(op * 100)}%
                   </Text>
                 </Pressable>
@@ -430,8 +443,12 @@ export default function ProfileScreen() {
             <View style={[styles.timesBtnRow, { marginTop: 8, marginBottom: 0 }]}>
               <Pressable
                 onPress={() => void setControlsTransparent(!bg.ctrl)}
-                style={[styles.timesBtn, { flex: 1, backgroundColor: bg.ctrl ? '#2563eb' : colors.backgroundSelected }]}>
-                <Text style={{ color: bg.ctrl ? '#fff' : colors.text, fontSize: 11 }}>
+                style={[
+                  styles.timesBtn,
+                  glassBorder(bg.ctrl),
+                  { flex: 1, backgroundColor: glass ? (bg.ctrl ? 'rgba(37,99,235,0.15)' : 'transparent') : bg.ctrl ? '#2563eb' : colors.backgroundSelected },
+                ]}>
+                <Text style={{ color: bg.ctrl && !glass ? '#fff' : colors.text, fontSize: 11 }}>
                   控件全透明：{bg.ctrl ? '开' : '关'}（只留文字+1px轮廓）
                 </Text>
               </Pressable>
@@ -440,7 +457,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* 课表界面风格 */}
-        <View style={[styles.section, { backgroundColor: colors.backgroundElement }]}>
+        <View style={[styles.section, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
           <Text style={{ color: colors.text, fontWeight: '700' }}>课表界面</Text>
           <View style={[styles.timesBtnRow, { marginTop: 10, marginBottom: 0 }]}>
             {(
@@ -455,8 +472,12 @@ export default function ProfileScreen() {
                   setTtUI(v);
                   void saveTimetableUI(v);
                 }}
-                style={[styles.timesBtn, { backgroundColor: ttUI === v ? '#2563eb' : colors.backgroundSelected, flex: 1 }]}>
-                <Text style={{ color: ttUI === v ? '#fff' : colors.text, fontSize: 12, fontWeight: ttUI === v ? '700' : '400' }}>
+                style={[
+                  styles.timesBtn,
+                  glassBorder(ttUI === v),
+                  { backgroundColor: glass ? (ttUI === v ? 'rgba(37,99,235,0.15)' : 'transparent') : ttUI === v ? '#2563eb' : colors.backgroundSelected, flex: 1 },
+                ]}>
+                <Text style={{ color: ttUI === v && !glass ? '#fff' : colors.text, fontSize: 12, fontWeight: ttUI === v ? '700' : '400' }}>
                   {label}
                 </Text>
               </Pressable>

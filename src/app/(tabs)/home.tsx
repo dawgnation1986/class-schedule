@@ -6,7 +6,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { usePageBackground } from '@/lib/background';
+import { usePageBackground, useBgSetting } from '@/lib/background';
 import { AboutGithub } from '@/components/about-github';
 import { PORTAL_SITE, clearSession, loadLoginPage, submitLogin, tryRestoreSession, type LoginState, type PortalApp } from '@/lib/portal';
 import { loadAccount, saveAccount } from '@/lib/account';
@@ -15,6 +15,12 @@ export default function PortalScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
   const pageBg = usePageBackground(colors);
+  const bgSetting = useBgSetting();
+  // 控件全透明模式: 设了背景图且开启开关 → 按钮/卡片/输入框只留文字 + 1px 外轮廓
+  const glass = !!bgSetting.uri && !!bgSetting.ctrl;
+  const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
+  const glassBorder = (active = false) =>
+    glass ? { borderWidth: 1, borderColor: active ? 'rgba(37,99,235,0.55)' : glassLine } : null;
   const router = useRouter();
 
   const [username, setUsername] = useState('');
@@ -134,7 +140,7 @@ export default function PortalScreen() {
               onChangeText={setUsername}
               placeholder="请输入学号"
               placeholderTextColor={colors.textSecondary}
-              style={[styles.input, { backgroundColor: colors.backgroundElement, color: colors.text, borderColor: colors.backgroundElement }]}
+              style={[styles.input, { backgroundColor: glass ? 'transparent' : colors.backgroundElement, color: colors.text, borderColor: glass ? glassLine : colors.backgroundElement }]}
               autoCapitalize="none"
             />
             <Text style={[styles.label, { color: colors.textSecondary }]}>密码</Text>
@@ -143,7 +149,7 @@ export default function PortalScreen() {
               onChangeText={setPassword}
               placeholder="请输入密码"
               placeholderTextColor={colors.textSecondary}
-              style={[styles.input, { backgroundColor: colors.backgroundElement, color: colors.text, borderColor: colors.backgroundElement }]}
+              style={[styles.input, { backgroundColor: glass ? 'transparent' : colors.backgroundElement, color: colors.text, borderColor: glass ? glassLine : colors.backgroundElement }]}
               secureTextEntry
             />
             <Text style={[styles.label, { color: colors.textSecondary }]}>验证码（点击图片可刷新）</Text>
@@ -169,11 +175,15 @@ export default function PortalScreen() {
             <Pressable
               disabled={loggingIn || loading || !state || !username || !password || !captcha}
               onPress={login}
-              style={[styles.loginBtn, { backgroundColor: username && password && captcha ? '#2563eb' : colors.backgroundElement }]}>
+              style={[
+                styles.loginBtn,
+                glassBorder(!!(username && password && captcha)),
+                { backgroundColor: glass ? (username && password && captcha ? 'rgba(37,99,235,0.15)' : 'transparent') : username && password && captcha ? '#2563eb' : colors.backgroundElement },
+              ]}>
               {loggingIn ? (
                 <ActivityIndicator color={colors.text} />
               ) : (
-                <Text style={{ color: username && password && captcha ? '#fff' : colors.textSecondary, fontWeight: '700' }}>
+                <Text style={{ color: username && password && captcha ? (glass ? colors.text : '#fff') : colors.textSecondary, fontWeight: '700' }}>
                   登 录
                 </Text>
               )}
@@ -207,7 +217,7 @@ export default function PortalScreen() {
             <Text style={[styles.hint, { color: colors.textSecondary, marginTop: 0 }]}>
               会话过期后需重新输入验证码登录。
             </Text>
-            <View style={[styles.searchWrap, { backgroundColor: colors.backgroundElement }]}>
+            <View style={[styles.searchWrap, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
               <Ionicons name="search" size={16} color={colors.textSecondary} />
               <TextInput
                 value={keyword}
@@ -229,7 +239,7 @@ export default function PortalScreen() {
                   <Pressable
                     key={app.href}
                     onPress={() => openApp(app)}
-                    style={[styles.appItem, { backgroundColor: colors.backgroundElement }]}>
+                    style={[styles.appItem, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
                     <Text style={[styles.appTitle, { color: colors.text }]} numberOfLines={2}>
                       {app.title}
                     </Text>

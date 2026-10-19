@@ -2,19 +2,31 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useBgSetting } from '@/lib/background';
 import { ApkDownload } from '@/components/download-view';
 import { MirrorSettings } from '@/components/mirror-settings';
 import { checkUpdate, currentVersion, type UpdateInfo } from '@/lib/updates';
 
 /** 检查更新卡片: 显示当前版本 + 查询 GitHub Releases + 内置下载 APK */
 export function UpdateCard({ colors }: { colors: (typeof Colors)[keyof typeof Colors] }) {
+  const scheme = useColorScheme();
+  const bgSetting = useBgSetting();
+  // 控件全透明模式: 与各页面一致, 卡片只留文字 + 1px 外轮廓
+  const glass = !!bgSetting.uri && !!bgSetting.ctrl;
+  const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
   const [checking, setChecking] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [mirrorOpen, setMirrorOpen] = useState(false);
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
+    <View
+      style={[
+        styles.card,
+        glass ? { borderWidth: 1, borderColor: glassLine } : null,
+        { backgroundColor: glass ? 'transparent' : colors.backgroundElement },
+      ]}>
       <View style={styles.row}>
         <Text style={{ color: colors.text, fontWeight: '700' }}>当前版本 v{currentVersion()}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
