@@ -1,5 +1,5 @@
 /** 今日课程: 从实时课表提取今天所有课程, 按时间排列并标注当前/下一节 */
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,19 +17,12 @@ import {
   type Timetable,
 } from '@/lib/timetable';
 import { loadSettings } from '@/lib/settings';
+import { getPeriodTimes, subscribeTimes } from '@/lib/schedule-times';
 
 const WEEK_NAMES = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
 
-/** 每个大节的上课时间(分钟数) */
-const PERIOD_TIMES: Record<string, [string, string]> = {
-  '1-2': ['08:20', '09:40'],
-  '3-4': ['10:20', '12:00'],
-  中午: ['12:00', '14:40'],
-  '5-6': ['14:40', '16:20'],
-  '7-8': ['16:40', '18:20'],
-  '9-10': ['20:20', '21:10'],
-};
-const PERIOD_ORDER = Object.keys(PERIOD_TIMES);
+/** 每个大节的上课时间 — 从作息时间表动态读取(支持冬季/夏季/自定义) */
+const PERIOD_ORDER = ['1-2', '3-4', '中午', '5-6', '7-8', '9-10'];
 
 function parseHM(s: string): number {
   const [h, m] = s.split(':').map(Number);
@@ -49,6 +42,10 @@ export default function TodayScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => beijingNow());
+  const [periodTimes, setPeriodTimes] = useState<Record<string, [string, string]>>(getPeriodTimes());
+
+  // 跟随作息时间表变化(手动编辑/JSON 导入/切换季节后自动刷新)
+  useEffect(() => subscribeTimes(() => setPeriodTimes(getPeriodTimes())), []);
 
   useFocusEffect(
     useCallback(() => {
@@ -93,7 +90,7 @@ export default function TodayScreen() {
             .filter((c) => c.name)
             .map((c) => ({
               period: row.period,
-              time: PERIOD_TIMES[row.period] ?? null,
+              time: periodTimes[row.period] ?? null,
               name: c.name,
               location: c.location,
               teacher: c.teacher,
@@ -105,7 +102,7 @@ export default function TodayScreen() {
 
   /** 节次状态: -1 已结束 / 0 上课中 / 1 未开始 */
   const statusOf = (period: string): number => {
-    const t = PERIOD_TIMES[period];
+    const t = periodTimes[period];
     if (!t) return 1;
     if (mins > parseHM(t[1])) return -1;
     if (mins >= parseHM(t[0])) return 0;

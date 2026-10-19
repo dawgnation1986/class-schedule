@@ -5,6 +5,7 @@ import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Platform } from 'react-native';
 
 import type { Timetable } from './timetable';
+import { getPeriodTimes } from './schedule-times';
 
 type NotificationsModule = typeof import('expo-notifications');
 
@@ -20,14 +21,13 @@ function loadNotifications(): NotificationsModule | null {
   }
 }
 
-/** 每个大节的上开始时间(24h 制分钟数) */
-const PERIOD_START_MIN: Record<string, number> = {
-  '1-2': 8 * 60 + 20,
-  '3-4': 10 * 60 + 20,
-  '5-6': 14 * 60 + 40,
-  '7-8': 16 * 60 + 40,
-  '9-10': 20 * 60 + 20,
-};
+/** 每个大节的开始时间(按当前作息时间表动态计算, 跳过"中午") */
+function periodStartMin(period: string): number | null {
+  const t = getPeriodTimes()[period];
+  if (!t) return null;
+  const [h, m] = t[0].split(':').map(Number);
+  return h * 60 + m;
+}
 
 let configured = false;
 
@@ -62,7 +62,9 @@ export async function scheduleClassReminders(timetable: Timetable) {
       day.setDate(now.getDate() + dayOffset);
       // rows.days[0..6] 对应星期一~星期日
       const col = (day.getDay() + 6) % 7;
-      for (const [period, startMin] of Object.entries(PERIOD_START_MIN)) {
+      for (const period of ['1-2', '3-4', '5-6', '7-8', '9-10']) {
+        const startMin = periodStartMin(period);
+        if (startMin == null) continue;
         const row = timetable.rows.find((r) => r.period === period);
         const entries = row?.days[col] ?? [];
         const course = entries[0];

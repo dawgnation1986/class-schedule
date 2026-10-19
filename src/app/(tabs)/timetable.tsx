@@ -22,20 +22,11 @@ import { getTempOverride, setTempOverride } from '@/lib/tempOverride';
 import { fetchWeather, fetchWeatherFull, type Weather, type WeatherFull } from '@/lib/weather';
 import { WeatherModal } from '@/components/weather-modal';
 import { scheduleClassReminders } from '@/lib/notifications';
+import { getPeriodTimes, subscribeTimes } from '@/lib/schedule-times';
 import { getExams, type ExamInfo } from '@/lib/school-data';
 
 const WEEK_NAMES = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
 const WEEK_COLS = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
-
-/** 每个大节的上课时间（用于判断"当前是第几节课"） */
-const PERIOD_TIMES: Record<string, [string, string]> = {
-  '1-2': ['08:20', '09:40'],
-  '3-4': ['10:20', '12:00'],
-  中午: ['12:00', '14:40'],
-  '5-6': ['14:40', '16:20'],
-  '7-8': ['16:40', '18:20'],
-  '9-10': ['20:20', '21:10'],
-};
 
 function minutesOf(d: Date): number {
   return d.getHours() * 60 + d.getMinutes();
@@ -47,11 +38,11 @@ function parseHM(s: string): number {
 }
 
 /** 当前所处的大节; 不在上课时间时吸附到时间上最近的大节(如 18:31 → 7-8节) */
-function currentPeriod(now: Date): string | null {
+function currentPeriod(now: Date, times: Record<string, [string, string]>): string | null {
   const mins = minutesOf(now);
   let best: string | null = null;
   let bestDist = Infinity;
-  for (const [period, [start, end]] of Object.entries(PERIOD_TIMES)) {
+  for (const [period, [start, end]] of Object.entries(times)) {
     const s = parseHM(start);
     const e = parseHM(end);
     const dist = mins < s ? s - mins : mins > e ? mins - e : 0;
@@ -165,6 +156,10 @@ export default function ScheduleScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => beijingNow());
+  const [periodTimes, setPeriodTimes] = useState<Record<string, [string, string]>>(getPeriodTimes());
+
+  // 跟随作息时间表变化(手动编辑/JSON 导入/切换季节后自动刷新)
+  useEffect(() => subscribeTimes(() => setPeriodTimes(getPeriodTimes())), []);
   const [selectedDate, setSelectedDate] = useState(() => beijingNow());
   const [weather, setWeather] = useState<Weather | null>(null);
   const [wxOpen, setWxOpen] = useState(false);
@@ -300,7 +295,7 @@ export default function ScheduleScreen() {
   const todayCol = WEEK_COLS.indexOf(WEEK_NAMES[bjDay]);
   const isToday = sameDay(selectedDate, now);
   // 当前节次按真实时间计算, 与查询哪天的课表无关(任何日期都定位到同一时间段行)
-  const curPeriod = currentPeriod(now);
+  const curPeriod = currentPeriod(now, periodTimes);
 
   // 自动滚动到"当前星期 + 当前节次"的十字位置
   const vScrollRef = useRef<ScrollView>(null);
@@ -315,7 +310,7 @@ export default function ScheduleScreen() {
   /** 本节课剩余分钟数(真正处于上课时间段才显示; ≤10 分钟快下课) */
   const curLeft = (() => {
     if (!curPeriod || curPeriod === '中午') return null;
-    const [s, e] = PERIOD_TIMES[curPeriod];
+    const [s, e] = periodTimes[curPeriod];
     const mins = minutesOf(now);
     if (mins < parseHM(s) || mins > parseHM(e)) return null;
     return parseHM(e) - mins;
