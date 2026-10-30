@@ -54,3 +54,11 @@ export async function removeTodo(id: string): Promise<Todo[]> {
   await save(next);
   return next;
 }
+
+/** 一键清空所有已完成事项 */
+export async function clearDone(): Promise<Todo[]> {
+  const list = await loadTodos();
+  const next = list.filter((t) => !t.done);
+  await save(next);
+  return next;
+}
