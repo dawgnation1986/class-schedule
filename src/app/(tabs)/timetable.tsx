@@ -738,6 +738,39 @@ function ClassicScreen() {
                 <Text style={{ color: colors.text, flex: 1, textAlign: 'right' }}>{val}</Text>
               </View>
             ))}
+            {/* 节次对应时间: 起止时间 + 查询日为今天时的动态倒计时 */}
+            {!!detailCell &&
+              (() => {
+                const t = periodTimes[detailCell.period];
+                if (!t) return null;
+                const mins = minutesOf(now);
+                const s = parseHM(t[0]);
+                const e = parseHM(t[1]);
+                let hint: string | null = null;
+                let hintColor: string = colors.textSecondary;
+                if (sameDay(selectedDate, now)) {
+                  if (mins < s) {
+                    hint = `距上课还有 ${s - mins} 分钟`;
+                    hintColor = '#2563eb';
+                  } else if (mins < e) {
+                    hint = `已上课 · 还有 ${e - mins} 分钟下课`;
+                    hintColor = '#16a34a';
+                  } else {
+                    hint = '本节已下课';
+                  }
+                }
+                return (
+                  <View style={styles.detailRow}>
+                    <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>时间</Text>
+                    <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                      <Text style={{ color: colors.text }}>
+                        {t[0]} – {t[1]}
+                      </Text>
+                      {!!hint && <Text style={{ color: hintColor, fontSize: 12 }}>{hint}</Text>}
+                    </View>
+                  </View>
+                );
+              })()}
             <View style={styles.modalBtnRow}>
               <Pressable
                 onPress={() => setDetailCell(null)}
