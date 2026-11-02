@@ -1,4 +1,6 @@
-/** 天气: 按当前 IP 定位 → Open-Meteo 查询天气 (免 key, 30 分钟缓存) */
+/** 天气: 手动城市(持久化) / IP 定位 → Open-Meteo 查询天气 (免 key, 30 分钟缓存) */
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 export type Weather = {
   city: string;
   /** 摄氏度(已取整) */
@@ -43,9 +45,30 @@ export type WeatherFull = {
 const TTL = 30 * 60 * 1000;
 let chipCache: { at: number; data: Weather } | null = null;
 let fullCache: { at: number; data: WeatherFull } | null = null;
+let locCache: { at: number; data: { lat: number; lon: number; city: string } } | null = null;
 
 /** 定位兜底: 学校所在城市(长沙) */
 const FALLBACK = { lat: 28.228, lon: 112.939, city: '长沙' };
+
+/* ---------- 手动城市设置(持久化) ---------- */
+const CITY_KEY = 'weather-city-v1';
+let cityOverride: string | null | undefined; // undefined=未加载, null=跟随定位
+
+/** 读取手动城市; null 表示跟随定位 */
+export async function getWeatherCity(): Promise<string | null> {
+  if (cityOverride === undefined) cityOverride = (await AsyncStorage.getItem(CITY_KEY)) ?? null;
+  return cityOverride;
+}
+
+/** 设置手动城市; 传 null 恢复自动定位 */
+export async function setWeatherCity(c: string | null): Promise<void> {
+  cityOverride = c;
+  if (c) await AsyncStorage.setItem(CITY_KEY, c);
+  else await AsyncStorage.removeItem(CITY_KEY);
+  chipCache = null;
+  fullCache = null;
+  locCache = null;
+}
 
 /** WMO weather code → (描述, 图标, 颜色) */
 function describe(code: number, isDay: boolean): [string, string, string] {
@@ -61,22 +84,56 @@ function describe(code: number, isDay: boolean): [string, string, string] {
   return ['未知', 'help-circle-outline', '#94a3b8'];
 }
 
-/** 按 IP 定位, 失败用学校城市兜底 */
-async function locate(): Promise<{ lat: number; lon: number; city: string }> {
+/** 城市名 → 经纬度 + 中文名(Open-Meteo 地理编码, 结果缓存) */
+const geoCache = new Map<string, { lat: number; lon: number; city: string }>();
+async function geocode(name: string): Promise<{ lat: number; lon: number; city: string } | null> {
+  const key = name.trim();
+  if (!key) return null;
+  const hit = geoCache.get(key);
+  if (hit) return hit;
   try {
-    const r = await fetch('https://ipwho.is/', { headers: { accept: 'application/json' } });
+    const r = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(key)}&count=1&language=zh&format=json`,
+    );
     const j = await r.json();
-    if (j && j.success !== false && typeof j.latitude === 'number' && typeof j.longitude === 'number') {
-      return {
-        lat: j.latitude,
-        lon: j.longitude,
-        city: typeof j.city === 'string' && j.city ? j.city : FALLBACK.city,
-      };
+    const g = j.results?.[0];
+    if (g && typeof g.latitude === 'number' && typeof g.longitude === 'number') {
+      const res = { lat: g.latitude, lon: g.longitude, city: typeof g.name === 'string' && g.name ? g.name : key };
+      geoCache.set(key, res);
+      return res;
     }
   } catch {
-    // IP 定位失败 → 用学校城市兜底
+    // 地理编码失败 → 返回 null
   }
-  return FALLBACK;
+  return null;
+}
+
+/** 定位优先级: 手动城市 > IP 定位(转中文城市名) > 学校城市兜底 */
+async function locate(): Promise<{ lat: number; lon: number; city: string }> {
+  if (locCache && Date.now() - locCache.at < TTL) return locCache.data;
+
+  const manual = await getWeatherCity();
+  let out = FALLBACK;
+  if (manual) {
+    out = (await geocode(manual)) ?? FALLBACK;
+  } else {
+    try {
+      const r = await fetch('https://ipwho.is/', { headers: { accept: 'application/json' } });
+      const j = await r.json();
+      if (j && j.success !== false && typeof j.latitude === 'number' && typeof j.longitude === 'number') {
+        const lat = j.latitude as number;
+        const lon = j.longitude as number;
+        const en = typeof j.city === 'string' ? j.city : '';
+        // IP 定位给的是英文名(如 Changsha) → 地理编码转中文
+        const zh = en ? await geocode(en) : null;
+        out = zh ?? (en ? { lat, lon, city: en } : FALLBACK);
+      }
+    } catch {
+      // IP 定位失败 → 用学校城市兜底
+    }
+  }
+  locCache = { at: Date.now(), data: out };
+  return out;
 }
 
 export async function fetchWeather(): Promise<Weather> {

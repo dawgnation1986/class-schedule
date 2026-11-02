@@ -66,13 +66,7 @@ function sameDay(a: Date, b: Date): boolean {
   );
 }
 
-const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
-const YEARS = (() => {
-  const y = new Date().getFullYear();
-  return [y - 2, y - 1, y, y + 1];
-})();
-
-/** 日期选择弹窗: 年 / 月 / 日 三列点选 */
+/** 日历式日期选择: 月份网格, 左右翻月, 今天高亮, 快速回到今天 */
 function DatePickModal({
   visible,
   value,
@@ -86,57 +80,81 @@ function DatePickModal({
   onConfirm: (d: Date) => void;
   colors: (typeof Colors)[keyof typeof Colors];
 }) {
-  const [y, setY] = useState(value.getFullYear());
-  const [m, setM] = useState(value.getMonth() + 1);
-  const [d, setD] = useState(value.getDate());
+  const [view, setView] = useState({ y: value.getFullYear(), m: value.getMonth() + 1 });
+  const [sel, setSel] = useState(value);
 
-  const dayCount = new Date(y, m, 0).getDate();
-  const days = Array.from({ length: dayCount }, (_, i) => i + 1);
+  useEffect(() => {
+    if (visible) {
+      const base = value ?? beijingNow();
+      setSel(base);
+      setView({ y: base.getFullYear(), m: base.getMonth() + 1 });
+    }
+  }, [visible, value]);
 
-  const chip = (label: string | number, active: boolean, onPress: () => void, key: string | number) => (
-    <Pressable
-      key={key}
-      onPress={onPress}
-      style={[
-        styles.dateChip,
-        { backgroundColor: active ? '#2563eb' : colors.backgroundElement },
-      ]}>
-      <Text style={{ color: active ? '#fff' : colors.text, fontSize: 12 }}>{label}</Text>
-    </Pressable>
-  );
+  const today = beijingNow();
+  const sameDM = (a: Date, y: number, m: number, d: number) =>
+    a.getFullYear() === y && a.getMonth() + 1 === m && a.getDate() === d;
+
+  // 周一开头的日历网格: 补齐前置空位
+  const lead = (new Date(view.y, view.m - 1, 1).getDay() + 6) % 7;
+  const daysInMonth = new Date(view.y, view.m, 0).getDate();
+  const cells: (number | null)[] = [...Array(lead).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+
+  const dayCell = (d: number) => {
+    const isSel = sameDM(sel, view.y, view.m, d);
+    const isToday = sameDM(today, view.y, view.m, d);
+    return (
+      <Pressable
+        key={d}
+        onPress={() => setSel(new Date(view.y, view.m - 1, d))}
+        style={[
+          styles.calDay,
+          isToday && !isSel && { borderWidth: 1, borderColor: '#2563eb' },
+          isSel && { backgroundColor: '#2563eb' },
+        ]}>
+        <Text style={{ color: isSel ? '#fff' : colors.text, fontSize: 13, fontWeight: isSel || isToday ? '700' : '400' }}>
+          {d}
+        </Text>
+      </Pressable>
+    );
+  };
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.modalMask} onPress={onClose}>
         <Pressable style={[styles.modalBox, { backgroundColor: colors.background }]} onPress={() => {}}>
           <Text style={[styles.modalTitle, { color: colors.text }]}>选择查询日期</Text>
-          <Text style={[styles.modalGroup, { color: colors.textSecondary }]}>年</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-            {YEARS.map((yy) => chip(yy, yy === y, () => setY(yy), yy))}
-          </ScrollView>
-          <Text style={[styles.modalGroup, { color: colors.textSecondary }]}>月</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-            {MONTHS.map((mm) => chip(mm, mm === m, () => setM(mm), mm))}
-          </ScrollView>
-          <Text style={[styles.modalGroup, { color: colors.textSecondary }]}>日</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-            {days.map((dd) => chip(dd, dd === d, () => setD(dd), dd))}
-          </ScrollView>
+          <View style={styles.calHead}>
+            <Pressable onPress={() => setView((v) => (v.m === 1 ? { y: v.y - 1, m: 12 } : { ...v, m: v.m - 1 }))} hitSlop={8}>
+              <Ionicons name="chevron-back" size={20} color={colors.text} />
+            </Pressable>
+            <Text style={{ color: colors.text, fontSize: 15, fontWeight: '700' }}>
+              {view.y}年{view.m}月
+            </Text>
+            <Pressable onPress={() => setView((v) => (v.m === 12 ? { y: v.y + 1, m: 1 } : { ...v, m: v.m + 1 }))} hitSlop={8}>
+              <Ionicons name="chevron-forward" size={20} color={colors.text} />
+            </Pressable>
+          </View>
+          <View style={styles.calWeekRow}>
+            {['一', '二', '三', '四', '五', '六', '日'].map((w) => (
+              <Text key={w} style={[styles.calWeek, { color: colors.textSecondary }]}>
+                {w}
+              </Text>
+            ))}
+          </View>
+          <View style={styles.calGrid}>
+            {cells.map((d, i) => (d === null ? <View key={`e${i}`} style={styles.calDay} /> : dayCell(d)))}
+          </View>
           <View style={styles.modalBtnRow}>
             <Pressable
               onPress={() => {
                 const now = beijingNow();
-                setY(now.getFullYear());
-                setM(now.getMonth() + 1);
-                setD(now.getDate());
                 onConfirm(new Date(now.getFullYear(), now.getMonth(), now.getDate()));
               }}
               style={[styles.modalBtn, { backgroundColor: colors.backgroundElement }]}>
               <Text style={{ color: colors.text }}>回到今天</Text>
             </Pressable>
-            <Pressable
-              onPress={() => onConfirm(new Date(y, m - 1, Math.min(d, dayCount)))}
-              style={[styles.modalBtn, { backgroundColor: '#2563eb' }]}>
+            <Pressable onPress={() => onConfirm(sel)} style={[styles.modalBtn, { backgroundColor: '#2563eb' }]}>
               <Text style={{ color: '#fff', fontWeight: '700' }}>查询</Text>
             </Pressable>
           </View>
@@ -921,9 +939,11 @@ const styles = StyleSheet.create({
   modalMask: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: Spacing.four },
   modalBox: { borderRadius: 14, padding: Spacing.three },
   modalTitle: { fontSize: 17, fontWeight: '700', marginBottom: Spacing.two },
-  modalGroup: { fontSize: 12, marginTop: Spacing.one, marginBottom: 6 },
-  chipRow: { gap: 8, paddingVertical: 2 },
-  dateChip: { borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
+  calHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4, marginBottom: 8 },
+  calWeekRow: { flexDirection: 'row', marginBottom: 2 },
+  calWeek: { flex: 1, textAlign: 'center', fontSize: 11 },
+  calGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  calDay: { width: `${100 / 7}%`, aspectRatio: 1.35, alignItems: 'center', justifyContent: 'center', borderRadius: 10 },
   modalBtnRow: { flexDirection: 'row', gap: Spacing.two, marginTop: Spacing.three },
   modalBtn: { flex: 1, alignItems: 'center', borderRadius: 10, paddingVertical: 12 },
   // 离屏分享长图(横版白底课表, 宽度 = 节次46 + 7列 + 左右padding)

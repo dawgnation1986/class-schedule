@@ -38,10 +38,14 @@ let configured = false;
 async function ensureChannel(Notifications: NotificationsModule) {
   if (configured) return;
   if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('class-remind', {
+    // v2: MAX 重要级 + 振动 → 锁屏/后台弹出横幅(heads-up, 像微信消息那样)
+    // 换新 id 是因为 Android 渠道创建后 importance 不可再改
+    await Notifications.setNotificationChannelAsync('class-remind-v2', {
       name: '上课提醒',
-      importance: Notifications.AndroidImportance.HIGH,
+      importance: Notifications.AndroidImportance.MAX,
       sound: 'default',
+      vibrationPattern: [0, 300, 250, 300],
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
   }
   configured = true;
@@ -94,7 +98,7 @@ export async function scheduleClassReminders(timetable: Timetable) {
             trigger: {
               type: Notifications.SchedulableTriggerInputTypes.DATE,
               date: startAt,
-              channelId: Platform.OS === 'android' ? 'class-remind' : undefined,
+              channelId: Platform.OS === 'android' ? 'class-remind-v2' : undefined,
             },
           });
         }
@@ -111,7 +115,7 @@ export async function scheduleClassReminders(timetable: Timetable) {
             trigger: {
               type: Notifications.SchedulableTriggerInputTypes.DATE,
               date: endAt,
-              channelId: Platform.OS === 'android' ? 'class-remind' : undefined,
+              channelId: Platform.OS === 'android' ? 'class-remind-v2' : undefined,
             },
           });
         }
