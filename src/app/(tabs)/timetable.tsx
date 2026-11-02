@@ -20,12 +20,13 @@ import {
 } from '@/lib/timetable';
 import { DEFAULT_QUERY_TYPE, loadSettings, loadTimetableUI, type Settings, type TimetableUI } from '@/lib/settings';
 import { getTempOverride, setTempOverride } from '@/lib/tempOverride';
-import { fetchWeather, fetchWeatherFull, type Weather, type WeatherFull } from '@/lib/weather';
+import { fetchWeather, fetchWeatherFull, setWeatherCity, type Weather, type WeatherFull } from '@/lib/weather';
 import { WeatherModal } from '@/components/weather-modal';
 import { scheduleClassReminders } from '@/lib/notifications';
 import { getPeriodTimes, subscribeTimes } from '@/lib/schedule-times';
 import { NovaTimetable } from '@/components/timetable-nova';
 import { getExams, type ExamInfo } from '@/lib/school-data';
+import { daysUntil, loadCountdowns, subscribeCountdowns, type Countdown } from '@/lib/countdowns';
 
 const WEEK_NAMES = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
 const WEEK_COLS = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
@@ -207,6 +208,7 @@ function ClassicScreen() {
   const [wxFull, setWxFull] = useState<WeatherFull | null>(null);
   const [wxLoading, setWxLoading] = useState(false);
   const [exams, setExams] = useState<ExamInfo[]>([]);
+  const [cds, setCds] = useState<Countdown[]>([]);
   const [detailCell, setDetailCell] = useState<{
     period: string;
     dayIdx: number;
@@ -362,6 +364,18 @@ function ClassicScreen() {
     .filter((e) => e.daysLeft >= 0)
     .sort((a, b) => a.daysLeft - b.daysLeft)
     .slice(0, 5);
+
+  /** 未过期的自定义倒计时(按天数升序) */
+  const activeCds = cds
+    .map((c) => ({ ...c, left: daysUntil(c.date) }))
+    .filter((c) => c.left >= 0)
+    .sort((a, b) => a.left - b.left);
+
+  // 倒计时列表变化时同步
+  useEffect(() => {
+    void loadCountdowns().then(setCds);
+    return subscribeCountdowns(() => void loadCountdowns().then(setCds));
+  }, []);
 
   /** 课表长图分享: 截取离屏完整课表视图 */
   const shareSchedule = useCallback(async () => {
@@ -551,7 +565,7 @@ function ClassicScreen() {
         </Pressable>
       )}
 
-      {upcomingExams.length > 0 && (
+      {(upcomingExams.length > 0 || activeCds.length > 0) && (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -582,6 +596,29 @@ function ClassicScreen() {
               </View>
             );
           })}
+          {activeCds.length > 0 && (
+            <View style={styles.examLead}>
+              <Ionicons name="alarm" size={13} color="#8b5cf6" />
+              <Text style={{ color: '#8b5cf6', fontSize: 12, fontWeight: '700' }}>倒计时</Text>
+            </View>
+          )}
+          {activeCds.map((c, i) => (
+            <View
+              key={c.id}
+              style={[styles.examCard, glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }]}>
+              <Text style={[styles.examDays, { color: '#8b5cf6' }]}>
+                {c.left === 0 ? '就是今天' : `${c.left} 天`}
+              </Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }} numberOfLines={1}>
+                  {c.name}
+                </Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 11 }} numberOfLines={1}>
+                  {c.date}
+                </Text>
+              </View>
+            </View>
+          ))}
         </ScrollView>
       )}
 
@@ -827,6 +864,15 @@ function ClassicScreen() {
         data={wxFull}
         loading={wxLoading}
         onClose={() => setWxOpen(false)}
+        onChangeCity={(c) => {
+          void setWeatherCity(c).then(() => {
+            setWxLoading(true);
+            fetchWeatherFull()
+              .then(setWxFull)
+              .catch(() => {})
+              .finally(() => setWxLoading(false));
+          });
+        }}
       />
 
       {/* 离屏横版周课表(仅用于生成分享长图): 表头节次格固定 46pt 与数据行对齐 */}
