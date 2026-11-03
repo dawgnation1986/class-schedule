@@ -19,6 +19,7 @@ import { PickerField } from '@/components/picker-field';
 import { ApkDownload } from '@/components/download-view';
 import { AboutGithub } from '@/components/about-github';
 import { OnboardingModal } from '@/components/onboarding';
+import { startCoachTour, TourTarget } from '@/components/tour';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { checkUpdate, currentVersion, type UpdateInfo } from '@/lib/updates';
 
@@ -196,19 +197,36 @@ export default function SettingsScreen() {
           )}
         </Pressable>
 
-        {/* 新手引导(常驻入口, 全程不透明配色) */}
-        <Pressable
-          onPress={() => setIntroOpen(true)}
-          style={[styles.guideCard, { backgroundColor: colors.backgroundElement }]}>
-          <View style={styles.guideIcon}>
-            <Ionicons name="sparkles" size={20} color="#fff" />
-          </View>
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text style={{ color: colors.text, fontWeight: '700', fontSize: 15 }}>新手引导</Text>
-            <Text style={{ color: colors.textSecondary, fontSize: 12 }}>分步了解绑班级、课表缩放、提醒等功能</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-        </Pressable>
+        {/* 教程设置(常驻): 交互式新手引导 + 图文教程 */}
+        <TourTarget id="st.guide">
+        <View style={[styles.guideCard, { backgroundColor: colors.backgroundElement }]}>
+          <Text style={{ color: colors.text, fontWeight: '800', fontSize: 15 }}>教程设置</Text>
+          <Pressable
+            onPress={() => startCoachTour()}
+            style={({ pressed }) => [styles.guideRow, pressed && { opacity: 0.6 }]}>
+            <View style={[styles.guideIcon, { backgroundColor: '#2563eb' }]}>
+              <Ionicons name="compass" size={19} color="#fff" />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14.5 }}>新手引导</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 12 }}>方块高亮+箭头指引, 一步步带你逛 App</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+          </Pressable>
+          <Pressable
+            onPress={() => setIntroOpen(true)}
+            style={({ pressed }) => [styles.guideRow, pressed && { opacity: 0.6 }]}>
+            <View style={[styles.guideIcon, { backgroundColor: '#7c3aed' }]}>
+              <Ionicons name="book" size={19} color="#fff" />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14.5 }}>图文功能教程</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 12 }}>6 页图文介绍, 首次启动展示过的那份</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+          </Pressable>
+        </View>
+        </TourTarget>
 
         {/* 检查更新 */}
         <View style={[styles.updateCard, { backgroundColor: colors.backgroundElement }]}>
@@ -280,8 +298,9 @@ const styles = StyleSheet.create({
   typeBtn: { flex: 1, borderRadius: 10, padding: 12, gap: 2 },
   saveBtn: { borderRadius: 12, alignItems: 'center', paddingVertical: 15, marginTop: Spacing.one },
   updateCard: { borderRadius: 12, padding: Spacing.two, marginTop: Spacing.three, gap: 6 },
-  guideCard: { borderRadius: 12, padding: Spacing.two, marginTop: Spacing.three, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  guideIcon: { width: 38, height: 38, borderRadius: 11, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center' },
+  guideCard: { borderRadius: 12, padding: Spacing.two, marginTop: Spacing.three, gap: 4 },
+  guideRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 9 },
+  guideIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   updateMsg: { fontSize: 13, lineHeight: 19 },
   error: { color: '#ef4444', marginBottom: Spacing.two },
 });

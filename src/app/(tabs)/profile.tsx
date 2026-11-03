@@ -35,6 +35,7 @@ import {
   type PeriodTimes,
 } from '@/lib/schedule-times';
 import { UpdateCard } from '@/components/update-card';
+import { TourTarget } from '@/components/tour';
 
 const PERIOD_ORDER = ['1-2', '3-4', '中午', '5-6', '7-8', '9-10'];
 
@@ -417,6 +418,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* 外观模式 */}
+        <TourTarget id="pf.theme">
         <View style={[styles.section, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
           <Text style={{ color: colors.text, fontWeight: '700' }}>外观模式</Text>
           <View style={[styles.timesBtnRow, { marginTop: 10, marginBottom: 0 }]}>
@@ -441,6 +443,7 @@ export default function ProfileScreen() {
             ))}
           </View>
         </View>
+        </TourTarget>
 
         {/* 天气城市 */}
         <View style={[styles.section, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
@@ -520,6 +523,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* 自定义背景 */}
+        <TourTarget id="pf.bg">
         <View style={[styles.section, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
           <Text style={{ color: colors.text, fontWeight: '700' }}>自定义背景</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
@@ -572,6 +576,7 @@ export default function ProfileScreen() {
             </View>
           )}
         </View>
+        </TourTarget>
 
         {/* 课表界面风格 */}
         <View style={[styles.section, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>

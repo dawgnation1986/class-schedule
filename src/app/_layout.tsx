@@ -1,11 +1,11 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { UpdatePrompt } from '@/components/update-prompt';
-import { OnboardingModal, shouldShowOnboarding } from '@/components/onboarding';
+import { CoachTour, startCoachTour, shouldShowTour } from '@/components/tour';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { BackgroundLayer, primeBackground } from '@/lib/background';
 import { primeScheduleTimes } from '@/lib/schedule-times';
@@ -16,7 +16,6 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  const [intro, setIntro] = useState(false); // 首次启动自动弹新手引导
 
   // 启动时预热作息时间表/外观模式/自定义背景, 并自动创建/修复通知渠道 + 请求通知权限
   useEffect(() => {
@@ -24,7 +23,10 @@ export default function RootLayout() {
     void primeThemeMode();
     void primeBackground();
     void initNotifications();
-    void shouldShowOnboarding().then(setIntro);
+    // 首次启动: 自动开始交互式新手引导(方块高亮+箭头)
+    void shouldShowTour().then((first) => {
+      if (first) startCoachTour();
+    });
   }, []);
 
   return (
@@ -33,8 +35,8 @@ export default function RootLayout() {
       {/* 自定义背景图层(页面背景透明时露出) */}
       <BackgroundLayer />
       <UpdatePrompt />
-      {/* 新手引导: 首次启动自动弹出; 设置页可随时重温 */}
-      <OnboardingModal visible={intro} onClose={() => setIntro(false)} />
+      {/* 交互式新手引导(全屏遮罩层, 首次启动自动/教程设置手动) */}
+      <CoachTour />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="settings" />

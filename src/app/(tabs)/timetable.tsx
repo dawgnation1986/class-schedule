@@ -27,6 +27,7 @@ import { getTempOverride, setTempOverride } from '@/lib/tempOverride';
 import { fetchWeather, fetchWeatherFull, setWeatherCity, type Weather, type WeatherFull } from '@/lib/weather';
 import { WeatherModal } from '@/components/weather-modal';
 import { scheduleClassReminders } from '@/lib/notifications';
+import { TourTarget } from '@/components/tour';
 import { getPeriodTimes, subscribeTimes } from '@/lib/schedule-times';
 import { NovaTimetable } from '@/components/timetable-nova';
 import { getExams, type ExamInfo } from '@/lib/school-data';
@@ -646,6 +647,7 @@ function ClassicScreen() {
         </Pressable>
       </View>
 
+      <TourTarget id="tt.toolbar">
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -726,6 +728,7 @@ function ClassicScreen() {
           </Pressable>
         </View>
       </ScrollView>
+      </TourTarget>
 
       {usingTemp && settings && (
         <Pressable onPress={exitTemp} style={[styles.tempBanner, { backgroundColor: 'rgba(37,99,235,0.12)' }]}>
@@ -798,6 +801,7 @@ function ClassicScreen() {
         <Text style={[styles.loadingText, { color: colors.textSecondary }]}>没有查询到课表数据</Text>
       )}
       {!loading && timetable && timetable.rows.length > 0 && (
+        <TourTarget id="tt.grid">
         <PinchZoom>
           <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.tableContent}>
           <View style={styles.tableWrap}>
@@ -947,6 +951,7 @@ function ClassicScreen() {
           </View>
         </ScrollView>
         </PinchZoom>
+        </TourTarget>
       )}
       {/* 全屏横屏整周视图(捏合缩放) */}
       {timetable && (
