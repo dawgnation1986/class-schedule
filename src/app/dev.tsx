@@ -13,6 +13,7 @@ import { PageBackdrop, usePageBackground, useBgSetting } from '@/lib/background'
 import { PORTAL_SITE, clearSession, loadLoginPage, type LoginState } from '@/lib/portal';
 import { loadSettings } from '@/lib/settings';
 import { setTempOverride } from '@/lib/tempOverride';
+import { ensureReminderChannel } from '@/lib/notifications';
 
 type LogLine = { ok: boolean | null; text: string };
 
@@ -253,17 +254,16 @@ export default function DevScreen() {
     }
   }, []);
 
-  /** 幂等创建 MAX 重要级渠道(与 lib/notifications 的 v2 渠道一致) */
-  const ensureChannel = useCallback(async () => {
-    const Notifications = require('expo-notifications');
-    await Notifications.setNotificationChannelAsync('class-remind-v2', {
-      name: '上课提醒',
-      importance: Notifications.AndroidImportance.MAX,
-      sound: 'default',
-      vibrationPattern: [0, 300, 250, 300],
-      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-    });
+  /** 检测并自动修复渠道: 不存在/重要级不足 → 创建或删除重建(MAX) */
+  const fixChannel = useCallback(async () => {
+    const st = await ensureReminderChannel();
     await checkPerm();
+    return st;
+  }, [checkPerm]);
+
+  // 进入页面自动检测通知权限与渠道状态
+  useEffect(() => {
+    void checkPerm();
   }, [checkPerm]);
 
   const sendTestNotification = useCallback(
@@ -273,18 +273,12 @@ export default function DevScreen() {
       if (!p.granted) {
         const r = await Notifications.requestPermissionsAsync();
         if (!r.granted) {
-          Alert.alert('无通知权限', '请在系统设置中允许本应用发送通知后重试');
+          Alert.alert('无通知权限', '系统未授予通知权限(可能之前拒绝过)。请点「打开系统通知设置」手动打开');
           return;
         }
       }
-      // 测试前确保渠道存在, 否则 Android 静默丢弃
-      await Notifications.setNotificationChannelAsync('class-remind-v2', {
-        name: '上课提醒',
-        importance: Notifications.AndroidImportance.MAX,
-        sound: 'default',
-        vibrationPattern: [0, 300, 250, 300],
-        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-      });
+      // 测试前确保渠道存在且 MAX, 否则通知可能不弹横幅
+      await ensureReminderChannel();
       const body = `开发者调试通知 · ${new Date().toLocaleTimeString('zh-CN')}`;
       if (immediate) {
         const id = await Notifications.scheduleNotificationAsync({
@@ -464,7 +458,27 @@ export default function DevScreen() {
             </Pressable>
           </View>
           <View style={{ gap: 8 }}>
-            <Btn label="确保渠道存在(MAX)" onPress={() => void ensureChannel().then(() => Alert.alert('完成', '渠道 class-remind-v2 已就绪(MAX 重要级)'))} colors={colors} glass={glass} glassLine={glassLine} />
+            <Btn
+              label="检测并自动修复渠道"
+              onPress={() =>
+                void fixChannel().then((st) =>
+                  Alert.alert(
+                    '渠道修复结果',
+                    st === 'ok'
+                      ? '渠道已存在且重要级为 MAX, 无需修复'
+                      : st === 'created'
+                        ? '渠道之前不存在, 已自动创建(MAX)'
+                        : st === 'recreated'
+                          ? '原渠道重要级不足, 已删除并重建(MAX) ← 这就是之前不弹横幅的原因'
+                          : '通知模块不可用(Expo Go 环境?)',
+                  ),
+                )
+              }
+              colors={colors}
+              tone="primary"
+              glass={glass}
+              glassLine={glassLine}
+            />
             <Btn label="立即发一条测试通知" onPress={() => void sendTestNotification(true)} colors={colors} glass={glass} glassLine={glassLine} />
             <Btn label="5 秒后发一条测试通知" onPress={() => void sendTestNotification(false)} colors={colors} glass={glass} glassLine={glassLine} />
             <Btn label="打开系统通知设置(重点检查!)" onPress={() => Linking.openSettings()} colors={colors} tone="primary" glass={glass} glassLine={glassLine} />

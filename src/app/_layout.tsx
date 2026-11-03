@@ -9,17 +9,19 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { BackgroundLayer, primeBackground } from '@/lib/background';
 import { primeScheduleTimes } from '@/lib/schedule-times';
 import { primeThemeMode } from '@/lib/theme';
+import { initNotifications } from '@/lib/notifications';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
-  // 启动时预热作息时间表/外观模式/自定义背景
+  // 启动时预热作息时间表/外观模式/自定义背景, 并自动创建/修复通知渠道 + 请求通知权限
   useEffect(() => {
     void primeScheduleTimes();
     void primeThemeMode();
     void primeBackground();
+    void initNotifications();
   }, []);
 
   return (
