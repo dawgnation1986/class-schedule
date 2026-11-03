@@ -633,8 +633,8 @@ export default function ProfileScreen() {
         {/* 开发者选项入口 */}
         <Pressable
           onPress={() => router.push('/dev' as never)}
-          style={[styles.timesBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected, justifyContent: 'center' }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          style={[styles.timesBtn, glassBorder(), { marginTop: Spacing.three, backgroundColor: glass ? 'transparent' : colors.backgroundSelected, justifyContent: 'center', minHeight: 44 }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             <Ionicons name="terminal-outline" size={16} color={colors.textSecondary} />
             <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>开发者选项</Text>
             <Text style={{ color: colors.textSecondary, fontSize: 11 }}>(登录修复 / 调试)</Text>
