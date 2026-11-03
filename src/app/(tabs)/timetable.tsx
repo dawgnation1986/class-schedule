@@ -5,6 +5,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import * as ScreenOrientation from 'expo-screen-orientation';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -17,6 +20,7 @@ import {
   selectMajor,
   type QueryType,
   type Timetable,
+  type TimetableRow,
 } from '@/lib/timetable';
 import { DEFAULT_QUERY_TYPE, loadSettings, loadTimetableUI, type Settings, type TimetableUI } from '@/lib/settings';
 import { getTempOverride, setTempOverride } from '@/lib/tempOverride';
@@ -165,6 +169,165 @@ function DatePickModal({
   );
 }
 
+/** 课表捏合缩放容器: 双指 1~3 倍缩放, 松手后缩得太小自动回弹 */
+function PinchZoom({ children }: { children: React.ReactNode }) {
+  const scale = useSharedValue(1);
+  const saved = useSharedValue(1);
+  const pinch = Gesture.Pinch()
+    .onStart(() => {
+      saved.value = scale.value;
+    })
+    .onUpdate((e) => {
+      scale.value = Math.min(3, Math.max(1, saved.value * e.scale));
+    })
+    .onEnd(() => {
+      if (scale.value < 1.2) scale.value = withSpring(1);
+    });
+  const anim = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <GestureDetector gesture={pinch}>
+        <Animated.View style={[{ flex: 1 }, anim]}>{children}</Animated.View>
+      </GestureDetector>
+    </GestureHandlerRootView>
+  );
+}
+
+/** 全屏横屏整周视图: 自动横屏铺满一周, 双指捏合缩放(0.5~4 倍)+双指拖动 */
+function FullWeekView({
+  visible,
+  onClose,
+  rows,
+  colors,
+  todayCol,
+  isToday,
+  curPeriod,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  rows: TimetableRow[];
+  colors: (typeof Colors)[keyof typeof Colors];
+  todayCol: number;
+  isToday: boolean;
+  curPeriod: string | null;
+}) {
+  const [dim, setDim] = useState({ w: 0, h: 0 });
+  const scale = useSharedValue(1);
+  const saved = useSharedValue(1);
+  const tx = useSharedValue(0);
+  const ty = useSharedValue(0);
+  const stx = useSharedValue(0);
+  const sty = useSharedValue(0);
+
+  // 进入锁横屏, 退出恢复竖屏
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    if (visible) {
+      void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT);
+    } else {
+      void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT);
+    }
+  }, [visible]);
+
+  const pinch = Gesture.Pinch()
+    .onStart(() => {
+      saved.value = scale.value;
+    })
+    .onUpdate((e) => {
+      scale.value = Math.min(4, Math.max(0.5, saved.value * e.scale));
+    });
+  const pan = Gesture.Pan()
+    .minPointers(2)
+    .onStart(() => {
+      stx.value = tx.value;
+      sty.value = ty.value;
+    })
+    .onUpdate((e) => {
+      tx.value = stx.value + e.translationX;
+      ty.value = sty.value + e.translationY;
+    });
+  const gesture = Gesture.Simultaneous(pinch, pan);
+  const anim = useAnimatedStyle(() => ({
+    transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value }],
+  }));
+
+  const pinW = 38;
+  const pad = 10;
+  const dayW = Math.max(56, (dim.w - pad * 2 - pinW) / 7 - 2);
+  const headH = 24;
+  const rowH = rows.length > 0 ? Math.max(32, Math.min(64, Math.floor((dim.h - headH - 44) / rows.length))) : 40;
+
+  return (
+    <Modal visible={visible} animationType="fade" statusBarTranslucent supportedOrientations={['landscape', 'portrait']} onRequestClose={onClose}>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>
+        <View style={{ flex: 1 }} onLayout={(e) => setDim({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+          <View style={{ position: 'absolute', top: 10, right: 14, zIndex: 10, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Text style={{ color: colors.textSecondary, fontSize: 11 }}>双指缩放/拖动</Text>
+            <Pressable
+              onPress={onClose}
+              style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, backgroundColor: 'rgba(37,99,235,0.15)' }}>
+              <Text style={{ color: '#2563eb', fontSize: 12, fontWeight: '700' }}>关闭</Text>
+            </Pressable>
+          </View>
+          <GestureDetector gesture={gesture}>
+            <Animated.View style={[{ flex: 1, padding: pad, justifyContent: 'center' }, anim]}>
+              <View>
+                {/* 表头 */}
+                <View style={{ flexDirection: 'row' }}>
+                  <View style={[fwStyles.pin, { width: pinW, height: headH }]}>
+                    <Text style={{ color: colors.textSecondary, fontSize: 10 }}>节次</Text>
+                  </View>
+                  {WEEK_COLS.map((d, i) => (
+                    <View
+                      key={d}
+                      style={[fwStyles.cell, { width: dayW, height: headH }, i === todayCol && fwStyles.todayCell]}>
+                      <Text style={{ color: i === todayCol ? colors.text : colors.textSecondary, fontSize: 10, fontWeight: i === todayCol ? '700' : '400' }}>
+                        {d}
+                        {i === todayCol && isToday ? ' · 今' : ''}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+                {/* 数据行 */}
+                {rows.map((row) => (
+                  <View key={row.index} style={{ flexDirection: 'row' }}>
+                    <View style={[fwStyles.pin, { width: pinW, height: rowH }]}>
+                      <Text style={{ color: colors.textSecondary, fontSize: 9, textAlign: 'center' }}>{row.period}</Text>
+                    </View>
+                    {row.days.map((courses, i) => (
+                      <View
+                        key={i}
+                        style={[
+                          fwStyles.cell,
+                          { width: dayW, height: rowH },
+                          i === todayCol && fwStyles.todayCell,
+                          curPeriod === row.period && i === todayCol && { backgroundColor: 'rgba(37,99,235,0.15)' },
+                        ]}>
+                        {courses.map((c, k) => (
+                          <Text key={k} style={{ color: colors.text, fontSize: 9, lineHeight: 12 }} numberOfLines={3}>
+                            {c.name}
+                            {c.location ? ` @${c.location}` : ''}
+                          </Text>
+                        ))}
+                      </View>
+                    ))}
+                  </View>
+                ))}
+              </View>
+            </Animated.View>
+          </GestureDetector>
+        </View>
+      </GestureHandlerRootView>
+    </Modal>
+  );
+}
+
+const fwStyles = StyleSheet.create({
+  pin: { alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(128,128,128,0.35)', backgroundColor: 'rgba(100,116,139,0.08)' },
+  cell: { alignItems: 'center', justifyContent: 'center', padding: 2, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(128,128,128,0.35)' },
+  todayCell: { backgroundColor: 'rgba(37,99,235,0.10)' },
+});
+
 export default function TimetableEntry() {
   const [ui, setUi] = useState<TimetableUI | null>(null);
   useFocusEffect(
@@ -225,6 +388,7 @@ function ClassicScreen() {
     hScrollRef.current = node;
   }, []);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [fullOpen, setFullOpen] = useState(false); // 全屏横屏整周视图
   const queryTypeRef = useRef(queryType);
   queryTypeRef.current = queryType;
   const selectedDateRef = useRef(selectedDate);
@@ -535,6 +699,12 @@ function ClassicScreen() {
             <Ionicons name="share-social-outline" size={14} color={colors.text} />
             <Text style={{ color: colors.text, fontSize: 13 }}>分享</Text>
           </Pressable>
+          <Pressable
+            onPress={() => setFullOpen(true)}
+            style={[styles.dayBtn, glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }]}>
+            <Ionicons name="expand-outline" size={14} color={colors.text} />
+            <Text style={{ color: colors.text, fontSize: 13 }}>全屏周视图</Text>
+          </Pressable>
           <View style={{ width: 1, backgroundColor: 'rgba(128,128,128,0.3)' }} />
           <Pressable
             onPress={() => router.push('/todos')}
@@ -628,7 +798,8 @@ function ClassicScreen() {
         <Text style={[styles.loadingText, { color: colors.textSecondary }]}>没有查询到课表数据</Text>
       )}
       {!loading && timetable && timetable.rows.length > 0 && (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.tableContent}>
+        <PinchZoom>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.tableContent}>
           <View style={styles.tableWrap}>
             {/* 左侧固定节次列(不随横向滚动, 按实测行位置绝对对齐) */}
             <View style={[styles.pinCol, { height: tableH || undefined }]}>
@@ -775,6 +946,19 @@ function ClassicScreen() {
             </ScrollView>
           </View>
         </ScrollView>
+        </PinchZoom>
+      )}
+      {/* 全屏横屏整周视图(捏合缩放) */}
+      {timetable && (
+        <FullWeekView
+          visible={fullOpen}
+          onClose={() => setFullOpen(false)}
+          rows={timetable.rows}
+          colors={colors}
+          todayCol={todayCol}
+          isToday={isToday}
+          curPeriod={curPeriod}
+        />
       )}
       {/* 课程详情卡 */}
       <Modal visible={!!detailCell} transparent animationType="fade" onRequestClose={() => setDetailCell(null)}>

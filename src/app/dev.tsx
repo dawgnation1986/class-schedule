@@ -246,7 +246,7 @@ export default function DevScreen() {
       const ch = await Notifications.getNotificationChannelAsync('class-remind-v2');
       setChannelInfo(
         ch
-          ? `存在 · importance=${ch.importance}${Number(ch.importance) === 4 ? '(MAX✓)' : ' ← 不是MAX, 横幅弹不出!'}`
+          ? `存在 · importance=${ch.importance}${Number(ch.importance) >= Notifications.AndroidImportance.HIGH ? '(横幅可用✓)' : ' ← 重要级过低, 横幅弹不出!'}`
           : '不存在 ← 测试前先点「确保渠道存在」',
       );
     } catch {
@@ -281,11 +281,12 @@ export default function DevScreen() {
       await ensureReminderChannel();
       const body = `开发者调试通知 · ${new Date().toLocaleTimeString('zh-CN')}`;
       if (immediate) {
+        // 关键: 必须带 channelId 走「上课提醒」渠道; trigger:null 会进系统默认渠道, 用户开了渠道权限也没用
         const id = await Notifications.scheduleNotificationAsync({
-          content: { title: '测试通知(立即)', body },
-          trigger: null,
-        } as never);
-        Alert.alert('已立即发送', `通知 ID: ${id}\n若仍未弹出, 点「打开系统通知设置」检查 通知/悬浮通知 开关`);
+          content: { title: '测试通知', body },
+          trigger: { seconds: 1, channelId: 'class-remind-v2' } as never,
+        });
+        Alert.alert('已发送(1秒后弹出)', `通知 ID: ${id}\n本次走「上课提醒」渠道。若仍未弹出, 点「打开系统通知设置」检查 通知/悬浮通知 开关`);
       } else {
         await Notifications.scheduleNotificationAsync({
           content: { title: '测试通知(5秒)', body },
@@ -452,7 +453,7 @@ export default function DevScreen() {
           <View style={rowStyle}>
             <Text style={{ color: colors.text, fontSize: 13 }}>提醒渠道</Text>
             <Pressable onPress={() => void checkPerm()} hitSlop={6}>
-              <Text style={{ color: channelInfo.includes('MAX✓') ? '#16a34a' : channelInfo === '未查询' ? '#2563eb' : '#f59e0b', fontSize: 12 }}>
+              <Text style={{ color: channelInfo.includes('✓') ? '#16a34a' : channelInfo === '未查询' ? '#2563eb' : '#f59e0b', fontSize: 12 }}>
                 {channelInfo === '未查询' ? '点此查询' : channelInfo}
               </Text>
             </Pressable>
@@ -479,7 +480,7 @@ export default function DevScreen() {
               glass={glass}
               glassLine={glassLine}
             />
-            <Btn label="立即发一条测试通知" onPress={() => void sendTestNotification(true)} colors={colors} glass={glass} glassLine={glassLine} />
+            <Btn label="发一条测试通知(1秒后)" onPress={() => void sendTestNotification(true)} colors={colors} glass={glass} glassLine={glassLine} />
             <Btn label="5 秒后发一条测试通知" onPress={() => void sendTestNotification(false)} colors={colors} glass={glass} glassLine={glassLine} />
             <Btn label="打开系统通知设置(重点检查!)" onPress={() => Linking.openSettings()} colors={colors} tone="primary" glass={glass} glassLine={glassLine} />
           </View>
