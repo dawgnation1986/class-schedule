@@ -1,7 +1,7 @@
 /** 新手引导(教练式): 高亮方块 + 箭头指引真实界面元素, 点击任意位置才能下一步, 可跳过
- *  原理: 各页面用 <TourTarget id> 注册元素窗口坐标; CoachTour 渲染全屏遮罩,
- *  每步 router.navigate 到对应页并轮询目标坐标, 挖洞高亮 + 指引卡片 */
-import { useCallback, useEffect, useRef, useState } from 'react';
+ *  原理: 各页面用 <TourTarget id> 登记控件引用; CoachTour 渲染全屏遮罩, 每步跳到对应页
+ *  并周期性实时测量目标控件窗口坐标(滚动/布局变化都跟随), 挖洞高亮 + 指引卡片 */
+import { useCallback, useEffect, useState } from 'react';
 import { Dimensions, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
@@ -47,8 +47,8 @@ export const TOUR_STEPS: TourStep[] = [
   { route: '/settings', target: 'st.guide', title: '教程设置', desc: '新手引导和图文教程常驻在这里, 随时可以回看。' },
 ];
 
-// ---- 目标注册表: 页面元素把自己的窗口坐标注册进来, 引导层轮询取用 ----
-const targets = new Map<string, Rect>();
+// ---- 目标注册表: TourTarget 只登记视图引用, CoachTour 持续实时测量坐标(滚动/布局变化都能跟上) ----
+const targetRefs = new Map<string, View>();
 const startListeners = new Set<() => void>();
 
 /** 触发新手引导(首次启动自动 / 教程设置手动) */
@@ -56,19 +56,17 @@ export function startCoachTour(): void {
   startListeners.forEach((l) => l());
 }
 
-/** 包住要高亮的元素, 自动测量窗口坐标 */
+/** 包住要高亮的元素; 坐标由 CoachTour 周期性 measureInWindow 实时获取, 避免滚动后错位 */
 export function TourTarget({ id, style, children }: { id: string; style?: object; children: React.ReactNode }) {
-  const ref = useRef<View>(null);
-  const measure = useCallback(() => {
-    requestAnimationFrame(() => {
-      ref.current?.measureInWindow((x, y, w, h) => {
-        if (w > 0 && h > 0) targets.set(id, { x, y, w, h });
-      });
-    });
-  }, [id]);
-  useEffect(() => () => void targets.delete(id), [id]);
+  const setRef = useCallback(
+    (v: View | null) => {
+      if (v) targetRefs.set(id, v);
+      else targetRefs.delete(id);
+    },
+    [id],
+  );
   return (
-    <View ref={ref} onLayout={measure} collapsable={false} style={style}>
+    <View ref={setRef} collapsable={false} style={style}>
       {children}
     </View>
   );
@@ -111,26 +109,37 @@ export function CoachTour() {
 
   const step = st.active ? TOUR_STEPS[st.idx] : null;
 
-  // 每步: 跳到对应页面, 等元素挂载后取坐标(找不到则跳到下一步)
+  // 每步: 跳到对应页面, 周期性实时测量目标控件窗口坐标(滚动/布局变化实时跟随; 找不到则跳到下一步)
   useEffect(() => {
     if (!step) return;
     let alive = true;
     let tries = 0;
     router.navigate(step.route as never);
-    const tick = () => {
+    const poll = () => {
       if (!alive) return;
-      const t = targets.get(step.target);
-      if (t) {
-        setRect(t);
+      const ref = targetRefs.get(step.target);
+      if (!ref) {
+        setRect(null);
+        if (tries++ > 40) next();
         return;
       }
-      if (tries++ < 40) setTimeout(tick, 120);
-      else next();
+      ref.measureInWindow((x, y, w, h) => {
+        if (!alive) return;
+        if (w > 0 && h > 0) {
+          tries = 0;
+          setRect((p) => (p && p.x === x && p.y === y && p.w === w && p.h === h ? p : { x, y, w, h }));
+        } else {
+          setRect(null);
+          if (tries++ > 40) next();
+        }
+      });
     };
-    const t0 = setTimeout(tick, 400);
+    const t0 = setTimeout(poll, 350);
+    const iv = setInterval(poll, 250);
     return () => {
       alive = false;
       clearTimeout(t0);
+      clearInterval(iv);
     };
   }, [step, router, next]);
 
