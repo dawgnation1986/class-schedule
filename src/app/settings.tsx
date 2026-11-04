@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -19,7 +19,7 @@ import { PickerField } from '@/components/picker-field';
 import { ApkDownload } from '@/components/download-view';
 import { AboutGithub } from '@/components/about-github';
 import { OnboardingModal } from '@/components/onboarding';
-import { startCoachTour, TourTarget } from '@/components/tour';
+import { startCoachTour, TourTarget, registerTourScroller } from '@/components/tour';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { checkUpdate, currentVersion, type UpdateInfo } from '@/lib/updates';
 
@@ -52,6 +52,11 @@ export default function SettingsScreen() {
   const [checking, setChecking] = useState(false);
   const [updateErr, setUpdateErr] = useState<string | null>(null);
   const [introOpen, setIntroOpen] = useState(false); // 新手引导(常驻入口)
+  // 登记滚动容器: 新手引导可自动滚动到屏幕外的目标
+  const scrollRef = useRef<ScrollView>(null);
+  useEffect(() => {
+    registerTourScroller('/settings', scrollRef.current);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -133,7 +138,7 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
-      <PageBackdrop />      <ScrollView contentContainerStyle={styles.content}>
+      <PageBackdrop />      <ScrollView ref={scrollRef} contentContainerStyle={styles.content}>
         <Pressable
           onPress={() => router.back()}
           style={[styles.backBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>

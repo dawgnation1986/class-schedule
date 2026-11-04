@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -35,7 +35,8 @@ import {
   type PeriodTimes,
 } from '@/lib/schedule-times';
 import { UpdateCard } from '@/components/update-card';
-import { TourTarget } from '@/components/tour';
+import { TourTarget, registerTourScroller } from '@/components/tour';
+import { AgreementModal } from '@/components/agreement';
 
 const PERIOD_ORDER = ['1-2', '3-4', '中午', '5-6', '7-8', '9-10'];
 
@@ -233,6 +234,12 @@ export default function ProfileScreen() {
   const [bkJson, setBkJson] = useState('');
   const [bkInOpen, setBkInOpen] = useState(false);
   const [bkText, setBkText] = useState('');
+  const [agreementOpen, setAgreementOpen] = useState(false);
+  // 登记滚动容器: 新手引导可自动滚动到屏幕外的目标
+  const scrollRef = useRef<ScrollView>(null);
+  useEffect(() => {
+    registerTourScroller('/profile', scrollRef.current);
+  }, []);
 
   useEffect(() => {
     void getWeatherCity().then(setWxCity);
@@ -302,7 +309,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={[styles.title, { color: colors.text }]}>我的</Text>
 
         <Text style={[styles.label, { color: colors.textSecondary }]}>主站账号（学号）</Text>
@@ -646,11 +653,23 @@ export default function ProfileScreen() {
           </View>
         </Pressable>
 
+        {/* 用户协议 */}
+        <Pressable
+          onPress={() => setAgreementOpen(true)}
+          style={[styles.timesBtn, glassBorder(), { marginTop: Spacing.two, backgroundColor: glass ? 'transparent' : colors.backgroundSelected, justifyContent: 'center', minHeight: 44 }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <Ionicons name="document-text-outline" size={16} color={colors.textSecondary} />
+            <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>用户协议</Text>
+          </View>
+        </Pressable>
+
         <UpdateCard colors={colors} />
       </ScrollView>
 
       <TimesEditorModal visible={editOpen} initial={times} onClose={() => setEditOpen(false)} colors={colors} />
       <JsonImportModal visible={jsonOpen} onClose={() => setJsonOpen(false)} colors={colors} />
+      {/* 用户协议(查看模式) */}
+      <AgreementModal visible={agreementOpen} mode="view" onClose={() => setAgreementOpen(false)} />
       {/* 导出备份: 展示 JSON + 系统分享 */}
       <Modal visible={bkOutOpen} transparent animationType="fade" onRequestClose={() => setBkOutOpen(false)}>
         <Pressable style={styles.modalMask} onPress={() => setBkOutOpen(false)}>

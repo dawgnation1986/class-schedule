@@ -2,7 +2,7 @@
  *  原理: 各页面用 <TourTarget id> 登记控件引用; CoachTour 渲染全屏遮罩, 每步跳到对应页
  *  并周期性实时测量目标控件窗口坐标(滚动/布局变化都跟随), 挖洞高亮 + 指引卡片 */
 import { useCallback, useEffect, useState } from 'react';
-import { Dimensions, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View, findNodeHandle } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -50,6 +50,14 @@ export const TOUR_STEPS: TourStep[] = [
 // ---- 目标注册表: TourTarget 只登记视图引用, CoachTour 持续实时测量坐标(滚动/布局变化都能跟上) ----
 const targetRefs = new Map<string, View>();
 const startListeners = new Set<() => void>();
+// 页面把自己的 ScrollView 登记进来(route -> scroller), 引导可自动滚动到屏幕外的目标
+const scrollers = new Map<string, ScrollView>();
+
+/** 页面登记其滚动容器, 使引导能滚动到屏幕外的目标控件 */
+export function registerTourScroller(route: string, ref: ScrollView | null): void {
+  if (ref) scrollers.set(route, ref);
+  else scrollers.delete(route);
+}
 
 /** 触发新手引导(首次启动自动 / 教程设置手动) */
 export function startCoachTour(): void {
@@ -128,6 +136,16 @@ export function CoachTour() {
         if (w > 0 && h > 0) {
           tries = 0;
           setRect((p) => (p && p.x === x && p.y === y && p.w === w && p.h === h ? p : { x, y, w, h }));
+          // 目标在屏幕外: 自动滚动到可见(带 140px 余量)
+          if (y + h > H - 16 || y < 0) {
+            const sc = scrollers.get(step.route);
+            const node = findNodeHandle(ref);
+            if (sc && node) {
+              (sc as unknown as {
+                scrollResponderScrollNativeHandleToKeyboard: (h: number, extra: number, animated: boolean) => void;
+              }).scrollResponderScrollNativeHandleToKeyboard(node, 140, true);
+            }
+          }
         } else {
           setRect(null);
           if (tries++ > 40) next();
