@@ -801,7 +801,7 @@ function ClassicScreen() {
         <Text style={[styles.loadingText, { color: colors.textSecondary }]}>没有查询到课表数据</Text>
       )}
       {!loading && timetable && timetable.rows.length > 0 && (
-        <TourTarget id="tt.grid">
+        <TourTarget id="tt.grid" style={{ flex: 1 }}>
         <PinchZoom>
           <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.tableContent}>
           <View style={styles.tableWrap}>

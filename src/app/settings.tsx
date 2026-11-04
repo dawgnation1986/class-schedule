@@ -14,7 +14,7 @@ import {
 } from '@/lib/timetable';
 import { DEFAULT_QUERY_TYPE, loadSettings, saveSettings, type Settings } from '@/lib/settings';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { PageBackdrop, usePageBackground } from '@/lib/background';
+import { PageBackdrop, usePageBackground, useBgSetting } from '@/lib/background';
 import { PickerField } from '@/components/picker-field';
 import { ApkDownload } from '@/components/download-view';
 import { AboutGithub } from '@/components/about-github';
@@ -34,6 +34,12 @@ export default function SettingsScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
   const pageBg = usePageBackground(colors);
+  // 控件全透明模式: 设了背景图且开启开关 → 按钮/卡片只留文字 + 1px 外轮廓
+  const bgSetting = useBgSetting();
+  const glass = !!bgSetting.uri && !!bgSetting.ctrl;
+  const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
+  const glassBorder = (active = false) =>
+    glass ? { borderWidth: 1, borderColor: active ? 'rgba(37,99,235,0.55)' : glassLine } : null;
   const router = useRouter();
 
   const [state, setState] = useState<PageState | null>(null);
@@ -128,7 +134,9 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
       <PageBackdrop />      <ScrollView contentContainerStyle={styles.content}>
-        <Pressable onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.backgroundElement }]}>
+        <Pressable
+          onPress={() => router.back()}
+          style={[styles.backBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
           <Text style={{ color: colors.text, fontSize: 14 }}>← 返回</Text>
         </Pressable>
         <Text style={[styles.title, { color: colors.text }]}>设置</Text>
@@ -146,6 +154,8 @@ export default function SettingsScreen() {
           disabled={!state || !!busy}
           onPick={(o) => pick('xb', o)}
           colors={colors}
+          glass={glass}
+          glassLine={glassLine}
         />
         <PickerField
           label="专业"
@@ -155,6 +165,8 @@ export default function SettingsScreen() {
           disabled={!sel.xb || !!busy}
           onPick={(o) => pick('zy', o)}
           colors={colors}
+          glass={glass}
+          glassLine={glassLine}
         />
         <PickerField
           label="班级"
@@ -164,6 +176,8 @@ export default function SettingsScreen() {
           disabled={!sel.zy || !!busy}
           onPick={(o) => pick('bj', o)}
           colors={colors}
+          glass={glass}
+          glassLine={glassLine}
         />
 
         <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>查询类型</Text>
@@ -174,7 +188,16 @@ export default function SettingsScreen() {
               onPress={() => setQueryType(t.value)}
               style={[
                 styles.typeBtn,
-                { backgroundColor: queryType === t.value ? colors.backgroundSelected : colors.backgroundElement },
+                glassBorder(queryType === t.value),
+                {
+                  backgroundColor: glass
+                    ? queryType === t.value
+                      ? 'rgba(37,99,235,0.15)'
+                      : 'transparent'
+                    : queryType === t.value
+                      ? colors.backgroundSelected
+                      : colors.backgroundElement,
+                },
               ]}>
               <Text style={{ color: colors.text, fontWeight: queryType === t.value ? '700' : '400' }}>
                 {t.label}
@@ -187,11 +210,15 @@ export default function SettingsScreen() {
         <Pressable
           disabled={!ready || !!busy}
           onPress={save}
-          style={[styles.saveBtn, { backgroundColor: ready ? '#2563eb' : colors.backgroundElement }]}>
+          style={[
+            styles.saveBtn,
+            glassBorder(!!ready),
+            { backgroundColor: glass ? (ready ? 'rgba(37,99,235,0.15)' : 'transparent') : ready ? '#2563eb' : colors.backgroundElement },
+          ]}>
           {busy ? (
             <ActivityIndicator color={colors.text} />
           ) : (
-            <Text style={{ color: ready ? '#fff' : colors.textSecondary, fontWeight: '700' }}>
+            <Text style={{ color: ready ? (glass ? colors.text : '#fff') : colors.textSecondary, fontWeight: '700' }}>
               {savedTip ? '已保存 ✓' : '保存设置'}
             </Text>
           )}
@@ -199,7 +226,7 @@ export default function SettingsScreen() {
 
         {/* 教程设置(常驻): 交互式新手引导 + 图文教程 */}
         <TourTarget id="st.guide">
-        <View style={[styles.guideCard, { backgroundColor: colors.backgroundElement }]}>
+        <View style={[styles.guideCard, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
           <Text style={{ color: colors.text, fontWeight: '800', fontSize: 15 }}>教程设置</Text>
           <Pressable
             onPress={() => startCoachTour()}
@@ -229,7 +256,7 @@ export default function SettingsScreen() {
         </TourTarget>
 
         {/* 检查更新 */}
-        <View style={[styles.updateCard, { backgroundColor: colors.backgroundElement }]}>
+        <View style={[styles.updateCard, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Text style={{ color: colors.text, fontWeight: '700' }}>
               当前版本 v{currentVersion()}
