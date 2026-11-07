@@ -20,6 +20,20 @@ jobs:
         with:
           node-version: 20
 
+      # 本地构建(--local)需要 JDK 17 + Android SDK; ubuntu 跑步机预装 Android SDK
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # 补齐缺失的 SDK 组件并接受许可(NDK/平台版本随 Expo SDK 升级可能变化)
+      - name: Ensure Android SDK components
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-36" "build-tools;36.0.0" \
+            "ndk;27.1.12297006" "cmake;3.22.1" > /dev/null
+
       # 认证: 优先 EXPO_TOKEN (expo.dev Access Token);
       # 否则恢复本地导出的 EAS 会话 (secrets.EAS_SESSION_JSON = ~/.expo/state.json 内容)
       # 注意必须用 env 传递而不是 ${{ }} 内插: secret 值含 \" 转义, 内插会被 bash 二次处理导致 JSON 损坏
@@ -34,40 +48,17 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
-      - name: Build Android APK (EAS, waits for completion)
-        shell: bash
+      # 用 EAS 本地构建(在 runner 上直接 Gradle 编译):
+      # 1) 不消耗 Expo Free 云端构建配额  2) 自动从 EAS 服务器拉取托管签名密钥, 与历史包同签名
+      - name: Build Android APK (EAS local build)
         run: |
-          set +e
           npx eas-cli@latest build \
             --platform android \
             --profile preview \
+            --local \
             --non-interactive \
-            --wait \
-            --json > build-meta.json 2> build-err.log
-          code=$?
-          echo "exit code: $code"
-          echo "--- stdout ---"
-          cat build-meta.json || true
-          echo "--- stderr ---"
-          cat build-err.log || true
-          if [ $code -ne 0 ] || [ ! -s build-meta.json ]; then
-            echo "::error::EAS build command failed (see stdout/stderr above)"
-            exit 1
-          fi
-
-      - name: Download APK
-        run: |
-          URL=$(node -e "const a=require('./build-meta.json');const b=Array.isArray(a)?a[a.length-1]:a;console.log((b.artifacts&&b.artifacts.buildUrl)||'')")
-          echo "APK URL: $URL"
-          test -n "$URL"
-          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
-            APK_NAME="class-schedule-${GITHUB_REF_NAME}.apk"
-          else
-            APK_NAME="class-schedule-v$(node -e "console.log(require('./app.json').expo.version)").apk"
-          fi
-          echo "APK_NAME=$APK_NAME" >> "$GITHUB_ENV"
-          curl -L --retry 3 -o "$APK_NAME" "$URL"
-          ls -la "$APK_NAME"
+            --output class-schedule.apk
+          ls -la class-schedule.apk
 
       - name: Create GitHub Release and upload APK
         env:
@@ -78,6 +69,8 @@ jobs:
           else
             TAG="v$(node -e "console.log(require('./app.json').expo.version)")"
           fi
+          APK_NAME="class-schedule-${TAG}.apk"
+          mv class-schedule.apk "$APK_NAME"
           TITLE="课表助手 $TAG"
           NOTES="自动构建于 $(date -u '+%Y-%m-%d %H:%M UTC')
 
