@@ -83,5 +83,10 @@ jobs:
 
           - 下载 $APK_NAME 直接安装
           - 覆盖安装不会丢失课表设置与本地数据"
-          gh release create "$TAG" "$APK_NAME" --title "$TITLE" --notes "$NOTES" \
+          # 版本号带连字符后缀(如 v1.11.6-pre / v1.12.0-rc.1) → 标记为预发布版本
+          PRERELEASE_FLAG=""
+          case "$TAG" in
+            *-*) PRERELEASE_FLAG="--prerelease" ;;
+          esac
+          gh release create "$TAG" "$APK_NAME" --title "$TITLE" --notes "$NOTES" $PRERELEASE_FLAG \
             || gh release upload "$TAG" "$APK_NAME" --clobber
