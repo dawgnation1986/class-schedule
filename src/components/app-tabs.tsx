@@ -4,6 +4,7 @@ import { useColorScheme } from 'react-native';
 
 import { Colors } from '@/constants/theme';
 import { usePageBackground } from '@/lib/background';
+import { saveUiMode } from '@/lib/ui-mode';
 import { useUiMode } from '@/hooks/use-ui-mode';
 import GlassTabs from '@/components/glass-tabs';
 
@@ -15,6 +16,8 @@ class GlassTabsBoundary extends Component<{ children: ReactNode }, { failed: boo
   }
   componentDidCatch(err: unknown) {
     console.warn('[GlassTabs] crashed, fallback to native tabs:', err);
+    // 自愈: 持久化回退到原版模式, 下次启动不再进入玻璃标签栏
+    void saveUiMode('original');
   }
   render() {
     if (this.state.failed) return <NativeTabsFallback />;

@@ -1,14 +1,11 @@
 /**
  * 界面设置: 原版界面 / 液态玻璃界面
  * 选择器带水滴动效: 指示器拉伸滑到目标档位, 一颗小水珠拖尾跟来, 落定收拢
+ *
+ * 稳定性说明: 动画使用 RN 内置 Animated(JS 线程驱动), 不用 reanimated worklet
  */
-import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import type { ThemeColor } from '@/constants/theme';
@@ -19,9 +16,6 @@ const OPTIONS: { value: UiMode; label: string; hint: string; icon: keyof typeof 
   { value: 'original', label: '原版界面', hint: '经典样式, 清晰直白', icon: 'square' },
   { value: 'glass', label: '液态玻璃', hint: '磨砂玻璃 · Apple 风格', icon: 'water' },
 ];
-
-const DROP_SPRING = { damping: 15, stiffness: 160, mass: 0.9 };
-const TRAIL_SPRING = { damping: 22, stiffness: 75, mass: 0.7 };
 
 export function UiModePicker({
   colors,
@@ -35,38 +29,38 @@ export function UiModePicker({
   const mode = useUiMode();
   const [draft, setDraft] = useState<UiMode>(mode);
   useEffect(() => setDraft(mode), [mode]);
-  // 段宽度: onLayout 实测, 指示器按像素平移(百分比 transform 在 Reanimated 不可靠)
+
+  // 两档布局: 指示器按像素平移(段宽 onLayout 实测)
   const [segW, setSegW] = useState(0);
 
-  // 两档布局: 指示器在 0 / 1 之间水滴式滑动
-  const p = useSharedValue(OPTIONS.findIndex((o) => o.value === mode));
-  const p2 = useSharedValue(OPTIONS.findIndex((o) => o.value === mode));
+  const x = useRef(new Animated.Value(OPTIONS.findIndex((o) => o.value === draft) * segW)).current;
+  const stretch = useRef(new Animated.Value(0)).current;
+  const x2 = useRef(new Animated.Value(OPTIONS.findIndex((o) => o.value === draft) * segW)).current;
+  const op2 = useRef(new Animated.Value(0)).current;
+  const lastX = useRef(0);
 
   useEffect(() => {
-    const idx = OPTIONS.findIndex((o) => o.value === draft);
-    p.value = withSpring(idx, DROP_SPRING);
-    p2.value = withSpring(idx, TRAIL_SPRING);
-  }, [draft, p, p2]);
+    const tx = OPTIONS.findIndex((o) => o.value === draft) * segW;
+    if (tx === lastX.current) return;
+    op2.setValue(0.85);
+    x2.setValue(lastX.current);
+    Animated.parallel([
+      Animated.spring(x, { toValue: tx, friction: 7, tension: 170, useNativeDriver: true }),
+      Animated.sequence([
+        Animated.timing(stretch, { toValue: 1, duration: 130, useNativeDriver: true }),
+        Animated.spring(stretch, { toValue: 0, friction: 5, tension: 80, useNativeDriver: true }),
+      ]),
+      Animated.sequence([
+        Animated.spring(x2, { toValue: tx, friction: 9, tension: 55, useNativeDriver: true, delay: 90 }),
+        Animated.timing(op2, { toValue: 0, duration: 280, useNativeDriver: true }),
+      ]),
+    ]).start();
+    lastX.current = tx;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, segW]);
 
-  const ind = useAnimatedStyle(() => {
-    const frac = p.value - Math.round(p.value);
-    const s = Math.min(Math.abs(frac), 0.5) * 0.5;
-    return {
-      transform: [
-        { translateX: p.value * segW },
-        { scaleX: 1 + s },
-        { scaleY: 1 - s * 0.5 },
-      ],
-    };
-  });
-
-  const drop = useAnimatedStyle(() => {
-    const gap = Math.abs(p.value - p2.value);
-    return {
-      transform: [{ translateX: p2.value * segW + segW * 0.5 - 4.5 }],
-      opacity: Math.min(gap * 3.2, 0.85),
-    };
-  });
+  const scaleX = stretch.interpolate({ inputRange: [0, 1], outputRange: [1, 1.5] });
+  const scaleY = stretch.interpolate({ inputRange: [0, 1], outputRange: [1, 0.78] });
 
   const dark = colors.background === '#000000';
   const indBg = dark ? 'rgba(255,255,255,0.20)' : 'rgba(37,99,235,0.12)';
@@ -93,9 +87,15 @@ export function UiModePicker({
         style={styles.segWrap}
         onLayout={(e) => setSegW(e.nativeEvent.layout.width / OPTIONS.length)}>
         {/* 拖尾小水珠 */}
-        <Animated.View pointerEvents="none" style={[styles.drop, drop, { backgroundColor: indBg }]} />
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.drop, { backgroundColor: indBg, opacity: op2 }, { transform: [{ translateX: x2 }] }]}
+        />
         {/* 水滴指示器 */}
-        <Animated.View pointerEvents="none" style={[styles.ind, ind, { backgroundColor: indBg }]} />
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.ind, { backgroundColor: indBg }, { transform: [{ translateX: x }, { scaleX }, { scaleY }] }]}
+        />
         <View style={styles.row}>
           {OPTIONS.map((o) => {
             const active = draft === o.value;

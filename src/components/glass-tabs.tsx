@@ -1,17 +1,14 @@
 /**
  * 液态玻璃标签栏: 磨砂玻璃浮层 + 水滴形态切换指示器
  * 切换 tab 时指示器像水滴一样拉伸、滑动、收拢, 并有一颗小水珠拖尾跟随
+ *
+ * 稳定性说明: 动画全部使用 RN 内置 Animated(JS 线程驱动, useNativeDriver),
+ * 不使用 reanimated worklet —— 规避 UI 线程崩溃(ErrorBoundary 拦不住那种)。
  */
-import { useEffect } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, {
-  interpolate,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { Colors } from '@/constants/theme';
@@ -25,11 +22,6 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
 };
 const LABELS: Record<string, string> = { home: '主站', timetable: '课表', profile: '我的' };
 
-/** 水滴弹性: 快而略带过冲, 像水珠落定 */
-const DROP_SPRING = { damping: 16, stiffness: 170, mass: 0.9 };
-/** 拖尾水珠: 更慢更松, 制造「跟在后面飞」的液态感 */
-const TRAIL_SPRING = { damping: 24, stiffness: 80, mass: 0.7 };
-
 function GlassTabBar({ state, navigation }: BottomTabBarProps) {
   const scheme = useColorScheme();
   const dark = scheme === 'dark';
@@ -42,39 +34,41 @@ function GlassTabBar({ state, navigation }: BottomTabBarProps) {
   const segW = barW / count;
   const indW = Math.min(Math.max(segW * 0.56, 54), 78);
 
-  // p: 当前选中 tab 的连续值(0..count-1), spring 过程会穿过小数值 → 用于拉伸形变
-  const p = useSharedValue(state.index);
-  // p2: 拖尾水珠的滞后值
-  const p2 = useSharedValue(state.index);
+  // 指示器目标 X: 居中于第 index 段
+  const targetX = (i: number) => segW * i + segW / 2 - indW / 2;
+
+  // 主指示器位移 + 水滴拉伸(0..1: 拉伸程度)
+  const x = useRef(new Animated.Value(targetX(state.index))).current;
+  const stretch = useRef(new Animated.Value(0)).current;
+  // 拖尾小水珠: 位移慢半拍 + 透明度
+  const x2 = useRef(new Animated.Value(targetX(state.index))).current;
+  const op2 = useRef(new Animated.Value(0)).current;
+  // 上一次落点, 供拖尾从旧位置出发
+  const lastX = useRef(targetX(state.index));
 
   useEffect(() => {
-    p.value = withSpring(state.index, DROP_SPRING);
-    p2.value = withSpring(state.index, TRAIL_SPRING);
-  }, [state.index, p, p2]);
+    const tx = targetX(state.index);
+    // 拖尾水珠: 从旧位置慢速跟来, 到达后淡出
+    op2.setValue(0.85);
+    x2.setValue(lastX.current);
+    // 指示器: 快速滑动 + 拉伸形变(先拉长, 落定时回弹收拢)
+    Animated.parallel([
+      Animated.spring(x, { toValue: tx, friction: 7, tension: 170, useNativeDriver: true }),
+      Animated.sequence([
+        Animated.timing(stretch, { toValue: 1, duration: 130, useNativeDriver: true }),
+        Animated.spring(stretch, { toValue: 0, friction: 5, tension: 80, useNativeDriver: true }),
+      ]),
+      Animated.sequence([
+        Animated.spring(x2, { toValue: tx, friction: 9, tension: 55, useNativeDriver: true, delay: 90 }),
+        Animated.timing(op2, { toValue: 0, duration: 280, useNativeDriver: true }),
+      ]),
+    ]).start();
+    lastX.current = tx;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.index]);
 
-  const toX = (v: number) => interpolate(v, [0, count - 1], [segW * 0.5, segW * (count - 0.5)]) - indW / 2;
-
-  /** 指示器: 滑动时水平拉伸 + 垂直压缩, 像一滴被拉长的水 */
-  const ind = useAnimatedStyle(() => {
-    const frac = p.value - Math.round(p.value);
-    const s = Math.min(Math.abs(frac), 0.5) * 0.55;
-    return {
-      transform: [
-        { translateX: toX(p.value) },
-        { scaleX: 1 + s },
-        { scaleY: 1 - s * 0.5 },
-      ],
-    };
-  });
-
-  /** 拖尾小水珠: 慢半拍跟过来, 停稳后消失 */
-  const drop = useAnimatedStyle(() => {
-    const gap = Math.abs(p.value - p2.value);
-    return {
-      transform: [{ translateX: toX(p2.value) }],
-      opacity: Math.min(gap * 3.2, 0.85),
-    };
-  });
+  const scaleX = stretch.interpolate({ inputRange: [0, 1], outputRange: [1, 1.5] });
+  const scaleY = stretch.interpolate({ inputRange: [0, 1], outputRange: [1, 0.78] });
 
   const line = dark ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.65)';
   const indBg = dark ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.85)';
@@ -84,9 +78,15 @@ function GlassTabBar({ state, navigation }: BottomTabBarProps) {
     <View pointerEvents="box-none" style={[styles.wrap, { bottom: Math.max(insets.bottom, 8) }]}>
       <View style={[styles.bar, { width: barW, borderColor: line, backgroundColor: barBg }]}>
         {/* 拖尾小水珠 */}
-        <Animated.View pointerEvents="none" style={[styles.drop, drop, { backgroundColor: indBg }]} />
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.drop, { backgroundColor: indBg, opacity: op2 }, { transform: [{ translateX: x2 }] }]}
+        />
         {/* 水滴指示器 */}
-        <Animated.View pointerEvents="none" style={[styles.ind, { width: indW, backgroundColor: indBg }, ind]} />
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.ind, { width: indW, backgroundColor: indBg }, { transform: [{ translateX: x }, { scaleX }, { scaleY }] }]}
+        />
         {/* tab 项 */}
         <View style={styles.row}>
           {state.routes.map((route, i) => {
@@ -100,7 +100,9 @@ function GlassTabBar({ state, navigation }: BottomTabBarProps) {
                 }}
                 style={styles.item}>
                 <Ionicons name={ICONS[route.name] ?? 'ellipse'} size={21} color={focused ? '#2563eb' : colors.textSecondary} />
-                <Text style={[styles.label, { color: focused ? '#2563eb' : colors.textSecondary }]}>{LABELS[route.name] ?? route.name}</Text>
+                <Text style={[styles.label, { color: focused ? '#2563eb' : colors.textSecondary }]}>
+                  {LABELS[route.name] ?? route.name}
+                </Text>
               </Pressable>
             );
           })}
@@ -110,11 +112,16 @@ function GlassTabBar({ state, navigation }: BottomTabBarProps) {
   );
 }
 
+/** 模块级包装, 保证 tabBar 组件身份稳定(避免每次渲染重挂载) */
+function TabBarAdapter(props: Parameters<typeof GlassTabBar>[0]) {
+  return <GlassTabBar {...props} />;
+}
+
 /** 液态玻璃模式下的 Tab 容器(页面切换: 指示器水滴滑动 + 内容淡入) */
 export default function GlassTabs() {
   return (
     <Tabs
-      tabBar={(props) => <GlassTabBar {...props} />}
+      tabBar={TabBarAdapter}
       screenOptions={{
         headerShown: false,
         sceneStyle: { backgroundColor: 'transparent' },

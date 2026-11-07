@@ -31,12 +31,13 @@ export default function RootLayout() {
     void initNotifications();
     // 首次启动: 图文教程 → 用户协议(拒绝则退出) → 新手引导
     (async () => {
-      if (!(await shouldShowAgreement())) {
-        // 协议未同意: 先图文(未看过才弹)再协议; 已同意的老用户直接进引导
+      // 协议未同意: 先图文(未看过才弹)再协议
+      if (await shouldShowAgreement()) {
         if (await shouldShowOnboarding()) setFlow('onboarding');
         else setFlow('agreement');
         return;
       }
+      // 协议已同意的老用户: 未看过交互式引导则触发
       if (await shouldShowTour()) startCoachTour();
     })();
   }, []);
