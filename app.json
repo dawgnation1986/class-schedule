@@ -12,7 +12,12 @@
     },
     "android": {
       "package": "com.classhoke.classschedule",
-      "permissions": ["REQUEST_INSTALL_PACKAGES", "SCHEDULE_EXACT_ALARM", "USE_EXACT_ALARM", "POST_NOTIFICATIONS"],
+      "permissions": [
+        "REQUEST_INSTALL_PACKAGES",
+        "SCHEDULE_EXACT_ALARM",
+        "USE_EXACT_ALARM",
+        "POST_NOTIFICATIONS"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#1E88E5",
         "foregroundImage": "./assets/images/student-icon.png"
@@ -34,7 +39,9 @@
         }
       ],
       "expo-sharing",
-      "expo-screen-orientation"
+      "expo-screen-orientation",
+      "expo-image",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -48,3 +48,5 @@ probe8*.mjs
 captcha8*.jpg
 q_*.html
 backup/
+
+build-outputs/

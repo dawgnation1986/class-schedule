@@ -12,7 +12,8 @@ import { Linking, Platform } from 'react-native';
 import { getMirrors, testAllMirrors, type Mirror } from './gh-mirrors';
 
 const REPO = 'dawgnation1986/class-schedule';
-const RELEASES_URL = `https://api.github.com/repos/${REPO}/releases/latest`;
+// 注意: /releases/latest 不含预发布版本, 想提示 pre 版必须拉列表
+const RELEASES_URL = `https://api.github.com/repos/${REPO}/releases?per_page=10`;
 const RELEASES_PAGE = `https://github.com/${REPO}/releases`;
 
 /** 当前版本 (app.json version) */
@@ -31,6 +32,8 @@ export type UpdateInfo = {
   /** Release 说明 */
   notes: string;
   publishedAt: string;
+  /** 是否为预发布版本 (tag 带 -pre / -rc 等后缀) */
+  prerelease: boolean;
 };
 
 function parseTag(tag: string): string {
@@ -57,13 +60,16 @@ export async function checkUpdate(): Promise<UpdateInfo | null> {
       headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'class-schedule-app' },
     });
     if (!r.ok) return null;
-    const j = (await r.json()) as {
+    const list = (await r.json()) as {
       tag_name?: string;
       body?: string;
       published_at?: string;
+      prerelease?: boolean;
       assets?: { name: string; size?: number; browser_download_url: string }[];
-    };
-    if (!j.tag_name) return null;
+    }[];
+    // 列表按发布时间倒序, 第一条即最新(含预发布)
+    const j = Array.isArray(list) ? list[0] : null;
+    if (!j?.tag_name) return null;
     const latest = parseTag(j.tag_name);
     const current = currentVersion();
     const apk = (j.assets ?? []).find((a) => a.name.toLowerCase().endsWith('.apk'));
@@ -75,6 +81,7 @@ export async function checkUpdate(): Promise<UpdateInfo | null> {
       sizeHint: apk?.size ?? null,
       notes: j.body ?? '',
       publishedAt: j.published_at ?? '',
+      prerelease: j.prerelease ?? /-/.test(latest),
     };
   } catch {
     return null;

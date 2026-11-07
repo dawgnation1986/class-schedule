@@ -40,7 +40,9 @@ export function UpdatePrompt() {
       }}>
       <View style={styles.mask}>
         <View style={[styles.box, { backgroundColor: colors.background }]}>
-          <Text style={[styles.title, { color: colors.text }]}>发现新版本 v{info.latest}</Text>
+          <Text style={[styles.title, { color: colors.text }]}>
+            发现{info.prerelease ? '体验版' : '新版本'} v{info.latest}
+          </Text>
           <Text style={[styles.sub, { color: colors.textSecondary }]}>当前版本 v{info.current}</Text>
           {!!info.notes && (
             <ScrollView style={styles.notesBox} nestedScrollEnabled>
