@@ -3,10 +3,16 @@ import { useColorScheme } from 'react-native';
 
 import { Colors } from '@/constants/theme';
 import { usePageBackground } from '@/lib/background';
+import { useUiMode } from '@/hooks/use-ui-mode';
+import GlassTabs from '@/components/glass-tabs';
 
 export default function AppTabs() {
+  const uiMode = useUiMode();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+
+  // 液态玻璃模式: 自定义玻璃标签栏(水滴形变指示器)
+  if (uiMode === 'glass') return <GlassTabs />;
 
   return (
     <NativeTabs

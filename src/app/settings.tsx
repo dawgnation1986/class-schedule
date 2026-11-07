@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -14,10 +14,14 @@ import {
 } from '@/lib/timetable';
 import { DEFAULT_QUERY_TYPE, loadSettings, saveSettings, type Settings } from '@/lib/settings';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { PageBackdrop, usePageBackground } from '@/lib/background';
+import { PageBackdrop, usePageBackground, useBgSetting } from '@/lib/background';
 import { PickerField } from '@/components/picker-field';
+import { UiModePicker } from '@/components/ui-mode-picker';
 import { ApkDownload } from '@/components/download-view';
 import { AboutGithub } from '@/components/about-github';
+import { OnboardingModal } from '@/components/onboarding';
+import { startCoachTour, TourTarget, registerTourScroller } from '@/components/tour';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { checkUpdate, currentVersion, type UpdateInfo } from '@/lib/updates';
 
 type FieldKey = 'xb' | 'zy' | 'bj';
@@ -31,6 +35,12 @@ export default function SettingsScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
   const pageBg = usePageBackground(colors);
+  // 控件全透明模式: 设了背景图且开启开关 → 按钮/卡片只留文字 + 1px 外轮廓
+  const bgSetting = useBgSetting();
+  const glass = !!bgSetting.uri && !!bgSetting.ctrl;
+  const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
+  const glassBorder = (active = false) =>
+    glass ? { borderWidth: 1, borderColor: active ? 'rgba(37,99,235,0.55)' : glassLine } : null;
   const router = useRouter();
 
   const [state, setState] = useState<PageState | null>(null);
@@ -42,6 +52,12 @@ export default function SettingsScreen() {
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
   const [checking, setChecking] = useState(false);
   const [updateErr, setUpdateErr] = useState<string | null>(null);
+  const [introOpen, setIntroOpen] = useState(false); // 新手引导(常驻入口)
+  // 登记滚动容器: 新手引导可自动滚动到屏幕外的目标
+  const scrollRef = useRef<ScrollView>(null);
+  useEffect(() => {
+    registerTourScroller('/settings', scrollRef.current);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -123,8 +139,10 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
-      <PageBackdrop />      <ScrollView contentContainerStyle={styles.content}>
-        <Pressable onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.backgroundElement }]}>
+      <PageBackdrop />      <ScrollView ref={scrollRef} contentContainerStyle={styles.content}>
+        <Pressable
+          onPress={() => router.back()}
+          style={[styles.backBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
           <Text style={{ color: colors.text, fontSize: 14 }}>← 返回</Text>
         </Pressable>
         <Text style={[styles.title, { color: colors.text }]}>设置</Text>
@@ -142,6 +160,8 @@ export default function SettingsScreen() {
           disabled={!state || !!busy}
           onPick={(o) => pick('xb', o)}
           colors={colors}
+          glass={glass}
+          glassLine={glassLine}
         />
         <PickerField
           label="专业"
@@ -151,6 +171,8 @@ export default function SettingsScreen() {
           disabled={!sel.xb || !!busy}
           onPick={(o) => pick('zy', o)}
           colors={colors}
+          glass={glass}
+          glassLine={glassLine}
         />
         <PickerField
           label="班级"
@@ -160,6 +182,8 @@ export default function SettingsScreen() {
           disabled={!sel.zy || !!busy}
           onPick={(o) => pick('bj', o)}
           colors={colors}
+          glass={glass}
+          glassLine={glassLine}
         />
 
         <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>查询类型</Text>
@@ -170,7 +194,16 @@ export default function SettingsScreen() {
               onPress={() => setQueryType(t.value)}
               style={[
                 styles.typeBtn,
-                { backgroundColor: queryType === t.value ? colors.backgroundSelected : colors.backgroundElement },
+                glassBorder(queryType === t.value),
+                {
+                  backgroundColor: glass
+                    ? queryType === t.value
+                      ? 'rgba(37,99,235,0.15)'
+                      : 'transparent'
+                    : queryType === t.value
+                      ? colors.backgroundSelected
+                      : colors.backgroundElement,
+                },
               ]}>
               <Text style={{ color: colors.text, fontWeight: queryType === t.value ? '700' : '400' }}>
                 {t.label}
@@ -183,18 +216,56 @@ export default function SettingsScreen() {
         <Pressable
           disabled={!ready || !!busy}
           onPress={save}
-          style={[styles.saveBtn, { backgroundColor: ready ? '#2563eb' : colors.backgroundElement }]}>
+          style={[
+            styles.saveBtn,
+            glassBorder(!!ready),
+            { backgroundColor: glass ? (ready ? 'rgba(37,99,235,0.15)' : 'transparent') : ready ? '#2563eb' : colors.backgroundElement },
+          ]}>
           {busy ? (
             <ActivityIndicator color={colors.text} />
           ) : (
-            <Text style={{ color: ready ? '#fff' : colors.textSecondary, fontWeight: '700' }}>
+            <Text style={{ color: ready ? (glass ? colors.text : '#fff') : colors.textSecondary, fontWeight: '700' }}>
               {savedTip ? '已保存 ✓' : '保存设置'}
             </Text>
           )}
         </Pressable>
 
+        {/* 界面设置: 原版界面 / 液态玻璃界面(水滴动效切换, 立即生效) */}
+        <UiModePicker colors={colors} glass={glass} glassLine={glassLine} />
+
+        {/* 教程设置(常驻): 交互式新手引导 + 图文教程 */}
+        <TourTarget id="st.guide">
+        <View style={[styles.guideCard, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
+          <Text style={{ color: colors.text, fontWeight: '800', fontSize: 15 }}>教程设置</Text>
+          <Pressable
+            onPress={() => startCoachTour()}
+            style={({ pressed }) => [styles.guideRow, pressed && { opacity: 0.6 }]}>
+            <View style={[styles.guideIcon, { backgroundColor: '#2563eb' }]}>
+              <Ionicons name="compass" size={19} color="#fff" />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14.5 }}>新手引导</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 12 }}>方块高亮+箭头指引, 一步步带你逛 App</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+          </Pressable>
+          <Pressable
+            onPress={() => setIntroOpen(true)}
+            style={({ pressed }) => [styles.guideRow, pressed && { opacity: 0.6 }]}>
+            <View style={[styles.guideIcon, { backgroundColor: '#7c3aed' }]}>
+              <Ionicons name="book" size={19} color="#fff" />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14.5 }}>图文功能教程</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 12 }}>6 页图文介绍, 首次启动展示过的那份</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+          </Pressable>
+        </View>
+        </TourTarget>
+
         {/* 检查更新 */}
-        <View style={[styles.updateCard, { backgroundColor: colors.backgroundElement }]}>
+        <View style={[styles.updateCard, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Text style={{ color: colors.text, fontWeight: '700' }}>
               当前版本 v{currentVersion()}
@@ -242,6 +313,7 @@ export default function SettingsScreen() {
 
         <AboutGithub colors={colors} />
       </ScrollView>
+      <OnboardingModal visible={introOpen} onClose={() => setIntroOpen(false)} />
     </SafeAreaView>
   );
 }
@@ -262,6 +334,9 @@ const styles = StyleSheet.create({
   typeBtn: { flex: 1, borderRadius: 10, padding: 12, gap: 2 },
   saveBtn: { borderRadius: 12, alignItems: 'center', paddingVertical: 15, marginTop: Spacing.one },
   updateCard: { borderRadius: 12, padding: Spacing.two, marginTop: Spacing.three, gap: 6 },
+  guideCard: { borderRadius: 12, padding: Spacing.two, marginTop: Spacing.three, gap: 4 },
+  guideRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 9 },
+  guideIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   updateMsg: { fontSize: 13, lineHeight: 19 },
   error: { color: '#ef4444', marginBottom: Spacing.two },
 });

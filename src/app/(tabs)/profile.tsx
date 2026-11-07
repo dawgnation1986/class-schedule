@@ -1,12 +1,16 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { usePageBackground, useBgSetting } from '@/lib/background';
 import { getThemeMode, saveThemeMode, subscribeTheme, themeModeLabel, type ThemeMode } from '@/lib/theme';
+import { getWeatherCity, setWeatherCity } from '@/lib/weather';
+import { addCountdown, loadCountdowns, removeCountdown, subscribeCountdowns, type Countdown } from '@/lib/countdowns';
+import { exportBackup, importBackup } from '@/lib/backup';
 import {
   clearBackground,
   getBackground,
@@ -31,6 +35,8 @@ import {
   type PeriodTimes,
 } from '@/lib/schedule-times';
 import { UpdateCard } from '@/components/update-card';
+import { TourTarget, registerTourScroller } from '@/components/tour';
+import { AgreementModal } from '@/components/agreement';
 
 const PERIOD_ORDER = ['1-2', '3-4', '中午', '5-6', '7-8', '9-10'];
 
@@ -218,6 +224,48 @@ export default function ProfileScreen() {
   const [times, setTimes] = useState<PeriodTimes>(getPeriodTimes());
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => getThemeMode());
   const [bg, setBg] = useState<BgSetting>(() => getBackground());
+  const [wxCity, setWxCity] = useState<string | null>(null);
+  const [wxOpen, setWxOpen] = useState(false);
+  const [wxInput, setWxInput] = useState('');
+  const [cdList, setCdList] = useState<Countdown[]>([]);
+  const [cdName, setCdName] = useState('');
+  const [cdDate, setCdDate] = useState('');
+  const [bkOutOpen, setBkOutOpen] = useState(false);
+  const [bkJson, setBkJson] = useState('');
+  const [bkInOpen, setBkInOpen] = useState(false);
+  const [bkText, setBkText] = useState('');
+  const [agreementOpen, setAgreementOpen] = useState(false);
+  // 登记滚动容器: 新手引导可自动滚动到屏幕外的目标
+  const scrollRef = useRef<ScrollView>(null);
+  useEffect(() => {
+    registerTourScroller('/profile', scrollRef.current);
+  }, []);
+
+  useEffect(() => {
+    void getWeatherCity().then(setWxCity);
+  }, []);
+
+  useEffect(() => {
+    void loadCountdowns().then(setCdList);
+    return subscribeCountdowns(() => void loadCountdowns().then(setCdList));
+  }, []);
+
+  const addCd = () => {
+    const name = cdName.trim();
+    const date = cdDate.trim();
+    if (!name) {
+      Alert.alert('缺少名称', '请填写倒计时名称');
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(new Date(`${date}T12:00:00`).getTime())) {
+      Alert.alert('日期格式不对', '请按 YYYY-MM-DD 填写，如 2026-12-12');
+      return;
+    }
+    void addCountdown(name, date).then(() => {
+      setCdName('');
+      setCdDate('');
+    });
+  };
 
   useEffect(() => subscribeTheme(() => setThemeMode(getThemeMode())), []);
   useEffect(() => subscribeBackground(() => setBg({ ...getBackground() })), []);
@@ -261,7 +309,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={[styles.title, { color: colors.text }]}>我的</Text>
 
         <Text style={[styles.label, { color: colors.textSecondary }]}>主站账号（学号）</Text>
@@ -377,6 +425,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* 外观模式 */}
+        <TourTarget id="pf.theme">
         <View style={[styles.section, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
           <Text style={{ color: colors.text, fontWeight: '700' }}>外观模式</Text>
           <View style={[styles.timesBtnRow, { marginTop: 10, marginBottom: 0 }]}>
@@ -401,8 +450,87 @@ export default function ProfileScreen() {
             ))}
           </View>
         </View>
+        </TourTarget>
+
+        {/* 天气城市 */}
+        <View style={[styles.section, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
+          <Text style={{ color: colors.text, fontWeight: '700' }}>天气城市</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
+            {wxCity ? `手动指定：${wxCity}` : '自动定位（IP 定位，城市可能不准）'}
+          </Text>
+          <View style={[styles.timesBtnRow, { marginTop: 10, marginBottom: 0 }]}>
+            <Pressable
+              onPress={() => void setWeatherCity(null).then(() => setWxCity(null))}
+              style={[
+                styles.timesBtn,
+                glassBorder(!wxCity),
+                { flex: 1, backgroundColor: glass ? (!wxCity ? 'rgba(37,99,235,0.15)' : 'transparent') : !wxCity ? '#2563eb' : colors.backgroundSelected },
+              ]}>
+              <Text style={{ color: !wxCity && !glass ? '#fff' : colors.text, fontSize: 12 }}>跟随定位</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setWxInput(wxCity ?? '');
+                setWxOpen(true);
+              }}
+              style={[styles.timesBtn, glassBorder(!!wxCity), { flex: 1, backgroundColor: glass ? 'transparent' : colors.backgroundSelected }]}>
+              <Text style={{ color: colors.text, fontSize: 12 }}>手动设置</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        {/* 倒计时 */}
+        <View style={[styles.section, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
+          <Text style={{ color: colors.text, fontWeight: '700' }}>倒计时</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
+            显示在课表页顶部，如四六级、期末考试
+          </Text>
+          {cdList.length > 0 && (
+            <View style={{ marginTop: 8, gap: 6 }}>
+              {cdList.map((c) => (
+                <View key={c.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={{ color: colors.text, fontSize: 13, flex: 1 }} numberOfLines={1}>
+                    {c.name} · {c.date}
+                  </Text>
+                  <Pressable onPress={() => void removeCountdown(c.id)} hitSlop={6}>
+                    <Ionicons name="trash-outline" size={16} color="#ef4444" />
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, alignItems: 'center' }}>
+            <TextInput
+              value={cdName}
+              onChangeText={setCdName}
+              placeholder="名称（如：四六级）"
+              placeholderTextColor={colors.textSecondary}
+              style={[
+                styles.editInput,
+                { flex: 1.3, backgroundColor: colors.backgroundElement, color: colors.text, borderWidth: 1, borderColor: 'rgba(100,116,139,0.45)', minHeight: 40 },
+              ]}
+            />
+            <TextInput
+              value={cdDate}
+              onChangeText={setCdDate}
+              placeholder="2026-12-12"
+              placeholderTextColor={colors.textSecondary}
+              keyboardType="numbers-and-punctuation"
+              style={[
+                styles.editInput,
+                { flex: 1, backgroundColor: colors.backgroundElement, color: colors.text, borderWidth: 1, borderColor: 'rgba(100,116,139,0.45)', minHeight: 40 },
+              ]}
+            />
+            <Pressable
+              onPress={addCd}
+              style={[styles.timesBtn, { backgroundColor: '#2563eb', minHeight: 40, paddingHorizontal: 14 }]}>
+              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>添加</Text>
+            </Pressable>
+          </View>
+        </View>
 
         {/* 自定义背景 */}
+        <TourTarget id="pf.bg">
         <View style={[styles.section, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
           <Text style={{ color: colors.text, fontWeight: '700' }}>自定义背景</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
@@ -455,6 +583,7 @@ export default function ProfileScreen() {
             </View>
           )}
         </View>
+        </TourTarget>
 
         {/* 课表界面风格 */}
         <View style={[styles.section, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
@@ -485,11 +614,178 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* 数据备份 */}
+        <View style={[styles.section, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
+          <Text style={{ color: colors.text, fontWeight: '700' }}>数据备份</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
+            备份班级设置、作息、待办、倒计时、主题、镜像与账号。导出的 JSON 可发送到微信/QQ 收藏，换机或重装后粘贴导入。
+          </Text>
+          <View style={[styles.timesBtnRow, { marginTop: 10, marginBottom: 0 }]}>
+            <Pressable
+              onPress={() =>
+                void exportBackup().then((j) => {
+                  setBkJson(j);
+                  setBkOutOpen(true);
+                })
+              }
+              style={[styles.timesBtn, glassBorder(), { flex: 1, backgroundColor: glass ? 'transparent' : colors.backgroundSelected }]}>
+              <Text style={{ color: glass ? colors.text : '#fff', fontSize: 12, fontWeight: '700' }}>导出备份</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setBkText('');
+                setBkInOpen(true);
+              }}
+              style={[styles.timesBtn, glassBorder(), { flex: 1, backgroundColor: glass ? 'transparent' : colors.backgroundSelected }]}>
+              <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>导入备份</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        {/* 开发者选项入口 */}
+        <Pressable
+          onPress={() => router.push('/dev' as never)}
+          style={[styles.timesBtn, glassBorder(), { marginTop: Spacing.three, backgroundColor: glass ? 'transparent' : colors.backgroundSelected, justifyContent: 'center', minHeight: 44 }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <Ionicons name="terminal-outline" size={16} color={colors.textSecondary} />
+            <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>开发者选项</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 11 }}>(登录修复 / 调试)</Text>
+          </View>
+        </Pressable>
+
+        {/* 用户协议 */}
+        <Pressable
+          onPress={() => setAgreementOpen(true)}
+          style={[styles.timesBtn, glassBorder(), { marginTop: Spacing.two, backgroundColor: glass ? 'transparent' : colors.backgroundSelected, justifyContent: 'center', minHeight: 44 }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <Ionicons name="document-text-outline" size={16} color={colors.textSecondary} />
+            <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>用户协议</Text>
+          </View>
+        </Pressable>
+
         <UpdateCard colors={colors} />
       </ScrollView>
 
       <TimesEditorModal visible={editOpen} initial={times} onClose={() => setEditOpen(false)} colors={colors} />
       <JsonImportModal visible={jsonOpen} onClose={() => setJsonOpen(false)} colors={colors} />
+      {/* 用户协议(查看模式) */}
+      <AgreementModal visible={agreementOpen} mode="view" onClose={() => setAgreementOpen(false)} />
+      {/* 导出备份: 展示 JSON + 系统分享 */}
+      <Modal visible={bkOutOpen} transparent animationType="fade" onRequestClose={() => setBkOutOpen(false)}>
+        <Pressable style={styles.modalMask} onPress={() => setBkOutOpen(false)}>
+          <Pressable style={[styles.modalBox, { backgroundColor: colors.background }]} onPress={() => {}}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>备份内容</Text>
+            <ScrollView style={{ maxHeight: 300 }}>
+              <TextInput
+                value={bkJson}
+                editable={false}
+                multiline
+                style={[
+                  styles.jsonInput,
+                  { backgroundColor: colors.backgroundElement, color: colors.text, borderWidth: 1, borderColor: 'rgba(100,116,139,0.45)' },
+                ]}
+              />
+            </ScrollView>
+            <View style={styles.modalBtnRow}>
+              <Pressable onPress={() => setBkOutOpen(false)} style={[styles.modalBtn, { backgroundColor: colors.backgroundElement }]}>
+                <Text style={{ color: colors.text }}>关闭</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => void Share.share({ message: bkJson })}
+                style={[styles.modalBtn, { backgroundColor: '#2563eb' }]}>
+                <Text style={{ color: '#fff', fontWeight: '700' }}>分享 / 复制</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+      {/* 导入备份: 粘贴 JSON 恢复 */}
+      <Modal visible={bkInOpen} transparent animationType="fade" onRequestClose={() => setBkInOpen(false)}>
+        <Pressable style={styles.modalMask} onPress={() => setBkInOpen(false)}>
+          <Pressable style={[styles.modalBox, { backgroundColor: colors.background }]} onPress={() => {}}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>导入备份</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 13, lineHeight: 20 }}>
+              粘贴之前导出的备份 JSON，导入后请退出并重新打开 App 使设置全部生效。
+            </Text>
+            <TextInput
+              value={bkText}
+              onChangeText={setBkText}
+              multiline
+              numberOfLines={6}
+              placeholder='{"app":"class-schedule-backup", ...}'
+              placeholderTextColor={colors.textSecondary}
+              style={[
+                styles.jsonInput,
+                { backgroundColor: colors.backgroundElement, color: colors.text, borderWidth: 1, borderColor: 'rgba(100,116,139,0.45)' },
+              ]}
+            />
+            <View style={styles.modalBtnRow}>
+              <Pressable onPress={() => setBkInOpen(false)} style={[styles.modalBtn, { backgroundColor: colors.backgroundElement }]}>
+                <Text style={{ color: colors.text }}>取消</Text>
+              </Pressable>
+              <Pressable
+                disabled={!bkText.trim()}
+                onPress={() =>
+                  void importBackup(bkText).then((r) => {
+                    if (r.ok) {
+                      setBkInOpen(false);
+                      Alert.alert('恢复完成', '数据已导入，请退出并重新打开 App 使设置全部生效。');
+                    } else {
+                      Alert.alert('导入失败', r.error ?? '未知错误');
+                    }
+                  })
+                }
+                style={[styles.modalBtn, { backgroundColor: bkText.trim() ? '#2563eb' : colors.backgroundElement }]}>
+                <Text style={{ color: bkText.trim() ? '#fff' : colors.textSecondary, fontWeight: '700' }}>导入</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+      <Modal visible={wxOpen} transparent animationType="fade" onRequestClose={() => setWxOpen(false)}>
+        <Pressable style={styles.modalMask} onPress={() => setWxOpen(false)}>
+          <Pressable style={[styles.modalBox, { backgroundColor: colors.background }]} onPress={() => {}}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>天气城市</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 13, lineHeight: 20 }}>
+              输入城市名（如：长沙、儋州、海口），保存后天气立即按新城市查询；留空保存则恢复自动定位。
+            </Text>
+            <TextInput
+              value={wxInput}
+              onChangeText={setWxInput}
+              placeholder="长沙"
+              placeholderTextColor={colors.textSecondary}
+              style={[
+                styles.editInput,
+                {
+                  backgroundColor: colors.backgroundElement,
+                  color: colors.text,
+                  marginTop: 10,
+                  borderWidth: 1,
+                  borderColor: 'rgba(100,116,139,0.45)',
+                  minHeight: 44,
+                  fontSize: 15,
+                },
+              ]}
+            />
+            <View style={styles.modalBtnRow}>
+              <Pressable onPress={() => setWxOpen(false)} style={[styles.modalBtn, { backgroundColor: colors.backgroundElement }]}>
+                <Text style={{ color: colors.text }}>取消</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  const c = wxInput.trim() || null;
+                  void setWeatherCity(c).then(() => {
+                    setWxCity(c);
+                    setWxOpen(false);
+                  });
+                }}
+                style={[styles.modalBtn, { backgroundColor: '#2563eb' }]}>
+                <Text style={{ color: '#fff', fontWeight: '700' }}>保存</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }

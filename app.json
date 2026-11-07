@@ -2,7 +2,7 @@
   "expo": {
     "name": "学生综合管理平台",
     "slug": "class-schedule",
-    "version": "1.5.7",
+    "version": "1.11.3",
     "orientation": "portrait",
     "icon": "./assets/images/student-icon.png",
     "scheme": "classschedule",
@@ -12,7 +12,7 @@
     },
     "android": {
       "package": "com.classhoke.classschedule",
-      "permissions": ["REQUEST_INSTALL_PACKAGES"],
+      "permissions": ["REQUEST_INSTALL_PACKAGES", "SCHEDULE_EXACT_ALARM", "USE_EXACT_ALARM", "POST_NOTIFICATIONS"],
       "adaptiveIcon": {
         "backgroundColor": "#1E88E5",
         "foregroundImage": "./assets/images/student-icon.png"
@@ -33,7 +33,8 @@
           "imageWidth": 140
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "expo-screen-orientation"
     ],
     "experiments": {
       "typedRoutes": true,

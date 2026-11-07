@@ -4,7 +4,8 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { Colors, Spacing } from '@/constants/theme';
 import type { Option } from '@/lib/timetable';
 
-/** 简单的选择器: 按钮 + 弹出选项列表 (设置页/临时查询页共用) */
+/** 简单的选择器: 按钮 + 弹出选项列表 (设置页/临时查询页共用)
+ *  glass: 控件全透明模式(有背景图且开启控件透明) → 按钮只留文字 + 1px 外轮廓 */
 export function PickerField({
   label,
   placeholder,
@@ -13,6 +14,8 @@ export function PickerField({
   disabled,
   onPick,
   colors,
+  glass,
+  glassLine,
 }: {
   label: string;
   placeholder: string;
@@ -21,6 +24,8 @@ export function PickerField({
   disabled?: boolean;
   onPick: (o: Option) => void;
   colors: (typeof Colors)[keyof typeof Colors];
+  glass?: boolean;
+  glassLine?: string;
 }) {
   const [open, setOpen] = useState(false);
   const current = options.find((o) => o.value === value);
@@ -32,7 +37,8 @@ export function PickerField({
         onPress={() => setOpen(true)}
         style={[
           styles.pickerBtn,
-          { backgroundColor: colors.backgroundElement, opacity: disabled ? 0.5 : 1 },
+          { backgroundColor: glass ? 'transparent' : colors.backgroundElement, opacity: disabled ? 0.5 : 1 },
+          glass && glassLine ? { borderWidth: 1, borderColor: glassLine } : null,
         ]}>
         <Text style={{ color: current ? colors.text : colors.textSecondary }} numberOfLines={1}>
           {current ? current.label : placeholder}

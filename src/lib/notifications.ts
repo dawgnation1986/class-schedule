@@ -33,18 +33,42 @@ function hmToMin(s: string): number {
   return h * 60 + m;
 }
 
-let configured = false;
+/** 渠道状态: ok=已存在且 MAX / created=新建 / recreated=重要级不足删除重建 / unavailable=模块不可用 */
+export type ReminderChannelStatus = 'ok' | 'created' | 'recreated' | 'unavailable';
 
-async function ensureChannel(Notifications: NotificationsModule) {
-  if (configured) return;
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('class-remind', {
+/** 确保提醒渠道存在且为 MAX 重要级: 不存在则创建; 重要级不足(创建后不可改)则删除重建 */
+export async function ensureReminderChannel(): Promise<ReminderChannelStatus> {
+  const Notifications = loadNotifications();
+  if (!Notifications || Platform.OS !== 'android') return 'unavailable';
+  try {
+    const ch = await Notifications.getNotificationChannelAsync('class-remind-v2');
+    if (ch && Number(ch.importance) === Notifications.AndroidImportance.MAX) return 'ok';
+    if (ch) await Notifications.deleteNotificationChannelAsync('class-remind-v2');
+    // v2: MAX 重要级 + 振动 → 锁屏/后台弹出横幅(heads-up, 像微信消息那样)
+    await Notifications.setNotificationChannelAsync('class-remind-v2', {
       name: '上课提醒',
-      importance: Notifications.AndroidImportance.HIGH,
+      importance: Notifications.AndroidImportance.MAX,
       sound: 'default',
+      vibrationPattern: [0, 300, 250, 300],
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
+    return ch ? 'recreated' : 'created';
+  } catch {
+    return 'unavailable';
   }
-  configured = true;
+}
+
+/** App 启动时调用: 自动创建/修复渠道 + 权限未授权时请求一次(不弹则需用户去系统设置开) */
+export async function initNotifications(): Promise<void> {
+  const Notifications = loadNotifications();
+  if (!Notifications) return;
+  await ensureReminderChannel();
+  try {
+    const p = await Notifications.getPermissionsAsync();
+    if (!p.granted) await Notifications.requestPermissionsAsync();
+  } catch {
+    // 权限请求失败不影响启动
+  }
 }
 
 /** 用课表重新排期未来 7 天的提醒: 上课前 5 分钟 + 下课前 1 分钟(先清掉旧的) */
@@ -57,7 +81,7 @@ export async function scheduleClassReminders(timetable: Timetable) {
     const perm = await Notifications.getPermissionsAsync();
     const ok = perm.granted || (await Notifications.requestPermissionsAsync()).granted;
     if (!ok) return;
-    await ensureChannel(Notifications);
+    await ensureReminderChannel();
     await Notifications.cancelAllScheduledNotificationsAsync();
 
     const now = new Date();
@@ -94,7 +118,7 @@ export async function scheduleClassReminders(timetable: Timetable) {
             trigger: {
               type: Notifications.SchedulableTriggerInputTypes.DATE,
               date: startAt,
-              channelId: Platform.OS === 'android' ? 'class-remind' : undefined,
+              channelId: Platform.OS === 'android' ? 'class-remind-v2' : undefined,
             },
           });
         }
@@ -111,7 +135,7 @@ export async function scheduleClassReminders(timetable: Timetable) {
             trigger: {
               type: Notifications.SchedulableTriggerInputTypes.DATE,
               date: endAt,
-              channelId: Platform.OS === 'android' ? 'class-remind' : undefined,
+              channelId: Platform.OS === 'android' ? 'class-remind-v2' : undefined,
             },
           });
         }

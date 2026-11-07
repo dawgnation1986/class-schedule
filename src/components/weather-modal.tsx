@@ -9,13 +9,14 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import type { DayForecast, WeatherFull } from '@/lib/weather';
+import { setWeatherCity, type DayForecast, type WeatherFull } from '@/lib/weather';
 
 const WEEK = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
@@ -26,16 +27,21 @@ export function WeatherModal({
   data,
   loading,
   onClose,
+  onChangeCity,
 }: {
   visible: boolean;
   data: WeatherFull | null;
   loading: boolean;
   onClose: () => void;
+  /** 切换城市: 传 null 恢复自动定位 */
+  onChangeCity?: (city: string | null) => void;
 }) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
 
   const [detail, setDetail] = useState<DetailTarget | null>(null);
+  const [cityOpen, setCityOpen] = useState(false);
+  const [cityInput, setCityInput] = useState('');
   const backdrop = useRef(new Animated.Value(0)).current;
   const sheetY = useRef(new Animated.Value(640)).current;
   const detailX = useRef(new Animated.Value(0)).current;
@@ -92,9 +98,21 @@ export function WeatherModal({
         <Animated.View style={[styles.sheet, { backgroundColor: sheetBg, transform: [{ translateY: sheetY }] }]}>
           <View style={styles.grabber} />
           <View style={styles.sheetHeader}>
-            <Text style={[styles.sheetTitle, { color: colors.text }]}>
-              未来 15 天天气{data ? ` · ${data.city}` : ''}
-            </Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.sheetTitle, { color: colors.text }]}>
+                未来 15 天天气{data ? ` · ${data.city}` : ''}
+              </Text>
+              <Pressable
+                onPress={() => {
+                  setCityInput(data?.city ?? '');
+                  setCityOpen(true);
+                }}
+                hitSlop={6}
+                style={[styles.cityBtn, { borderColor: 'rgba(100,116,139,0.45)' }]}>
+                <Ionicons name="location-outline" size={12} color="#2563eb" />
+                <Text style={{ color: '#2563eb', fontSize: 11 }}>切换城市</Text>
+              </Pressable>
+            </View>
             <Pressable onPress={onClose} hitSlop={10}>
               <Ionicons name="close" size={24} color={colors.textSecondary} />
             </Pressable>
@@ -147,6 +165,45 @@ export function WeatherModal({
             </ScrollView>
           )}
         </Animated.View>
+
+        {/* 城市输入弹窗 */}
+        <Modal visible={cityOpen} transparent animationType="fade" onRequestClose={() => setCityOpen(false)}>
+          <Pressable style={styles.cityMask} onPress={() => setCityOpen(false)}>
+            <Pressable style={[styles.cityBox, { backgroundColor: sheetBg }]} onPress={() => {}}>
+              <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800' }}>切换天气城市</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 4, lineHeight: 18 }}>
+                输入城市名（如：长沙、儋州、海口），留空保存恢复自动定位
+              </Text>
+              <TextInput
+                value={cityInput}
+                onChangeText={setCityInput}
+                placeholder="长沙"
+                placeholderTextColor={colors.textSecondary}
+                autoFocus
+                style={[
+                  styles.cityInput,
+                  { backgroundColor: colors.backgroundElement, color: colors.text, borderColor: 'rgba(100,116,139,0.45)' },
+                ]}
+              />
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+                <Pressable onPress={() => setCityOpen(false)} style={[styles.cityBtnBig, { backgroundColor: colors.backgroundElement }]}>
+                  <Text style={{ color: colors.text }}>取消</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    const c = cityInput.trim() || null;
+                    void setWeatherCity(c).then(() => {
+                      setCityOpen(false);
+                      onChangeCity?.(c);
+                    });
+                  }}
+                  style={[styles.cityBtnBig, { backgroundColor: '#2563eb' }]}>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>保存</Text>
+                </Pressable>
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
 
         {/* 单日详情(从右滑入) */}
         {detail && (
@@ -238,6 +295,11 @@ const styles = StyleSheet.create({
   grabber: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#cbd5e1', marginTop: 8 },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12 },
   sheetTitle: { fontSize: 17, fontWeight: '800' },
+  cityBtn: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderRadius: 99, paddingHorizontal: 10, paddingVertical: 4, marginTop: 6 },
+  cityMask: { flex: 1, backgroundColor: 'rgba(15,23,42,0.5)', alignItems: 'center', justifyContent: 'center', padding: 28 },
+  cityBox: { width: '100%', maxWidth: 420, borderRadius: 18, padding: 20 },
+  cityInput: { borderWidth: 1, borderRadius: 12, minHeight: 44, paddingHorizontal: 12, fontSize: 15, marginTop: 12 },
+  cityBtnBig: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 12, minHeight: 44, flexDirection: 'row' },
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { gap: 8, paddingBottom: 10 },
   disclaimer: { fontSize: 11, textAlign: 'center', marginTop: 6 },

@@ -5,6 +5,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import * as ScreenOrientation from 'expo-screen-orientation';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -17,15 +20,18 @@ import {
   selectMajor,
   type QueryType,
   type Timetable,
+  type TimetableRow,
 } from '@/lib/timetable';
 import { DEFAULT_QUERY_TYPE, loadSettings, loadTimetableUI, type Settings, type TimetableUI } from '@/lib/settings';
 import { getTempOverride, setTempOverride } from '@/lib/tempOverride';
-import { fetchWeather, fetchWeatherFull, type Weather, type WeatherFull } from '@/lib/weather';
+import { fetchWeather, fetchWeatherFull, setWeatherCity, type Weather, type WeatherFull } from '@/lib/weather';
 import { WeatherModal } from '@/components/weather-modal';
 import { scheduleClassReminders } from '@/lib/notifications';
+import { TourTarget } from '@/components/tour';
 import { getPeriodTimes, subscribeTimes } from '@/lib/schedule-times';
 import { NovaTimetable } from '@/components/timetable-nova';
 import { getExams, type ExamInfo } from '@/lib/school-data';
+import { daysUntil, loadCountdowns, subscribeCountdowns, type Countdown } from '@/lib/countdowns';
 
 const WEEK_NAMES = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
 const WEEK_COLS = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
@@ -66,13 +72,7 @@ function sameDay(a: Date, b: Date): boolean {
   );
 }
 
-const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
-const YEARS = (() => {
-  const y = new Date().getFullYear();
-  return [y - 2, y - 1, y, y + 1];
-})();
-
-/** 日期选择弹窗: 年 / 月 / 日 三列点选 */
+/** 日历式日期选择: 月份网格, 左右翻月, 今天高亮, 快速回到今天 */
 function DatePickModal({
   visible,
   value,
@@ -86,57 +86,81 @@ function DatePickModal({
   onConfirm: (d: Date) => void;
   colors: (typeof Colors)[keyof typeof Colors];
 }) {
-  const [y, setY] = useState(value.getFullYear());
-  const [m, setM] = useState(value.getMonth() + 1);
-  const [d, setD] = useState(value.getDate());
+  const [view, setView] = useState({ y: value.getFullYear(), m: value.getMonth() + 1 });
+  const [sel, setSel] = useState(value);
 
-  const dayCount = new Date(y, m, 0).getDate();
-  const days = Array.from({ length: dayCount }, (_, i) => i + 1);
+  useEffect(() => {
+    if (visible) {
+      const base = value ?? beijingNow();
+      setSel(base);
+      setView({ y: base.getFullYear(), m: base.getMonth() + 1 });
+    }
+  }, [visible, value]);
 
-  const chip = (label: string | number, active: boolean, onPress: () => void, key: string | number) => (
-    <Pressable
-      key={key}
-      onPress={onPress}
-      style={[
-        styles.dateChip,
-        { backgroundColor: active ? '#2563eb' : colors.backgroundElement },
-      ]}>
-      <Text style={{ color: active ? '#fff' : colors.text, fontSize: 12 }}>{label}</Text>
-    </Pressable>
-  );
+  const today = beijingNow();
+  const sameDM = (a: Date, y: number, m: number, d: number) =>
+    a.getFullYear() === y && a.getMonth() + 1 === m && a.getDate() === d;
+
+  // 周一开头的日历网格: 补齐前置空位
+  const lead = (new Date(view.y, view.m - 1, 1).getDay() + 6) % 7;
+  const daysInMonth = new Date(view.y, view.m, 0).getDate();
+  const cells: (number | null)[] = [...Array(lead).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+
+  const dayCell = (d: number) => {
+    const isSel = sameDM(sel, view.y, view.m, d);
+    const isToday = sameDM(today, view.y, view.m, d);
+    return (
+      <Pressable
+        key={d}
+        onPress={() => setSel(new Date(view.y, view.m - 1, d))}
+        style={[
+          styles.calDay,
+          isToday && !isSel && { borderWidth: 1, borderColor: '#2563eb' },
+          isSel && { backgroundColor: '#2563eb' },
+        ]}>
+        <Text style={{ color: isSel ? '#fff' : colors.text, fontSize: 13, fontWeight: isSel || isToday ? '700' : '400' }}>
+          {d}
+        </Text>
+      </Pressable>
+    );
+  };
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.modalMask} onPress={onClose}>
         <Pressable style={[styles.modalBox, { backgroundColor: colors.background }]} onPress={() => {}}>
           <Text style={[styles.modalTitle, { color: colors.text }]}>选择查询日期</Text>
-          <Text style={[styles.modalGroup, { color: colors.textSecondary }]}>年</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-            {YEARS.map((yy) => chip(yy, yy === y, () => setY(yy), yy))}
-          </ScrollView>
-          <Text style={[styles.modalGroup, { color: colors.textSecondary }]}>月</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-            {MONTHS.map((mm) => chip(mm, mm === m, () => setM(mm), mm))}
-          </ScrollView>
-          <Text style={[styles.modalGroup, { color: colors.textSecondary }]}>日</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-            {days.map((dd) => chip(dd, dd === d, () => setD(dd), dd))}
-          </ScrollView>
+          <View style={styles.calHead}>
+            <Pressable onPress={() => setView((v) => (v.m === 1 ? { y: v.y - 1, m: 12 } : { ...v, m: v.m - 1 }))} hitSlop={8}>
+              <Ionicons name="chevron-back" size={20} color={colors.text} />
+            </Pressable>
+            <Text style={{ color: colors.text, fontSize: 15, fontWeight: '700' }}>
+              {view.y}年{view.m}月
+            </Text>
+            <Pressable onPress={() => setView((v) => (v.m === 12 ? { y: v.y + 1, m: 1 } : { ...v, m: v.m + 1 }))} hitSlop={8}>
+              <Ionicons name="chevron-forward" size={20} color={colors.text} />
+            </Pressable>
+          </View>
+          <View style={styles.calWeekRow}>
+            {['一', '二', '三', '四', '五', '六', '日'].map((w) => (
+              <Text key={w} style={[styles.calWeek, { color: colors.textSecondary }]}>
+                {w}
+              </Text>
+            ))}
+          </View>
+          <View style={styles.calGrid}>
+            {cells.map((d, i) => (d === null ? <View key={`e${i}`} style={styles.calDay} /> : dayCell(d)))}
+          </View>
           <View style={styles.modalBtnRow}>
             <Pressable
               onPress={() => {
                 const now = beijingNow();
-                setY(now.getFullYear());
-                setM(now.getMonth() + 1);
-                setD(now.getDate());
                 onConfirm(new Date(now.getFullYear(), now.getMonth(), now.getDate()));
               }}
               style={[styles.modalBtn, { backgroundColor: colors.backgroundElement }]}>
               <Text style={{ color: colors.text }}>回到今天</Text>
             </Pressable>
-            <Pressable
-              onPress={() => onConfirm(new Date(y, m - 1, Math.min(d, dayCount)))}
-              style={[styles.modalBtn, { backgroundColor: '#2563eb' }]}>
+            <Pressable onPress={() => onConfirm(sel)} style={[styles.modalBtn, { backgroundColor: '#2563eb' }]}>
               <Text style={{ color: '#fff', fontWeight: '700' }}>查询</Text>
             </Pressable>
           </View>
@@ -145,6 +169,165 @@ function DatePickModal({
     </Modal>
   );
 }
+
+/** 课表捏合缩放容器: 双指 1~3 倍缩放, 松手后缩得太小自动回弹 */
+function PinchZoom({ children }: { children: React.ReactNode }) {
+  const scale = useSharedValue(1);
+  const saved = useSharedValue(1);
+  const pinch = Gesture.Pinch()
+    .onStart(() => {
+      saved.value = scale.value;
+    })
+    .onUpdate((e) => {
+      scale.value = Math.min(3, Math.max(1, saved.value * e.scale));
+    })
+    .onEnd(() => {
+      if (scale.value < 1.2) scale.value = withSpring(1);
+    });
+  const anim = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <GestureDetector gesture={pinch}>
+        <Animated.View style={[{ flex: 1 }, anim]}>{children}</Animated.View>
+      </GestureDetector>
+    </GestureHandlerRootView>
+  );
+}
+
+/** 全屏横屏整周视图: 自动横屏铺满一周, 双指捏合缩放(0.5~4 倍)+双指拖动 */
+function FullWeekView({
+  visible,
+  onClose,
+  rows,
+  colors,
+  todayCol,
+  isToday,
+  curPeriod,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  rows: TimetableRow[];
+  colors: (typeof Colors)[keyof typeof Colors];
+  todayCol: number;
+  isToday: boolean;
+  curPeriod: string | null;
+}) {
+  const [dim, setDim] = useState({ w: 0, h: 0 });
+  const scale = useSharedValue(1);
+  const saved = useSharedValue(1);
+  const tx = useSharedValue(0);
+  const ty = useSharedValue(0);
+  const stx = useSharedValue(0);
+  const sty = useSharedValue(0);
+
+  // 进入锁横屏, 退出恢复竖屏
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    if (visible) {
+      void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT);
+    } else {
+      void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT);
+    }
+  }, [visible]);
+
+  const pinch = Gesture.Pinch()
+    .onStart(() => {
+      saved.value = scale.value;
+    })
+    .onUpdate((e) => {
+      scale.value = Math.min(4, Math.max(0.5, saved.value * e.scale));
+    });
+  const pan = Gesture.Pan()
+    .minPointers(2)
+    .onStart(() => {
+      stx.value = tx.value;
+      sty.value = ty.value;
+    })
+    .onUpdate((e) => {
+      tx.value = stx.value + e.translationX;
+      ty.value = sty.value + e.translationY;
+    });
+  const gesture = Gesture.Simultaneous(pinch, pan);
+  const anim = useAnimatedStyle(() => ({
+    transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value }],
+  }));
+
+  const pinW = 38;
+  const pad = 10;
+  const dayW = Math.max(56, (dim.w - pad * 2 - pinW) / 7 - 2);
+  const headH = 24;
+  const rowH = rows.length > 0 ? Math.max(32, Math.min(64, Math.floor((dim.h - headH - 44) / rows.length))) : 40;
+
+  return (
+    <Modal visible={visible} animationType="fade" statusBarTranslucent supportedOrientations={['landscape', 'portrait']} onRequestClose={onClose}>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>
+        <View style={{ flex: 1 }} onLayout={(e) => setDim({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+          <View style={{ position: 'absolute', top: 10, right: 14, zIndex: 10, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Text style={{ color: colors.textSecondary, fontSize: 11 }}>双指缩放/拖动</Text>
+            <Pressable
+              onPress={onClose}
+              style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, backgroundColor: 'rgba(37,99,235,0.15)' }}>
+              <Text style={{ color: '#2563eb', fontSize: 12, fontWeight: '700' }}>关闭</Text>
+            </Pressable>
+          </View>
+          <GestureDetector gesture={gesture}>
+            <Animated.View style={[{ flex: 1, padding: pad, justifyContent: 'center' }, anim]}>
+              <View>
+                {/* 表头 */}
+                <View style={{ flexDirection: 'row' }}>
+                  <View style={[fwStyles.pin, { width: pinW, height: headH }]}>
+                    <Text style={{ color: colors.textSecondary, fontSize: 10 }}>节次</Text>
+                  </View>
+                  {WEEK_COLS.map((d, i) => (
+                    <View
+                      key={d}
+                      style={[fwStyles.cell, { width: dayW, height: headH }, i === todayCol && fwStyles.todayCell]}>
+                      <Text style={{ color: i === todayCol ? colors.text : colors.textSecondary, fontSize: 10, fontWeight: i === todayCol ? '700' : '400' }}>
+                        {d}
+                        {i === todayCol && isToday ? ' · 今' : ''}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+                {/* 数据行 */}
+                {rows.map((row) => (
+                  <View key={row.index} style={{ flexDirection: 'row' }}>
+                    <View style={[fwStyles.pin, { width: pinW, height: rowH }]}>
+                      <Text style={{ color: colors.textSecondary, fontSize: 9, textAlign: 'center' }}>{row.period}</Text>
+                    </View>
+                    {row.days.map((courses, i) => (
+                      <View
+                        key={i}
+                        style={[
+                          fwStyles.cell,
+                          { width: dayW, height: rowH },
+                          i === todayCol && fwStyles.todayCell,
+                          curPeriod === row.period && i === todayCol && { backgroundColor: 'rgba(37,99,235,0.15)' },
+                        ]}>
+                        {courses.map((c, k) => (
+                          <Text key={k} style={{ color: colors.text, fontSize: 9, lineHeight: 12 }} numberOfLines={3}>
+                            {c.name}
+                            {c.location ? ` @${c.location}` : ''}
+                          </Text>
+                        ))}
+                      </View>
+                    ))}
+                  </View>
+                ))}
+              </View>
+            </Animated.View>
+          </GestureDetector>
+        </View>
+      </GestureHandlerRootView>
+    </Modal>
+  );
+}
+
+const fwStyles = StyleSheet.create({
+  pin: { alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(128,128,128,0.35)', backgroundColor: 'rgba(100,116,139,0.08)' },
+  cell: { alignItems: 'center', justifyContent: 'center', padding: 2, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(128,128,128,0.35)' },
+  todayCell: { backgroundColor: 'rgba(37,99,235,0.10)' },
+});
 
 export default function TimetableEntry() {
   const [ui, setUi] = useState<TimetableUI | null>(null);
@@ -189,6 +372,7 @@ function ClassicScreen() {
   const [wxFull, setWxFull] = useState<WeatherFull | null>(null);
   const [wxLoading, setWxLoading] = useState(false);
   const [exams, setExams] = useState<ExamInfo[]>([]);
+  const [cds, setCds] = useState<Countdown[]>([]);
   const [detailCell, setDetailCell] = useState<{
     period: string;
     dayIdx: number;
@@ -205,6 +389,7 @@ function ClassicScreen() {
     hScrollRef.current = node;
   }, []);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [fullOpen, setFullOpen] = useState(false); // 全屏横屏整周视图
   const queryTypeRef = useRef(queryType);
   queryTypeRef.current = queryType;
   const selectedDateRef = useRef(selectedDate);
@@ -345,6 +530,18 @@ function ClassicScreen() {
     .sort((a, b) => a.daysLeft - b.daysLeft)
     .slice(0, 5);
 
+  /** 未过期的自定义倒计时(按天数升序) */
+  const activeCds = cds
+    .map((c) => ({ ...c, left: daysUntil(c.date) }))
+    .filter((c) => c.left >= 0)
+    .sort((a, b) => a.left - b.left);
+
+  // 倒计时列表变化时同步
+  useEffect(() => {
+    void loadCountdowns().then(setCds);
+    return subscribeCountdowns(() => void loadCountdowns().then(setCds));
+  }, []);
+
   /** 课表长图分享: 截取离屏完整课表视图 */
   const shareSchedule = useCallback(async () => {
     if (Platform.OS === 'web') {
@@ -450,6 +647,7 @@ function ClassicScreen() {
         </Pressable>
       </View>
 
+      <TourTarget id="tt.toolbar">
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -503,6 +701,12 @@ function ClassicScreen() {
             <Ionicons name="share-social-outline" size={14} color={colors.text} />
             <Text style={{ color: colors.text, fontSize: 13 }}>分享</Text>
           </Pressable>
+          <Pressable
+            onPress={() => setFullOpen(true)}
+            style={[styles.dayBtn, glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }]}>
+            <Ionicons name="expand-outline" size={14} color={colors.text} />
+            <Text style={{ color: colors.text, fontSize: 13 }}>全屏周视图</Text>
+          </Pressable>
           <View style={{ width: 1, backgroundColor: 'rgba(128,128,128,0.3)' }} />
           <Pressable
             onPress={() => router.push('/todos')}
@@ -524,6 +728,7 @@ function ClassicScreen() {
           </Pressable>
         </View>
       </ScrollView>
+      </TourTarget>
 
       {usingTemp && settings && (
         <Pressable onPress={exitTemp} style={[styles.tempBanner, { backgroundColor: 'rgba(37,99,235,0.12)' }]}>
@@ -533,7 +738,7 @@ function ClassicScreen() {
         </Pressable>
       )}
 
-      {upcomingExams.length > 0 && (
+      {(upcomingExams.length > 0 || activeCds.length > 0) && (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -564,6 +769,29 @@ function ClassicScreen() {
               </View>
             );
           })}
+          {activeCds.length > 0 && (
+            <View style={styles.examLead}>
+              <Ionicons name="alarm" size={13} color="#8b5cf6" />
+              <Text style={{ color: '#8b5cf6', fontSize: 12, fontWeight: '700' }}>倒计时</Text>
+            </View>
+          )}
+          {activeCds.map((c, i) => (
+            <View
+              key={c.id}
+              style={[styles.examCard, glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }]}>
+              <Text style={[styles.examDays, { color: '#8b5cf6' }]}>
+                {c.left === 0 ? '就是今天' : `${c.left} 天`}
+              </Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }} numberOfLines={1}>
+                  {c.name}
+                </Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 11 }} numberOfLines={1}>
+                  {c.date}
+                </Text>
+              </View>
+            </View>
+          ))}
         </ScrollView>
       )}
 
@@ -573,7 +801,9 @@ function ClassicScreen() {
         <Text style={[styles.loadingText, { color: colors.textSecondary }]}>没有查询到课表数据</Text>
       )}
       {!loading && timetable && timetable.rows.length > 0 && (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.tableContent}>
+        <TourTarget id="tt.grid" style={{ flex: 1 }}>
+        <PinchZoom>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.tableContent}>
           <View style={styles.tableWrap}>
             {/* 左侧固定节次列(不随横向滚动, 按实测行位置绝对对齐) */}
             <View style={[styles.pinCol, { height: tableH || undefined }]}>
@@ -720,6 +950,20 @@ function ClassicScreen() {
             </ScrollView>
           </View>
         </ScrollView>
+        </PinchZoom>
+        </TourTarget>
+      )}
+      {/* 全屏横屏整周视图(捏合缩放) */}
+      {timetable && (
+        <FullWeekView
+          visible={fullOpen}
+          onClose={() => setFullOpen(false)}
+          rows={timetable.rows}
+          colors={colors}
+          todayCol={todayCol}
+          isToday={isToday}
+          curPeriod={curPeriod}
+        />
       )}
       {/* 课程详情卡 */}
       <Modal visible={!!detailCell} transparent animationType="fade" onRequestClose={() => setDetailCell(null)}>
@@ -809,6 +1053,15 @@ function ClassicScreen() {
         data={wxFull}
         loading={wxLoading}
         onClose={() => setWxOpen(false)}
+        onChangeCity={(c) => {
+          void setWeatherCity(c).then(() => {
+            setWxLoading(true);
+            fetchWeatherFull()
+              .then(setWxFull)
+              .catch(() => {})
+              .finally(() => setWxLoading(false));
+          });
+        }}
       />
 
       {/* 离屏横版周课表(仅用于生成分享长图): 表头节次格固定 46pt 与数据行对齐 */}
@@ -921,9 +1174,11 @@ const styles = StyleSheet.create({
   modalMask: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: Spacing.four },
   modalBox: { borderRadius: 14, padding: Spacing.three },
   modalTitle: { fontSize: 17, fontWeight: '700', marginBottom: Spacing.two },
-  modalGroup: { fontSize: 12, marginTop: Spacing.one, marginBottom: 6 },
-  chipRow: { gap: 8, paddingVertical: 2 },
-  dateChip: { borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
+  calHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4, marginBottom: 8 },
+  calWeekRow: { flexDirection: 'row', marginBottom: 2 },
+  calWeek: { flex: 1, textAlign: 'center', fontSize: 11 },
+  calGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  calDay: { width: `${100 / 7}%`, aspectRatio: 1.35, alignItems: 'center', justifyContent: 'center', borderRadius: 10 },
   modalBtnRow: { flexDirection: 'row', gap: Spacing.two, marginTop: Spacing.three },
   modalBtn: { flex: 1, alignItems: 'center', borderRadius: 10, paddingVertical: 12 },
   // 离屏分享长图(横版白底课表, 宽度 = 节次46 + 7列 + 左右padding)

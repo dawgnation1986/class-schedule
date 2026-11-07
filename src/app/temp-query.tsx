@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { PageBackdrop, usePageBackground } from '@/lib/background';
+import { PageBackdrop, usePageBackground, useBgSetting } from '@/lib/background';
 import { PickerField } from '@/components/picker-field';
 import {
   loadInitial,
@@ -28,6 +28,12 @@ export default function TempQueryScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
   const pageBg = usePageBackground(colors);
+  // 控件全透明模式: 设了背景图且开启开关 → 按钮只留文字 + 1px 外轮廓
+  const bgSetting = useBgSetting();
+  const glass = !!bgSetting.uri && !!bgSetting.ctrl;
+  const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
+  const glassBorder = (active = false) =>
+    glass ? { borderWidth: 1, borderColor: active ? 'rgba(37,99,235,0.55)' : glassLine } : null;
   const router = useRouter();
 
   const [state, setState] = useState<PageState | null>(null);
@@ -114,7 +120,9 @@ export default function TempQueryScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
       <PageBackdrop />      <ScrollView contentContainerStyle={styles.content}>
-        <Pressable onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.backgroundElement }]}>
+        <Pressable
+          onPress={() => router.back()}
+          style={[styles.backBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
           <Text style={{ color: colors.text, fontSize: 14 }}>← 返回</Text>
         </Pressable>
         <Text style={[styles.title, { color: colors.text }]}>查询其他班级课表</Text>
@@ -133,6 +141,8 @@ export default function TempQueryScreen() {
           disabled={!state || !!busy}
           onPick={(o) => pick('xb', o)}
           colors={colors}
+          glass={glass}
+          glassLine={glassLine}
         />
         <PickerField
           label="专业"
@@ -142,6 +152,8 @@ export default function TempQueryScreen() {
           disabled={!sel.xb || !!busy}
           onPick={(o) => pick('zy', o)}
           colors={colors}
+          glass={glass}
+          glassLine={glassLine}
         />
         <PickerField
           label="班级"
@@ -151,6 +163,8 @@ export default function TempQueryScreen() {
           disabled={!sel.zy || !!busy}
           onPick={(o) => pick('bj', o)}
           colors={colors}
+          glass={glass}
+          glassLine={glassLine}
         />
 
         <Text style={[styles.label, { color: colors.textSecondary }]}>查询类型</Text>
@@ -159,8 +173,20 @@ export default function TempQueryScreen() {
             <Pressable
               key={t.value}
               onPress={() => setQueryType(t.value)}
-              style={[styles.typeBtn, { backgroundColor: queryType === t.value ? '#2563eb' : colors.backgroundElement }]}>
-              <Text style={{ color: queryType === t.value ? '#fff' : colors.text, fontSize: 13 }}>
+              style={[
+                styles.typeBtn,
+                glassBorder(queryType === t.value),
+                {
+                  backgroundColor: glass
+                    ? queryType === t.value
+                      ? 'rgba(37,99,235,0.15)'
+                      : 'transparent'
+                    : queryType === t.value
+                      ? '#2563eb'
+                      : colors.backgroundElement,
+                },
+              ]}>
+              <Text style={{ color: queryType === t.value && !glass ? '#fff' : colors.text, fontSize: 13 }}>
                 {t.label}
               </Text>
             </Pressable>
@@ -169,8 +195,12 @@ export default function TempQueryScreen() {
         <Pressable
           disabled={!ready}
           onPress={go}
-          style={[styles.goBtn, { backgroundColor: ready ? '#2563eb' : colors.backgroundElement }]}>
-          <Text style={{ color: ready ? '#fff' : colors.textSecondary, fontWeight: '700' }}>
+          style={[
+            styles.goBtn,
+            glassBorder(!!ready),
+            { backgroundColor: glass ? (ready ? 'rgba(37,99,235,0.15)' : 'transparent') : ready ? '#2563eb' : colors.backgroundElement },
+          ]}>
+          <Text style={{ color: ready ? (glass ? colors.text : '#fff') : colors.textSecondary, fontWeight: '700' }}>
             {ready ? '查询该班级课表' : '请先选择系部 / 专业 / 班级'}
           </Text>
         </Pressable>
