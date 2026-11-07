@@ -3,8 +3,7 @@
  * 选择器带水滴动效: 指示器拉伸滑到目标档位, 一颗小水珠拖尾跟来, 落定收拢
  */
 import { useEffect, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -97,14 +96,6 @@ export function UiModePicker({
         <Animated.View pointerEvents="none" style={[styles.drop, drop, { backgroundColor: indBg }]} />
         {/* 水滴指示器 */}
         <Animated.View pointerEvents="none" style={[styles.ind, ind, { backgroundColor: indBg }]} />
-        {Platform.OS !== 'web' && (
-          <BlurView
-            intensity={30}
-            tint={dark ? 'dark' : 'light'}
-            experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
-            style={StyleSheet.absoluteFill}
-          />
-        )}
         <View style={styles.row}>
           {OPTIONS.map((o) => {
             const active = draft === o.value;

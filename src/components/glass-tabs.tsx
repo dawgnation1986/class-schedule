@@ -3,8 +3,7 @@
  * 切换 tab 时指示器像水滴一样拉伸、滑动、收拢, 并有一颗小水珠拖尾跟随
  */
 import { useEffect } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -79,18 +78,11 @@ function GlassTabBar({ state, navigation }: BottomTabBarProps) {
 
   const line = dark ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.65)';
   const indBg = dark ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.85)';
+  const barBg = dark ? 'rgba(24,28,36,0.78)' : 'rgba(255,255,255,0.72)';
 
   return (
     <View pointerEvents="box-none" style={[styles.wrap, { bottom: Math.max(insets.bottom, 8) }]}>
-      <View style={[styles.bar, { width: barW, borderColor: line, backgroundColor: dark ? 'rgba(24,28,36,0.35)' : 'rgba(255,255,255,0.35)' }]}>
-        {Platform.OS !== 'web' && (
-          <BlurView
-            intensity={Platform.OS === 'android' ? 60 : 45}
-            tint={dark ? 'dark' : 'light'}
-            experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
-            style={StyleSheet.absoluteFill}
-          />
-        )}
+      <View style={[styles.bar, { width: barW, borderColor: line, backgroundColor: barBg }]}>
         {/* 拖尾小水珠 */}
         <Animated.View pointerEvents="none" style={[styles.drop, drop, { backgroundColor: indBg }]} />
         {/* 水滴指示器 */}
