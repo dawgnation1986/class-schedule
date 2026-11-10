@@ -49,6 +49,15 @@ export function timesForSeason(s: Season): PeriodTimes {
   return s === 'summer' ? SUMMER_TIMES : WINTER_TIMES;
 }
 
+/**
+ * 按日期自动判断作息季: 每年 10月7日(含)之后 → 秋冬季(冬季作息), 其余 → 夏季作息。
+ * 用户未手动选择预设时生效。
+ */
+export function autoSeasonByDate(d: Date = new Date()): Season {
+  const md = (d.getMonth() + 1) * 100 + d.getDate();
+  return md >= 1007 ? 'winter' : 'summer';
+}
+
 type Stored = { season: Season; custom?: PeriodTimes | null };
 
 let cachedSeason: Season | null = null;
@@ -73,9 +82,14 @@ export async function primeScheduleTimes(): Promise<void> {
   }
 }
 
-/** 当前作息预设选择(未预热时同步返回冬季) */
+/** 当前作息预设选择(未手动选择时按日期自动: 10月7日后为秋冬季) */
 export function currentSeason(): Season {
-  return cachedSeason ?? 'winter';
+  return cachedSeason ?? autoSeasonByDate();
+}
+
+/** 用户是否手动选过预设(没选过 = 走按日期自动) */
+export function hasManualSeason(): boolean {
+  return cachedSeason != null;
 }
 
 /** 当前是否使用自定义作息 */
@@ -91,7 +105,8 @@ export function getPeriodTimes(): PeriodTimes {
 /** 当前生效的来源描述 */
 export function activeSourceLabel(): string {
   if (cachedCustom) return '自定义作息';
-  return SEASON_LABEL[currentSeason()];
+  if (hasManualSeason()) return SEASON_LABEL[currentSeason()];
+  return `按日期自动 · ${SEASON_LABEL[currentSeason()]}`;
 }
 
 export function subscribeTimes(cb: () => void): () => void {
