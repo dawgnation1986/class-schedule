@@ -26,17 +26,26 @@ export const Colors = {
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
+/** 调色板结构: 原版/墨夜主题通用的颜色形状(值随主题变化) */
+export type Palette = {
+  text: string;
+  background: string;
+  backgroundElement: string;
+  backgroundSelected: string;
+  textSecondary: string;
+};
+
 /**
  * 墨夜主题配色: 深邃夜空底色, 高对比文字, 蓝紫点缀。
  * 全部控件在墨夜模式下重绘(night-kit), 不使用半透明磨砂。
  */
-export const NightColors = {
+export const NightColors: Palette = {
   text: '#E8EEF9',
   background: '#0B0E17',
   backgroundElement: '#151B2B',
   backgroundSelected: 'rgba(91,140,255,0.16)',
   textSecondary: '#8A94AC',
-} as const;
+};
 
 export const Fonts = Platform.select({
   ios: {

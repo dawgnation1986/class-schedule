@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Colors, Spacing } from '@/constants/theme';
+import { Spacing, type Palette } from '@/constants/theme';
 import type { Option } from '@/lib/timetable';
 
 /** 简单的选择器: 按钮 + 弹出选项列表 (设置页/临时查询页共用)
@@ -23,7 +23,7 @@ export function PickerField({
   options: Option[];
   disabled?: boolean;
   onPick: (o: Option) => void;
-  colors: (typeof Colors)[keyof typeof Colors];
+  colors: Palette;
   glass?: boolean;
   glassLine?: string;
 }) {

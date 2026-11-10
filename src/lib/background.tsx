@@ -5,7 +5,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { Image, StyleSheet, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { Colors } from '@/constants/theme';
+import { type Palette } from '@/constants/theme';
 
 export type BgSetting = { uri: string | null; opacity: number; ctrl?: boolean };
 
@@ -82,7 +82,7 @@ export function useBgSetting(): BgSetting {
 }
 
 /** 页面背景色: 有自定义背景时页面透明露出底层图, 否则用主题色 */
-export function usePageBackground(colors: (typeof Colors)[keyof typeof Colors]): string {
+export function usePageBackground(colors: Palette): string {
   const [bg, setBg] = useState<BgSetting>(() => cache);
   useEffect(() => subscribeBackground(() => setBg({ ...cache })), []);
   return bg.uri ? 'transparent' : colors.background;

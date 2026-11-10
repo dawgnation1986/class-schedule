@@ -1,12 +1,27 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState, type ElementType } from 'react';
+import {
+  Alert,
+  Modal,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
-import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { MaxContentWidth, Spacing, type Palette } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTheme } from '@/hooks/use-theme';
+import { useUiMode } from '@/hooks/use-ui-mode';
 import { usePageBackground, useBgSetting } from '@/lib/background';
+import { NightGlowBackground, NightCard } from '@/components/night-kit';
 import { getThemeMode, saveThemeMode, subscribeTheme, themeModeLabel, type ThemeMode } from '@/lib/theme';
 import { getWeatherCity, setWeatherCity } from '@/lib/weather';
 import { addCountdown, loadCountdowns, removeCountdown, subscribeCountdowns, type Countdown } from '@/lib/countdowns';
@@ -50,7 +65,7 @@ function TimesEditorModal({
   visible: boolean;
   initial: PeriodTimes;
   onClose: () => void;
-  colors: (typeof Colors)[keyof typeof Colors];
+  colors: Palette;
 }) {
   const [values, setValues] = useState<Record<string, [string, string]>>({});
   const [err, setErr] = useState<string | null>(null);
@@ -141,7 +156,7 @@ function JsonImportModal({
 }: {
   visible: boolean;
   onClose: () => void;
-  colors: (typeof Colors)[keyof typeof Colors];
+  colors: Palette;
 }) {
   const [text, setText] = useState('');
   const [err, setErr] = useState<string | null>(null);
@@ -202,7 +217,7 @@ function JsonImportModal({
 
 export default function ProfileScreen() {
   const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const colors = useTheme(); // 墨夜模式下返回深色配色
   const pageBg = usePageBackground(colors);
   const bgSetting = useBgSetting();
   // 控件全透明模式: 设了背景图且开启开关 → 按钮/卡片/输入框只留文字 + 1px 外轮廓
@@ -210,6 +225,12 @@ export default function ProfileScreen() {
   const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
   const glassBorder = (active = false) =>
     glass ? { borderWidth: 1, borderColor: active ? 'rgba(37,99,235,0.55)' : glassLine } : null;
+  const uiMode = useUiMode();
+  const night = uiMode === 'night';
+  // 墨夜模式: 分组卡片交给 NightCard 重绘, 去掉原背景/玻璃描边, 保留圆角与内边距
+  const CardWrap: ElementType = night ? NightCard : View;
+  const cardStyle = (base: ViewStyle): StyleProp<ViewStyle> =>
+    night ? base : [base, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }];
   const router = useRouter();
 
   const [username, setUsername] = useState('');
@@ -309,6 +330,8 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
+      {/* 墨夜背景: 深空渐变 + 顶部辉光(绝对定位铺满, 原版模式不渲染) */}
+      {night && <NightGlowBackground>{null}</NightGlowBackground>}
       <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={[styles.title, { color: colors.text }]}>我的</Text>
 
@@ -367,7 +390,7 @@ export default function ProfileScreen() {
           </Text>
         </Pressable>
 
-        <View style={[styles.section, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
+        <CardWrap style={cardStyle(styles.section)}>
           <Text style={{ color: colors.text, fontWeight: '700' }}>班级课表设置</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 4 }}>
             当前班级：{classLabel ?? '未设置'}
@@ -377,10 +400,10 @@ export default function ProfileScreen() {
             style={[styles.linkBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected }]}>
             <Text style={{ color: colors.text, fontSize: 13 }}>去设置系部 / 专业 / 班级</Text>
           </Pressable>
-        </View>
+        </CardWrap>
 
         {/* 作息时间表 */}
-        <View style={[styles.section, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
+        <CardWrap style={cardStyle(styles.section)}>
           <Pressable onPress={() => setShowTimes((v) => !v)} style={styles.timesHead}>
             <Text style={{ color: colors.text, fontWeight: '700' }}>作息时间表</Text>
             <Text style={{ color: '#2563eb', fontSize: 13 }}>{showTimes ? '收起 ▲' : '查看 ▼'}</Text>
@@ -422,11 +445,11 @@ export default function ProfileScreen() {
               <Text style={{ color: colors.text, fontSize: 12 }}>JSON 导入</Text>
             </Pressable>
           </View>
-        </View>
+        </CardWrap>
 
         {/* 外观模式 */}
         <TourTarget id="pf.theme">
-        <View style={[styles.section, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
+        <CardWrap style={cardStyle(styles.section)}>
           <Text style={{ color: colors.text, fontWeight: '700' }}>外观模式</Text>
           <View style={[styles.timesBtnRow, { marginTop: 10, marginBottom: 0 }]}>
             {THEME_OPTIONS.map((m) => (
@@ -449,11 +472,11 @@ export default function ProfileScreen() {
               </Pressable>
             ))}
           </View>
-        </View>
+        </CardWrap>
         </TourTarget>
 
         {/* 天气城市 */}
-        <View style={[styles.section, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
+        <CardWrap style={cardStyle(styles.section)}>
           <Text style={{ color: colors.text, fontWeight: '700' }}>天气城市</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
             {wxCity ? `手动指定：${wxCity}` : '自动定位（IP 定位，城市可能不准）'}
@@ -477,10 +500,10 @@ export default function ProfileScreen() {
               <Text style={{ color: colors.text, fontSize: 12 }}>手动设置</Text>
             </Pressable>
           </View>
-        </View>
+        </CardWrap>
 
         {/* 倒计时 */}
-        <View style={[styles.section, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
+        <CardWrap style={cardStyle(styles.section)}>
           <Text style={{ color: colors.text, fontWeight: '700' }}>倒计时</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
             显示在课表页顶部，如四六级、期末考试
@@ -527,11 +550,11 @@ export default function ProfileScreen() {
               <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>添加</Text>
             </Pressable>
           </View>
-        </View>
+        </CardWrap>
 
         {/* 自定义背景 */}
         <TourTarget id="pf.bg">
-        <View style={[styles.section, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
+        <CardWrap style={cardStyle(styles.section)}>
           <Text style={{ color: colors.text, fontWeight: '700' }}>自定义背景</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
             {bg.uri ? '已设置背景图片，全App生效' : '未设置，使用默认纯色背景'}
@@ -582,11 +605,11 @@ export default function ProfileScreen() {
               </Pressable>
             </View>
           )}
-        </View>
+        </CardWrap>
         </TourTarget>
 
         {/* 课表界面风格 */}
-        <View style={[styles.section, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
+        <CardWrap style={cardStyle(styles.section)}>
           <Text style={{ color: colors.text, fontWeight: '700' }}>课表界面</Text>
           <View style={[styles.timesBtnRow, { marginTop: 10, marginBottom: 0 }]}>
             {(
@@ -612,10 +635,10 @@ export default function ProfileScreen() {
               </Pressable>
             ))}
           </View>
-        </View>
+        </CardWrap>
 
         {/* 数据备份 */}
-        <View style={[styles.section, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
+        <CardWrap style={cardStyle(styles.section)}>
           <Text style={{ color: colors.text, fontWeight: '700' }}>数据备份</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
             备份班级设置、作息、待办、倒计时、主题、镜像与账号。导出的 JSON 可发送到微信/QQ 收藏，换机或重装后粘贴导入。
@@ -640,7 +663,7 @@ export default function ProfileScreen() {
               <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>导入备份</Text>
             </Pressable>
           </View>
-        </View>
+        </CardWrap>
 
         {/* 开发者选项入口 */}
         <Pressable

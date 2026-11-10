@@ -3,14 +3,14 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Linking } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { type Palette } from '@/constants/theme';
 
 export const REPO_HOME = 'https://github.com/dawgnation1986/class-schedule';
 
 export function AboutGithub({
   colors,
 }: {
-  colors: (typeof Colors)[keyof typeof Colors];
+  colors: Palette;
 }) {
   return (
     <Pressable

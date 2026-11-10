@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { type Palette } from '@/constants/theme';
 import {
   addCustomMirror,
   getMirrorSettings,
@@ -20,7 +20,7 @@ export function MirrorSettings({
 }: {
   visible: boolean;
   onClose: () => void;
-  colors: (typeof Colors)[keyof typeof Colors];
+  colors: Palette;
 }) {
   const [customs, setCustoms] = useState<string[]>([]);
   const [builtins, setBuiltins] = useState<Mirror[]>([]);

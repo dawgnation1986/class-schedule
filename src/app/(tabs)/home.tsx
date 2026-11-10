@@ -1,19 +1,34 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState, type ElementType } from 'react';
+import {
+  ActivityIndicator,
+  Image,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
-import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTheme } from '@/hooks/use-theme';
+import { useUiMode } from '@/hooks/use-ui-mode';
 import { usePageBackground, useBgSetting } from '@/lib/background';
+import { NightGlowBackground, NightCard, NightPrimaryButton } from '@/components/night-kit';
 import { AboutGithub } from '@/components/about-github';
 import { PORTAL_SITE, clearSession, loadLoginPage, submitLogin, tryRestoreSession, type LoginState, type PortalApp } from '@/lib/portal';
 import { loadAccount, saveAccount } from '@/lib/account';
 
 export default function PortalScreen() {
   const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const colors = useTheme(); // 墨夜模式下返回深色配色
   const pageBg = usePageBackground(colors);
   const bgSetting = useBgSetting();
   // 控件全透明模式: 设了背景图且开启开关 → 按钮/卡片/输入框只留文字 + 1px 外轮廓
@@ -21,6 +36,12 @@ export default function PortalScreen() {
   const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
   const glassBorder = (active = false) =>
     glass ? { borderWidth: 1, borderColor: active ? 'rgba(37,99,235,0.55)' : glassLine } : null;
+  const uiMode = useUiMode();
+  const night = uiMode === 'night';
+  // 墨夜模式: 卡片容器交给 NightCard 重绘, 去掉原背景/玻璃描边, 保留圆角与内边距
+  const CardWrap: ElementType = night ? NightCard : View;
+  const cardStyle = (base: ViewStyle): StyleProp<ViewStyle> =>
+    night ? base : [base, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }];
   const router = useRouter();
 
   const [username, setUsername] = useState('');
@@ -127,13 +148,15 @@ export default function PortalScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
+      {/* 墨夜背景: 深空渐变 + 顶部辉光(绝对定位铺满, 原版模式不渲染) */}
+      {night && <NightGlowBackground>{null}</NightGlowBackground>}
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={[styles.title, { color: colors.text }]}>综合管理平台</Text>
 
         {error && <Text style={styles.error}>{error}</Text>}
 
         {!name && (
-          <View style={styles.loginCard}>
+          <CardWrap style={styles.loginCard}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>学号</Text>
             <TextInput
               value={username}
@@ -172,29 +195,38 @@ export default function PortalScreen() {
                 )}
               </Pressable>
             </View>
-            <Pressable
-              disabled={loggingIn || loading || !state || !username || !password || !captcha}
-              onPress={login}
-              style={[
-                styles.loginBtn,
-                glassBorder(!!(username && password && captcha)),
-                { backgroundColor: glass ? (username && password && captcha ? 'rgba(37,99,235,0.15)' : 'transparent') : username && password && captcha ? '#2563eb' : colors.backgroundElement },
-              ]}>
-              {loggingIn ? (
-                <ActivityIndicator color={colors.text} />
-              ) : (
-                <Text style={{ color: username && password && captcha ? (glass ? colors.text : '#fff') : colors.textSecondary, fontWeight: '700' }}>
-                  登 录
-                </Text>
-              )}
-            </Pressable>
+            {night ? (
+              <NightPrimaryButton
+                title="登 录"
+                onPress={login}
+                disabled={loggingIn || loading || !state || !username || !password || !captcha}
+                style={{ marginTop: Spacing.three }}
+              />
+            ) : (
+              <Pressable
+                disabled={loggingIn || loading || !state || !username || !password || !captcha}
+                onPress={login}
+                style={[
+                  styles.loginBtn,
+                  glassBorder(!!(username && password && captcha)),
+                  { backgroundColor: glass ? (username && password && captcha ? 'rgba(37,99,235,0.15)' : 'transparent') : username && password && captcha ? '#2563eb' : colors.backgroundElement },
+                ]}>
+                {loggingIn ? (
+                  <ActivityIndicator color={colors.text} />
+                ) : (
+                  <Text style={{ color: username && password && captcha ? (glass ? colors.text : '#fff') : colors.textSecondary, fontWeight: '700' }}>
+                    登 录
+                  </Text>
+                )}
+              </Pressable>
+            )}
             <Text style={[styles.hint, { color: colors.textSecondary }]}>
               站点限制：每次进入都需重新输入验证码登录。
             </Text>
             <Pressable onPress={() => router.navigate('/timetable')} style={styles.skipLogin}>
               <Text style={{ color: '#2563eb', fontSize: 13 }}>班级课表查询无需登录，直接去查 →</Text>
             </Pressable>
-          </View>
+          </CardWrap>
         )}
 
         {name && (
@@ -217,7 +249,7 @@ export default function PortalScreen() {
             <Text style={[styles.hint, { color: colors.textSecondary, marginTop: 0 }]}>
               会话过期后需重新输入验证码登录。
             </Text>
-            <View style={[styles.searchWrap, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
+            <CardWrap style={cardStyle(styles.searchWrap)}>
               <Ionicons name="search" size={16} color={colors.textSecondary} />
               <TextInput
                 value={keyword}
@@ -232,7 +264,7 @@ export default function PortalScreen() {
                   <Ionicons name="close-circle" size={16} color={colors.textSecondary} />
                 </Pressable>
               )}
-            </View>
+            </CardWrap>
             {shownApps.length > 0 ? (
               <View style={styles.appGrid}>
                 {shownApps.map((app) => (

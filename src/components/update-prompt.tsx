@@ -1,15 +1,19 @@
 /** 启动自动检查更新: 每次进入 App 静默查询 GitHub Releases, 发现新版本弹窗提示(下载/取消) */
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ElementType } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { useUiMode } from '@/hooks/use-ui-mode';
+import { NightCard, NightPrimaryButton } from '@/components/night-kit';
 import { ApkDownload } from '@/components/download-view';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { checkUpdate, type UpdateInfo } from '@/lib/updates';
 
 export function UpdatePrompt() {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const colors = useTheme(); // 墨夜模式下返回深色配色
+  const uiMode = useUiMode();
+  const night = uiMode === 'night';
+  // 墨夜模式: 弹窗容器交给 NightCard 重绘(去掉原背景色)
+  const BoxWrap: ElementType = night ? NightCard : View;
   const [info, setInfo] = useState<UpdateInfo | null>(null);
   const [downloading, setDownloading] = useState(false);
 
@@ -39,7 +43,7 @@ export function UpdatePrompt() {
         setInfo(null);
       }}>
       <View style={styles.mask}>
-        <View style={[styles.box, { backgroundColor: colors.background }]}>
+        <BoxWrap style={night ? styles.box : [styles.box, { backgroundColor: colors.background }]}>
           <Text style={[styles.title, { color: colors.text }]}>
             发现{info.prerelease ? '体验版' : '新版本'} v{info.latest}
           </Text>
@@ -60,14 +64,22 @@ export function UpdatePrompt() {
                 style={[styles.btn, { backgroundColor: colors.backgroundElement }]}>
                 <Text style={{ color: colors.text, fontSize: 15 }}>取消</Text>
               </Pressable>
-              <Pressable
-                onPress={() => setDownloading(true)}
-                style={[styles.btn, { backgroundColor: '#2563eb' }]}>
-                <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>下载更新</Text>
-              </Pressable>
+              {night ? (
+                <NightPrimaryButton
+                  title="下载更新"
+                  onPress={() => setDownloading(true)}
+                  style={{ flex: 1 }}
+                />
+              ) : (
+                <Pressable
+                  onPress={() => setDownloading(true)}
+                  style={[styles.btn, { backgroundColor: '#2563eb' }]}>
+                  <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>下载更新</Text>
+                </Pressable>
+              )}
             </View>
           )}
-        </View>
+        </BoxWrap>
       </View>
     </Modal>
   );

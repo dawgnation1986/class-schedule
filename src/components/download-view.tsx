@@ -2,7 +2,7 @@
 import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { type Palette } from '@/constants/theme';
 import {
   downloadApk,
   fmtSize,
@@ -16,7 +16,7 @@ export function ApkDownload({
   colors,
 }: {
   info: UpdateInfo;
-  colors: (typeof Colors)[keyof typeof Colors];
+  colors: Palette;
 }) {
   const [logs, setLogs] = useState<string[]>([]);
   const [progress, setProgress] = useState(0);

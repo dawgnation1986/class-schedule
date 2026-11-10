@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { type Palette } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useBgSetting } from '@/lib/background';
 import { ApkDownload } from '@/components/download-view';
@@ -9,7 +9,7 @@ import { MirrorSettings } from '@/components/mirror-settings';
 import { checkUpdate, currentVersion, type UpdateInfo } from '@/lib/updates';
 
 /** 检查更新卡片: 显示当前版本 + 查询 GitHub Releases + 内置下载 APK */
-export function UpdateCard({ colors }: { colors: (typeof Colors)[keyof typeof Colors] }) {
+export function UpdateCard({ colors }: { colors: Palette }) {
   const scheme = useColorScheme();
   const bgSetting = useBgSetting();
   // 控件全透明模式: 与各页面一致, 卡片只留文字 + 1px 外轮廓

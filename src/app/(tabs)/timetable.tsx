@@ -1,5 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState, type ElementType } from 'react';
+import {
+  Alert,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -9,9 +20,12 @@ import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-g
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import * as ScreenOrientation from 'expo-screen-orientation';
 
-import { Colors, Spacing } from '@/constants/theme';
+import { Spacing, type Palette } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTheme } from '@/hooks/use-theme';
+import { useUiMode } from '@/hooks/use-ui-mode';
 import { usePageBackground, useBgSetting } from '@/lib/background';
+import { NightGlowBackground, NightCard } from '@/components/night-kit';
 import {
   beijingNow,
   loadInitial,
@@ -84,7 +98,7 @@ function DatePickModal({
   value: Date;
   onClose: () => void;
   onConfirm: (d: Date) => void;
-  colors: (typeof Colors)[keyof typeof Colors];
+  colors: Palette;
 }) {
   const [view, setView] = useState({ y: value.getFullYear(), m: value.getMonth() + 1 });
   const [sel, setSel] = useState(value);
@@ -207,7 +221,7 @@ function FullWeekView({
   visible: boolean;
   onClose: () => void;
   rows: TimetableRow[];
-  colors: (typeof Colors)[keyof typeof Colors];
+  colors: Palette;
   todayCol: number;
   isToday: boolean;
   curPeriod: string | null;
@@ -343,7 +357,7 @@ export default function TimetableEntry() {
 
 function ClassicScreen() {
   const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const colors = useTheme(); // 墨夜模式下返回深色配色
   const pageBg = usePageBackground(colors);
   const bgSetting = useBgSetting();
   // 控件全透明模式: 设了背景图且开启开关 → 按钮/卡片/表格只留文字 + 1px 外轮廓
@@ -353,6 +367,12 @@ function ClassicScreen() {
     glass ? (active ? 'rgba(37,99,235,0.15)' : 'transparent') : null;
   const glassBorder = (active = false) =>
     glass ? { borderWidth: 1, borderColor: active ? 'rgba(37,99,235,0.55)' : glassLine } : null;
+  const uiMode = useUiMode();
+  const night = uiMode === 'night';
+  // 墨夜模式: 图例卡片交给 NightCard 重绘, 去掉原背景/玻璃描边(课表格子不动)
+  const CardWrap: ElementType = night ? NightCard : View;
+  const cardStyle = (base: ViewStyle): StyleProp<ViewStyle> =>
+    night ? base : [base, glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }];
   const router = useRouter();
 
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -579,6 +599,8 @@ function ClassicScreen() {
   if (!settings) {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
+        {/* 墨夜背景: 深空渐变 + 顶部辉光(绝对定位铺满, 原版模式不渲染) */}
+        {night && <NightGlowBackground>{null}</NightGlowBackground>}
         <View style={styles.emptyWrap}>
           <Text style={[styles.emptyTitle, { color: colors.text }]}>还没有配置班级</Text>
           <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
@@ -594,6 +616,8 @@ function ClassicScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
+      {/* 墨夜背景: 深空渐变 + 顶部辉光(绝对定位铺满, 原版模式不渲染) */}
+      {night && <NightGlowBackground>{null}</NightGlowBackground>}
       <View style={styles.header}>
         <Pressable style={{ flex: 1 }} onPress={() => setDatePickerOpen(true)}>
           <View style={styles.titleRow}>
@@ -751,9 +775,9 @@ function ClassicScreen() {
           {upcomingExams.map((e, i) => {
             const urgent = e.daysLeft <= 3;
             return (
-              <View
+              <CardWrap
                 key={`${e.course}-${e.date}-${i}`}
-                style={[styles.examCard, glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }]}>
+                style={cardStyle(styles.examCard)}>
                 <Text style={[styles.examDays, { color: urgent ? '#ef4444' : '#2563eb' }]}>
                   {e.daysLeft === 0 ? '今天考' : `${e.daysLeft} 天`}
                 </Text>
@@ -766,7 +790,7 @@ function ClassicScreen() {
                     {e.room ? ` · ${e.room}` : ''}
                   </Text>
                 </View>
-              </View>
+              </CardWrap>
             );
           })}
           {activeCds.length > 0 && (
@@ -776,9 +800,7 @@ function ClassicScreen() {
             </View>
           )}
           {activeCds.map((c, i) => (
-            <View
-              key={c.id}
-              style={[styles.examCard, glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }]}>
+            <CardWrap key={c.id} style={cardStyle(styles.examCard)}>
               <Text style={[styles.examDays, { color: '#8b5cf6' }]}>
                 {c.left === 0 ? '就是今天' : `${c.left} 天`}
               </Text>
@@ -790,7 +812,7 @@ function ClassicScreen() {
                   {c.date}
                 </Text>
               </View>
-            </View>
+            </CardWrap>
           ))}
         </ScrollView>
       )}

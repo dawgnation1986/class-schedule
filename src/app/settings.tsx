@@ -1,9 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState, type ElementType } from 'react';
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
-import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { MaxContentWidth, Spacing } from '@/constants/theme';
 import {
   loadInitial,
   selectDepartment,
@@ -14,7 +24,10 @@ import {
 } from '@/lib/timetable';
 import { DEFAULT_QUERY_TYPE, loadSettings, saveSettings, type Settings } from '@/lib/settings';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTheme } from '@/hooks/use-theme';
+import { useUiMode } from '@/hooks/use-ui-mode';
 import { PageBackdrop, usePageBackground, useBgSetting } from '@/lib/background';
+import { NightGlowBackground, NightCard, NightPrimaryButton, NightSectionHeader } from '@/components/night-kit';
 import { PickerField } from '@/components/picker-field';
 import { UiModePicker } from '@/components/ui-mode-picker';
 import { ApkDownload } from '@/components/download-view';
@@ -33,7 +46,7 @@ const QUERY_TYPES: { value: QueryType; label: string; hint: string }[] = [
 
 export default function SettingsScreen() {
   const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const colors = useTheme(); // 墨夜模式下返回深色配色
   const pageBg = usePageBackground(colors);
   // 控件全透明模式: 设了背景图且开启开关 → 按钮/卡片只留文字 + 1px 外轮廓
   const bgSetting = useBgSetting();
@@ -41,6 +54,12 @@ export default function SettingsScreen() {
   const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
   const glassBorder = (active = false) =>
     glass ? { borderWidth: 1, borderColor: active ? 'rgba(37,99,235,0.55)' : glassLine } : null;
+  const uiMode = useUiMode();
+  const night = uiMode === 'night';
+  // 墨夜模式: 卡片容器交给 NightCard 重绘, 去掉原背景/玻璃描边, 保留圆角与内边距
+  const CardWrap: ElementType = night ? NightCard : View;
+  const cardStyle = (base: ViewStyle): StyleProp<ViewStyle> =>
+    night ? base : [base, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }];
   const router = useRouter();
 
   const [state, setState] = useState<PageState | null>(null);
@@ -139,6 +158,8 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
+      {/* 墨夜背景: 深空渐变 + 顶部辉光(绝对定位铺满, 原版模式不渲染) */}
+      {night && <NightGlowBackground>{null}</NightGlowBackground>}
       <PageBackdrop />      <ScrollView ref={scrollRef} contentContainerStyle={styles.content}>
         <Pressable
           onPress={() => router.back()}
@@ -213,30 +234,43 @@ export default function SettingsScreen() {
           ))}
         </View>
 
-        <Pressable
-          disabled={!ready || !!busy}
-          onPress={save}
-          style={[
-            styles.saveBtn,
-            glassBorder(!!ready),
-            { backgroundColor: glass ? (ready ? 'rgba(37,99,235,0.15)' : 'transparent') : ready ? '#2563eb' : colors.backgroundElement },
-          ]}>
-          {busy ? (
-            <ActivityIndicator color={colors.text} />
-          ) : (
-            <Text style={{ color: ready ? (glass ? colors.text : '#fff') : colors.textSecondary, fontWeight: '700' }}>
-              {savedTip ? '已保存 ✓' : '保存设置'}
-            </Text>
-          )}
-        </Pressable>
+        {night ? (
+          <NightPrimaryButton
+            title={savedTip ? '已保存 ✓' : '保存设置'}
+            onPress={save}
+            disabled={!ready || !!busy}
+            style={{ marginTop: Spacing.one }}
+          />
+        ) : (
+          <Pressable
+            disabled={!ready || !!busy}
+            onPress={save}
+            style={[
+              styles.saveBtn,
+              glassBorder(!!ready),
+              { backgroundColor: glass ? (ready ? 'rgba(37,99,235,0.15)' : 'transparent') : ready ? '#2563eb' : colors.backgroundElement },
+            ]}>
+            {busy ? (
+              <ActivityIndicator color={colors.text} />
+            ) : (
+              <Text style={{ color: ready ? (glass ? colors.text : '#fff') : colors.textSecondary, fontWeight: '700' }}>
+                {savedTip ? '已保存 ✓' : '保存设置'}
+              </Text>
+            )}
+          </Pressable>
+        )}
 
         {/* 界面设置: 原版界面 / 液态玻璃界面(水滴动效切换, 立即生效) */}
         <UiModePicker />
 
         {/* 教程设置(常驻): 交互式新手引导 + 图文教程 */}
         <TourTarget id="st.guide">
-        <View style={[styles.guideCard, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
-          <Text style={{ color: colors.text, fontWeight: '800', fontSize: 15 }}>教程设置</Text>
+        <CardWrap style={cardStyle(styles.guideCard)}>
+          {night ? (
+            <NightSectionHeader title="教程设置" />
+          ) : (
+            <Text style={{ color: colors.text, fontWeight: '800', fontSize: 15 }}>教程设置</Text>
+          )}
           <Pressable
             onPress={() => startCoachTour()}
             style={({ pressed }) => [styles.guideRow, pressed && { opacity: 0.6 }]}>
@@ -261,11 +295,11 @@ export default function SettingsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
           </Pressable>
-        </View>
+        </CardWrap>
         </TourTarget>
 
         {/* 检查更新 */}
-        <View style={[styles.updateCard, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
+        <CardWrap style={cardStyle(styles.updateCard)}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Text style={{ color: colors.text, fontWeight: '700' }}>
               当前版本 v{currentVersion()}
@@ -309,7 +343,7 @@ export default function SettingsScreen() {
               <ApkDownload info={update} colors={colors} />
             </View>
           )}
-        </View>
+        </CardWrap>
 
         <AboutGithub colors={colors} />
       </ScrollView>
