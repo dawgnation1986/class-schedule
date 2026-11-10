@@ -33,26 +33,45 @@ function hmToMin(s: string): number {
   return h * 60 + m;
 }
 
+/** 通知渠道: 上课 / 下课分开注册, 系统通知设置里可分别查看与管理 */
+export const START_CHANNEL_ID = 'class-start-v3';
+export const END_CHANNEL_ID = 'class-end-v1';
+/** 旧版合并渠道(上课下课共用, 名字只叫"上课提醒"), 已废弃, 启动时自动清理 */
+const LEGACY_CHANNEL_ID = 'class-remind-v2';
+
 /** 渠道状态: ok=已存在且 MAX / created=新建 / recreated=重要级不足删除重建 / unavailable=模块不可用 */
 export type ReminderChannelStatus = 'ok' | 'created' | 'recreated' | 'unavailable';
 
-/** 确保提醒渠道存在且为 MAX 重要级: 不存在则创建; 重要级不足(创建后不可改)则删除重建 */
+/** 确保上课/下课两个提醒渠道都存在且为 MAX 重要级: 不存在则创建; 重要级不足(创建后不可改)则删除重建 */
 export async function ensureReminderChannel(): Promise<ReminderChannelStatus> {
   const Notifications = loadNotifications();
   if (!Notifications || Platform.OS !== 'android') return 'unavailable';
   try {
-    const ch = await Notifications.getNotificationChannelAsync('class-remind-v2');
-    if (ch && Number(ch.importance) === Notifications.AndroidImportance.MAX) return 'ok';
-    if (ch) await Notifications.deleteNotificationChannelAsync('class-remind-v2');
-    // v2: MAX 重要级 + 振动 → 锁屏/后台弹出横幅(heads-up, 像微信消息那样)
-    await Notifications.setNotificationChannelAsync('class-remind-v2', {
-      name: '上课提醒',
-      importance: Notifications.AndroidImportance.MAX,
-      sound: 'default',
-      vibrationPattern: [0, 300, 250, 300],
-      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-    });
-    return ch ? 'recreated' : 'created';
+    // 清理旧版合并渠道, 避免系统设置里残留"上课提醒"单渠道
+    if (await Notifications.getNotificationChannelAsync(LEGACY_CHANNEL_ID)) {
+      await Notifications.deleteNotificationChannelAsync(LEGACY_CHANNEL_ID);
+    }
+    const defs: Array<[string, string]> = [
+      [START_CHANNEL_ID, '上课提醒'],
+      [END_CHANNEL_ID, '下课提醒'],
+    ];
+    let worst: ReminderChannelStatus = 'ok';
+    for (const [id, name] of defs) {
+      const ch = await Notifications.getNotificationChannelAsync(id);
+      if (ch && Number(ch.importance) === Notifications.AndroidImportance.MAX) continue;
+      if (ch) await Notifications.deleteNotificationChannelAsync(id);
+      // MAX 重要级 + 振动 → 锁屏/后台弹出横幅(heads-up, 像微信消息那样)
+      await Notifications.setNotificationChannelAsync(id, {
+        name,
+        importance: Notifications.AndroidImportance.MAX,
+        sound: 'default',
+        vibrationPattern: [0, 300, 250, 300],
+        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+      });
+      if (ch) worst = 'recreated';
+      else if (worst === 'ok') worst = 'created';
+    }
+    return worst;
   } catch {
     return 'unavailable';
   }
@@ -118,7 +137,7 @@ export async function scheduleClassReminders(timetable: Timetable) {
             trigger: {
               type: Notifications.SchedulableTriggerInputTypes.DATE,
               date: startAt,
-              channelId: Platform.OS === 'android' ? 'class-remind-v2' : undefined,
+              channelId: Platform.OS === 'android' ? START_CHANNEL_ID : undefined,
             },
           });
         }
@@ -135,7 +154,7 @@ export async function scheduleClassReminders(timetable: Timetable) {
             trigger: {
               type: Notifications.SchedulableTriggerInputTypes.DATE,
               date: endAt,
-              channelId: Platform.OS === 'android' ? 'class-remind-v2' : undefined,
+              channelId: Platform.OS === 'android' ? END_CHANNEL_ID : undefined,
             },
           });
         }

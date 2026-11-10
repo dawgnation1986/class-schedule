@@ -50,3 +50,6 @@ q_*.html
 backup/
 
 build-outputs/
+
+dist/
+dist-js/

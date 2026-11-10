@@ -13,7 +13,7 @@ import { PageBackdrop, usePageBackground, useBgSetting } from '@/lib/background'
 import { PORTAL_SITE, clearSession, loadLoginPage, type LoginState } from '@/lib/portal';
 import { loadSettings } from '@/lib/settings';
 import { setTempOverride } from '@/lib/tempOverride';
-import { ensureReminderChannel } from '@/lib/notifications';
+import { END_CHANNEL_ID, ensureReminderChannel, START_CHANNEL_ID } from '@/lib/notifications';
 
 type LogLine = { ok: boolean | null; text: string };
 
@@ -241,14 +241,17 @@ export default function DevScreen() {
         ? `已授权 (${p.status})`
         : `未授权 (${p.status})`,
     );
-    // 渠道状态: 指定了不存在的 channelId 时 Android 会静默丢弃通知
+    // 渠道状态: 指定了不存在的 channelId 时 Android 会静默丢弃通知; 上课/下课各一个渠道
     try {
-      const ch = await Notifications.getNotificationChannelAsync('class-remind-v2');
-      setChannelInfo(
+      const [st, en] = await Promise.all([
+        Notifications.getNotificationChannelAsync(START_CHANNEL_ID),
+        Notifications.getNotificationChannelAsync(END_CHANNEL_ID),
+      ]);
+      const label = (ch: { importance: number } | null, name: string) =>
         ch
-          ? `存在 · importance=${ch.importance}${Number(ch.importance) >= Notifications.AndroidImportance.HIGH ? '(横幅可用✓)' : ' ← 重要级过低, 横幅弹不出!'}`
-          : '不存在 ← 测试前先点「确保渠道存在」',
-      );
+          ? `${name}渠道 存在 · importance=${ch.importance}${Number(ch.importance) >= Notifications.AndroidImportance.HIGH ? '(横幅可用✓)' : ' ← 重要级过低, 横幅弹不出!'}`
+          : `${name}渠道 不存在 ← 测试前先点「确保渠道存在」`;
+      setChannelInfo(`${label(st, '上课')}\n${label(en, '下课')}`);
     } catch {
       setChannelInfo('查询失败');
     }
@@ -284,13 +287,13 @@ export default function DevScreen() {
         // 关键: 必须带 channelId 走「上课提醒」渠道; trigger:null 会进系统默认渠道, 用户开了渠道权限也没用
         const id = await Notifications.scheduleNotificationAsync({
           content: { title: '测试通知', body },
-          trigger: { seconds: 1, channelId: 'class-remind-v2' } as never,
+          trigger: { seconds: 1, channelId: START_CHANNEL_ID } as never,
         });
         Alert.alert('已发送(1秒后弹出)', `通知 ID: ${id}\n本次走「上课提醒」渠道。若仍未弹出, 点「打开系统通知设置」检查 通知/悬浮通知 开关`);
       } else {
         await Notifications.scheduleNotificationAsync({
           content: { title: '测试通知(5秒)', body },
-          trigger: { seconds: 5, channelId: 'class-remind-v2' } as never,
+          trigger: { seconds: 5, channelId: START_CHANNEL_ID } as never,
         });
         Alert.alert('已排期', '5 秒后弹出, 注意横幅与状态栏');
       }
