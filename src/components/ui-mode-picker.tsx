@@ -1,5 +1,5 @@
 /**
- * 界面设置: 原版界面 / 液态玻璃界面
+ * 界面设置: 原版界面 / 墨夜主题
  * 选择器带水滴动效: 指示器拉伸滑到目标档位, 一颗小水珠拖尾跟来, 落定收拢
  *
  * 稳定性说明: 动画使用 RN 内置 Animated(JS 线程驱动), 不用 reanimated worklet
@@ -8,25 +8,19 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
-import type { ThemeColor } from '@/constants/theme';
 import { useUiMode } from '@/hooks/use-ui-mode';
+import { useTheme } from '@/hooks/use-theme';
 import { saveUiMode, type UiMode } from '@/lib/ui-mode';
+import { NightCard, NightTint } from '@/components/night-kit';
 
 const OPTIONS: { value: UiMode; label: string; hint: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { value: 'original', label: '原版界面', hint: '经典样式, 清晰直白', icon: 'square' },
-  { value: 'glass', label: '液态玻璃', hint: '磨砂玻璃 · Apple 风格', icon: 'water' },
+  { value: 'night', label: '墨夜主题', hint: '深邃夜空 · 蓝紫辉光', icon: 'moon' },
 ];
 
-export function UiModePicker({
-  colors,
-  glass,
-  glassLine,
-}: {
-  colors: Record<ThemeColor, string>;
-  glass: boolean;
-  glassLine: string;
-}) {
+export function UiModePicker() {
   const mode = useUiMode();
+  const colors = useTheme();
   const [draft, setDraft] = useState<UiMode>(mode);
   useEffect(() => setDraft(mode), [mode]);
 
@@ -62,22 +56,21 @@ export function UiModePicker({
   const scaleX = stretch.interpolate({ inputRange: [0, 1], outputRange: [1, 1.5] });
   const scaleY = stretch.interpolate({ inputRange: [0, 1], outputRange: [1, 0.78] });
 
-  const dark = colors.background === '#000000';
-  const indBg = dark ? 'rgba(255,255,255,0.20)' : 'rgba(37,99,235,0.12)';
+  const night = mode === 'night';
+  const indBg = night
+    ? 'rgba(91,140,255,0.22)'
+    : colors.background === '#000000'
+      ? 'rgba(255,255,255,0.20)'
+      : 'rgba(37,99,235,0.12)';
+  const activeColor = night ? '#5B8CFF' : '#2563eb';
 
   const pick = (v: UiMode) => {
     setDraft(v);
     void saveUiMode(v);
   };
 
-  return (
-    <View
-      style={[
-        styles.card,
-        glass
-          ? { borderWidth: 1, borderColor: glassLine, backgroundColor: 'transparent' }
-          : { backgroundColor: colors.backgroundElement },
-      ]}>
+  const body = (
+    <>
       <Text style={{ color: colors.text, fontWeight: '800', fontSize: 15 }}>界面设置</Text>
       <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
         切换后立即生效, 全局应用
@@ -101,8 +94,8 @@ export function UiModePicker({
             const active = draft === o.value;
             return (
               <Pressable key={o.value} onPress={() => pick(o.value)} style={styles.opt}>
-                <Ionicons name={o.icon} size={20} color={active ? '#2563eb' : colors.textSecondary} />
-                <Text style={{ color: active ? '#2563eb' : colors.text, fontWeight: active ? '800' : '500', fontSize: 14 }}>
+                <Ionicons name={o.icon} size={20} color={active ? activeColor : colors.textSecondary} />
+                <Text style={{ color: active ? activeColor : colors.text, fontWeight: active ? '800' : '500', fontSize: 14 }}>
                   {o.label}
                 </Text>
                 <Text style={{ color: colors.textSecondary, fontSize: 11 }}>{o.hint}</Text>
@@ -111,19 +104,26 @@ export function UiModePicker({
           })}
         </View>
       </View>
-    </View>
+    </>
   );
+
+  if (night) {
+    return <NightCard style={styles.nightCard}>{body}</NightCard>;
+  }
+  return <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>{body}</View>;
 }
 
 const styles = StyleSheet.create({
   card: { borderRadius: 12, padding: 16, marginTop: 24, gap: 4 },
+  nightCard: { padding: 16, marginTop: 24, gap: 4 },
   segWrap: {
     flexDirection: 'row',
     marginTop: 10,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(127,150,190,0.25)',
+    borderColor: NightTint.line,
     overflow: 'hidden',
+    backgroundColor: 'rgba(91,140,255,0.06)',
   },
   row: { flex: 1, flexDirection: 'row' },
   opt: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 14 },

@@ -231,7 +231,7 @@ export default function SettingsScreen() {
         </Pressable>
 
         {/* 界面设置: 原版界面 / 液态玻璃界面(水滴动效切换, 立即生效) */}
-        <UiModePicker colors={colors} glass={glass} glassLine={glassLine} />
+        <UiModePicker />
 
         {/* 教程设置(常驻): 交互式新手引导 + 图文教程 */}
         <TourTarget id="st.guide">

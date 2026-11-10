@@ -3,15 +3,15 @@
  * https://docs.expo.dev/guides/color-schemes/
  */
 
-import { Colors, GlassColors } from '@/constants/theme';
+import { Colors, NightColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useUiMode } from '@/hooks/use-ui-mode';
 
 export function useTheme() {
   const scheme = useColorScheme();
   const theme = scheme === 'unspecified' ? 'light' : scheme;
-  // 液态玻璃模式下返回半透明玻璃配色, 全部控件统一呈现玻璃质感
+  // 墨夜模式下返回深色专用配色, 所有控件呈现墨夜质感
   const mode = useUiMode();
 
-  return (mode === 'glass' ? GlassColors : Colors)[theme];
+  return mode === 'night' ? NightColors : Colors[theme];
 }

@@ -6,17 +6,17 @@ import { Colors } from '@/constants/theme';
 import { usePageBackground } from '@/lib/background';
 import { saveUiMode } from '@/lib/ui-mode';
 import { useUiMode } from '@/hooks/use-ui-mode';
-import GlassTabs from '@/components/glass-tabs';
+import NightTabs from '@/components/night-tabs';
 
-/** 玻璃标签栏运行时出错时自动回退到原版 NativeTabs, 避免整个 App 闪退 */
-class GlassTabsBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+/** 墨夜标签栏运行时出错时自动回退到原版 NativeTabs, 避免整个 App 闪退 */
+class NightTabsBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() {
     return { failed: true };
   }
   componentDidCatch(err: unknown) {
-    console.warn('[GlassTabs] crashed, fallback to native tabs:', err);
-    // 自愈: 持久化回退到原版模式, 下次启动不再进入玻璃标签栏
+    console.warn('[NightTabs] crashed, fallback to native tabs:', err);
+    // 自愈: 持久化回退到原版模式, 下次启动不再进入墨夜标签栏
     void saveUiMode('original');
   }
   render() {
@@ -51,12 +51,10 @@ function NativeTabsFallback() {
 
 export default function AppTabs() {
   const uiMode = useUiMode();
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
 
-  // 液态玻璃模式: 自定义玻璃标签栏(水滴形变指示器)
-  if (uiMode === 'glass') {
-    return <GlassTabsBoundary><GlassTabs /></GlassTabsBoundary>;
+  // 墨夜模式: 原生标签栏(水滴动效指示器由系统提供)
+  if (uiMode === 'night') {
+    return <NightTabsBoundary><NightTabs /></NightTabsBoundary>;
   }
 
   return <NativeTabsFallback />;

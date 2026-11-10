@@ -7,9 +7,7 @@ import type { WebViewNavigation } from 'react-native-webview';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useUiMode } from '@/hooks/use-ui-mode';
 import { fetchPortalHtml, getPortalCookie, PORTAL_SITE } from '@/lib/portal';
-import { GLASS_JS } from '@/lib/glass-inject';
 
 /** 页面是否是登录页(会话失效) */
 const isLoginPage = (h: string) => /loginp\.aspx|txtAuthCode/i.test(h);
@@ -380,7 +378,6 @@ export default function PortalPageScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
   const router = useRouter();
-  const uiMode = useUiMode();
   const { title, path } = useLocalSearchParams<{ title?: string; path?: string }>();
   const p = typeof path === 'string' ? path : '';
   const webref = useRef<WebView>(null);
@@ -393,8 +390,7 @@ export default function PortalPageScreen() {
   const [iframeKey, setIframeKey] = useState(0);
 
   const targetUrl = `${PORTAL_SITE}${p.startsWith('/') ? p : '/' + p}`;
-  // 液态玻璃界面模式: 附加 liquid-glass-js 注入(真折射玻璃悬浮面板)
-  const injectJs = uiMode === 'glass' ? `${INJECT_JS}\n${GLASS_JS}` : INJECT_JS;
+  const injectJs = INJECT_JS;
   // 引导页 source 固定, 避免重渲染触发 WebView 重载
   const bootSource = useMemo(
     () => ({ html: bootstrapHtml(getPortalCookie(), targetUrl), baseUrl: `${PORTAL_SITE}/` }),

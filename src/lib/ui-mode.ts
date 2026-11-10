@@ -1,10 +1,10 @@
-/** 界面模式管理: 原版界面 / 液态玻璃界面, AsyncStorage 持久化 + 订阅通知 */
+/** 界面模式管理: 原版界面 / 墨夜主题, AsyncStorage 持久化 + 订阅通知 */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type UiMode = 'original' | 'glass';
+export type UiMode = 'original' | 'night';
 
 const KEY = 'ui-mode-v1';
-const LABELS: Record<UiMode, string> = { original: '原版界面', glass: '液态玻璃界面' };
+const LABELS: Record<UiMode, string> = { original: '原版界面', night: '墨夜主题' };
 
 let cache: UiMode | null = null;
 const subs = new Set<() => void>();
@@ -13,12 +13,12 @@ function notify() {
   subs.forEach((cb) => cb());
 }
 
-/** 启动预热(_layout 调用) */
+/** 启动预热(_layout 调用); 旧版"glass"值自动迁移为 night */
 export async function primeUiMode(): Promise<void> {
   if (cache) return;
   try {
     const raw = await AsyncStorage.getItem(KEY);
-    cache = raw === 'glass' ? 'glass' : 'original';
+    cache = raw === 'glass' || raw === 'night' ? 'night' : 'original';
   } catch {
     cache = 'original';
   }
