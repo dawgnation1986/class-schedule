@@ -50,6 +50,7 @@ import {
   type PeriodTimes,
 } from '@/lib/schedule-times';
 import { UpdateCard } from '@/components/update-card';
+import { DEFAULT_REMINDER_MINUTES, getReminderMinutes, setReminderMinutes, subscribeReminderMinutes, type ReminderMinutes } from '@/lib/notifications';
 import { ThemePresetPicker } from '@/components/theme-preset-picker';
 import { adoptCustomForBackground } from '@/lib/theme-preset';
 import { UiModePicker } from '@/components/ui-mode-picker';
@@ -268,6 +269,11 @@ export default function ProfileScreen() {
   const [siteUrl, setSiteUrlState] = useState<string>(DEFAULT_SITE_URL);
   const [siteOpen, setSiteOpen] = useState(false);
   const [siteInput, setSiteInput] = useState('');
+  // 上课/下课提醒提前分钟数(0-30)
+  const [remind, setRemind] = useState<ReminderMinutes>(DEFAULT_REMINDER_MINUTES);
+  const changeRemind = (k: 'start' | 'end', d: number) => {
+    void setReminderMinutes({ ...remind, [k]: Math.min(30, Math.max(0, remind[k] + d)) }).then(setRemind);
+  };
   // 登记滚动容器: 新手引导可自动滚动到屏幕外的目标
   const scrollRef = useRef<ScrollView>(null);
   // 设置搜索: 关键字匹配后跳转/展开
@@ -283,6 +289,7 @@ export default function ProfileScreen() {
     { title: '自定义背景图 (背景/壁纸/透明度/控件透明)', kw: '背景 壁纸 图片 透明度 控件 全透明 毛玻璃', hint: '本页 · 外观', icon: 'image-outline' as const, go: goTop },
     { title: '班级课表设置 (系部/专业/班级)', kw: '班级 课表 系部 专业 设置 校园 数据', hint: '校园数据', icon: 'school-outline' as const, go: () => router.push('/settings' as never) },
     { title: '作息时间表 (冬季/夏季/手动编辑/JSON导入)', kw: '作息 时间 表 冬季 夏季 上课 下课 时间点', hint: '校园数据', icon: 'time-outline' as const, go: () => setShowTimes(true) },
+    { title: '上课提醒 (上课/下课提前分钟数)', kw: '提醒 通知 上课 下课 提前 分钟 消息', hint: '校园数据', icon: 'notifications-outline' as const, go: goBottom },
     { title: '天气城市 (跟随定位/手动设置)', kw: '天气 城市 定位 温度 手动', hint: '校园数据', icon: 'cloud-outline' as const, go: () => setWxOpen(true) },
     { title: '倒计时 (四六级/期末考试)', kw: '倒计时 四六级 期末 考试 日期', hint: '本页', icon: 'hourglass-outline' as const, go: goBottom },
     { title: '备份导出 / 导入 / 保存到手机', kw: '备份 导出 导入 保存 手机 换机 迁移 JSON', hint: '数据与备份', icon: 'save-outline' as const, go: goBottom },
@@ -303,6 +310,11 @@ export default function ProfileScreen() {
     void getWeatherCity().then(setWxCity);
     void getSiteUrl().then(setSiteUrlState);
     return subscribeSiteUrl(() => void getSiteUrl().then(setSiteUrlState));
+  }, []);
+
+  useEffect(() => {
+    void getReminderMinutes().then(setRemind);
+    return subscribeReminderMinutes(() => void getReminderMinutes().then(setRemind));
   }, []);
 
   useEffect(() => {
@@ -661,6 +673,34 @@ export default function ProfileScreen() {
                 <Text style={{ color: colors.text, fontSize: 12 }}>JSON 导入</Text>
               </Pressable>
             </View>
+          </View>
+
+          <View style={[styles.subBlock, styles.hairline, { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' }]}>
+            <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>上课提醒</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
+              提前 0-30 分钟提醒，0 为准点提醒；修改后打开课表页自动重排
+            </Text>
+            {([
+              ['start', '上课提前'] as const,
+              ['end', '下课提前'] as const,
+            ]).map(([k, label]) => (
+              <View key={k} style={[styles.timesBtnRow, { marginTop: 8, marginBottom: 0, alignItems: 'center' }]}>
+                <Text style={{ color: colors.text, fontSize: 13, flex: 1 }}>{label}</Text>
+                <Pressable
+                  onPress={() => changeRemind(k, -1)}
+                  style={[styles.timesBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected, width: 42 }]}>
+                  <Text style={{ color: colors.text, fontSize: 15 }}>－</Text>
+                </Pressable>
+                <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 14, width: 74, textAlign: 'center' }}>
+                  {remind[k]} 分钟
+                </Text>
+                <Pressable
+                  onPress={() => changeRemind(k, +1)}
+                  style={[styles.timesBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected, width: 42 }]}>
+                  <Text style={{ color: colors.text, fontSize: 15 }}>＋</Text>
+                </Pressable>
+              </View>
+            ))}
           </View>
 
           <View style={[styles.subBlock, styles.hairline, { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' }]}>

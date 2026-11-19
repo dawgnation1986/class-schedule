@@ -6,7 +6,7 @@ import { AppState, Image, StyleSheet, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { type Palette } from '@/constants/theme';
-import { DIR_BG, classCopy, classCopyFrom, hasClassAccess, toDisplayUri } from '@/lib/class-folder';
+import { toDisplayUri } from '@/lib/class-folder';
 
 export type BgSetting = { uri: string | null; opacity: number; ctrl?: boolean };
 
@@ -32,46 +32,26 @@ async function load(): Promise<void> {
 
 /**
  * 启动预热(_layout 调用):
- * - 背景路径还不是私有目录(旧版存的 class:// 或直连路径): 拷回私有目录作为展示主副本, 之后显示不再依赖任何权限
- * - 已是私有目录: 补一份镜像到 /Class/背景图(有权限时), 保持文件管理器可见
+ * 背景路径还不是私有目录(旧版存的 class:// 或直连路径) → 拷回私有目录作为展示主副本, 之后显示不再依赖任何权限。
+ * 不做 /Class 镜像(避免大图 base64 拷贝卡顿); /Class 只在"导出主题"时才写入。
  */
 export async function primeBackground(): Promise<void> {
   await load();
   const uri = cache.uri;
   if (!uri) return;
   const docDir = FileSystem.documentDirectory ?? '';
-  const isPrivate = uri.startsWith(docDir);
-  if (!isPrivate) {
-    // 旧路径迁移: 经 toDisplayUri 解析(内部会拷到缓存目录) → 复制进私有目录
-    try {
-      const real = await toDisplayUri(uri);
-      if (real) {
-        const ext = uri.split('.').pop()?.toLowerCase().split('?')[0] || 'jpg';
-        const dest = `${docDir}custom-bg.${ext}`;
-        await FileSystem.copyAsync({ from: real, to: dest });
-        await persist({ ...cache, uri: dest });
-        mirrorToClass(dest);
-        return;
-      }
-    } catch {
-      // 迁移失败保留原路径, 展示层另有兜底
-    }
-    return;
+  if (uri.startsWith(docDir)) return;
+  // 旧路径迁移: 经 toDisplayUri 解析(内部会拷到缓存目录) → 复制进私有目录
+  try {
+    const real = await toDisplayUri(uri);
+    if (!real) return;
+    const ext = uri.split('.').pop()?.toLowerCase().split('?')[0] || 'jpg';
+    const dest = `${docDir}custom-bg.${ext}`;
+    await FileSystem.copyAsync({ from: real, to: dest });
+    await persist({ ...cache, uri: dest });
+  } catch {
+    // 迁移失败保留原路径, 展示层另有兜底
   }
-  mirrorToClass(uri);
-}
-
-/** 镜像私有目录背景到 /Class/背景图(无权限/失败静默) */
-function mirrorToClass(srcUri: string): void {
-  void (async () => {
-    try {
-      if (!(await hasClassAccess())) return;
-      const ext = srcUri.split('.').pop()?.toLowerCase() || 'jpg';
-      await classCopy(srcUri, `${DIR_BG}custom-bg.${ext}`);
-    } catch {
-      // 镜像失败不影响显示
-    }
-  })();
 }
 
 export function getBackground(): BgSetting {
@@ -89,7 +69,7 @@ async function persist(next: BgSetting): Promise<void> {
   notify();
 }
 
-/** 选择图片: 展示主副本存应用私有目录(必然可显示), /Class/背景图 存镜像供文件管理器查看 */
+/** 选择图片: 直接存应用私有目录(copyAsync 原生拷贝, 零 base64, 无卡顿); 导出主题时才写 /Class */
 export async function pickBackground(): Promise<void> {
   const r = await DocumentPicker.getDocumentAsync({ type: 'image/*', copyToCacheDirectory: true });
   if (r.canceled) return;
@@ -99,7 +79,6 @@ export async function pickBackground(): Promise<void> {
   const dest = `${FileSystem.documentDirectory}custom-bg.${ext}`;
   await FileSystem.copyAsync({ from: asset.uri, to: dest });
   await persist({ ...cache, uri: dest });
-  mirrorToClass(dest);
 }
 
 /** 整体写入背景设置(预设应用/导入主题用) */

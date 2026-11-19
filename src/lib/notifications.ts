@@ -1,13 +1,58 @@
-/** 上课提醒: 按周课表为未来 7 天排本地通知(上课前 10 分钟)
+/** 上课提醒: 按周课表为未来 7 天排本地通知(上课/下课提前 N 分钟, 设置页可调)
  *  注意: Expo Go (Android, SDK 53+) 已移除 expo-notifications, import 时即抛错;
  *  因此先用 expo-constants 识别 Expo Go 再惰性 require, 保证主功能不受影响。 */
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type { Timetable } from './timetable';
 import { getPeriodTimes } from './schedule-times';
 
 type NotificationsModule = typeof import('expo-notifications');
+
+/** 提醒提前分钟数设置(上课前/下课前, 0-30 分钟, 默认上课前 5 分钟、下课前 1 分钟) */
+export type ReminderMinutes = { start: number; end: number };
+
+const REMIND_KEY = 'reminder.minutes.v1';
+export const DEFAULT_REMINDER_MINUTES: ReminderMinutes = { start: 5, end: 1 };
+
+let remindCache: ReminderMinutes | null = null;
+const remindSubs = new Set<() => void>();
+
+function clampMin(v: unknown): number {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) ? Math.min(30, Math.max(0, n)) : 0;
+}
+
+export function subscribeReminderMinutes(fn: () => void): () => void {
+  remindSubs.add(fn);
+  return () => remindSubs.delete(fn);
+}
+
+/** 当前提醒提前分钟数(内存缓存) */
+export async function getReminderMinutes(): Promise<ReminderMinutes> {
+  if (remindCache) return remindCache;
+  try {
+    const raw = await AsyncStorage.getItem(REMIND_KEY);
+    if (raw) {
+      const j = JSON.parse(raw) as Partial<ReminderMinutes>;
+      remindCache = { start: clampMin(j.start), end: clampMin(j.end) };
+      return remindCache;
+    }
+  } catch {
+    // 读失败用默认
+  }
+  remindCache = { ...DEFAULT_REMINDER_MINUTES };
+  return remindCache;
+}
+
+/** 修改提醒提前分钟数; 返回应用后的值 */
+export async function setReminderMinutes(v: ReminderMinutes): Promise<ReminderMinutes> {
+  remindCache = { start: clampMin(v.start), end: clampMin(v.end) };
+  await AsyncStorage.setItem(REMIND_KEY, JSON.stringify(remindCache)).catch(() => {});
+  remindSubs.forEach((f) => f());
+  return remindCache;
+}
 
 /** Expo Go Android 下 import expo-notifications 会直接抛错, 直接跳过 */
 function loadNotifications(): NotificationsModule | null {
@@ -90,12 +135,14 @@ export async function initNotifications(): Promise<void> {
   }
 }
 
-/** 用课表重新排期未来 7 天的提醒: 上课前 5 分钟 + 下课前 1 分钟(先清掉旧的) */
+/** 用课表重新排期未来 7 天的提醒: 上课前/下课前 N 分钟(设置页可调, 默认 5/1, 先清掉旧的) */
 export async function scheduleClassReminders(timetable: Timetable) {
   try {
     if (!timetable?.rows?.length) return;
     const Notifications = loadNotifications();
     if (!Notifications) return; // Expo Go Android: 通知不可用, 静默跳过
+
+    const { start: leadStart, end: leadEnd } = await getReminderMinutes();
 
     const perm = await Notifications.getPermissionsAsync();
     const ok = perm.granted || (await Notifications.requestPermissionsAsync()).granted;
@@ -119,12 +166,12 @@ export async function scheduleClassReminders(timetable: Timetable) {
         const course = entries[0];
         if (!course?.name) continue;
 
-        // 上课前 5 分钟: 提醒下节是什么课、几点上课
-        const startAt = atMinutes(day, startMin - 5);
-        if (startAt.getTime() > now.getTime()) {
+        // 上课前 N 分钟: 提醒下节是什么课、几点上课
+        const startAt = atMinutes(day, startMin - leadStart);
+        if (startMin - leadStart >= 0 && startAt.getTime() > now.getTime()) {
           await Notifications.scheduleNotificationAsync({
             content: {
-              title: `5分钟后上课：${course.name}`,
+              title: `${leadStart > 0 ? `${leadStart}分钟后上课` : '上课时间到了'}：${course.name}`,
               body: [
                 course.location ? `教室：${course.location}` : '',
                 course.teacher ? `教师：${course.teacher}` : '',
@@ -142,12 +189,12 @@ export async function scheduleClassReminders(timetable: Timetable) {
           });
         }
 
-        // 下课前 1 分钟
-        const endAt = atMinutes(day, endMin - 1);
-        if (endAt.getTime() > now.getTime()) {
+        // 下课前 N 分钟
+        const endAt = atMinutes(day, endMin - leadEnd);
+        if (endMin - leadEnd >= 0 && endAt.getTime() > now.getTime()) {
           await Notifications.scheduleNotificationAsync({
             content: {
-              title: `1分钟后下课：${course.name}`,
+              title: `${leadEnd > 0 ? `${leadEnd}分钟后下课` : '下课时间到了'}：${course.name}`,
               body: `${period} 节 · ${t[1]} 下课`,
               sound: 'default',
             },
