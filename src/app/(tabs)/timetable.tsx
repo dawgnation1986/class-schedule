@@ -36,7 +36,7 @@ import {
   type Timetable,
   type TimetableRow,
 } from '@/lib/timetable';
-import { DEFAULT_QUERY_TYPE, loadSettings, loadTimetableCache, loadTimetableUI, saveTimetableCache, type Settings, type TimetableUI } from '@/lib/settings';
+import { DEFAULT_QUERY_TYPE, loadSettings, loadTimetableCache, loadTimetableUI, saveTimetableCache, weekKeyOf, type Settings, type TimetableUI } from '@/lib/settings';
 import { getTempOverride, setTempOverride } from '@/lib/tempOverride';
 import { fetchWeather, fetchWeatherFull, setWeatherCity, type Weather, type WeatherFull } from '@/lib/weather';
 import { WeatherModal } from '@/components/weather-modal';
@@ -378,9 +378,11 @@ function ClassicScreen() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [usingTemp, setUsingTemp] = useState(false); // 是否正在临时查看其他班级
   const [timetable, setTimetable] = useState<Timetable | null>(null);
-  // 打开页面先显示上次缓存的课表(秒开), 后台再刷新最新数据
+  // 打开页面先显示本周的缓存课表(秒开), 后台必定重新拉取最新数据
   useEffect(() => {
-    void loadTimetableCache().then((c) => setTimetable((cur) => cur ?? c));
+    void loadTimetableCache().then((c) => {
+      if (c && c.weekKey === weekKeyOf(beijingNow())) setTimetable((cur) => cur ?? c.tt);
+    });
   }, []);
   const [queryType, setQueryType] = useState<QueryType>(DEFAULT_QUERY_TYPE);
   const [loading, setLoading] = useState(false);
@@ -418,6 +420,8 @@ function ClassicScreen() {
   queryTypeRef.current = queryType;
   const selectedDateRef = useRef(selectedDate);
   selectedDateRef.current = selectedDate;
+  const usingTempRef = useRef(usingTemp);
+  usingTempRef.current = usingTemp;
 
   const refresh = useCallback(async (s?: Settings, type?: QueryType, date?: Date) => {
     // 优先用传入的; 否则用临时覆盖(其他班级); 最后用保存的设置
@@ -449,7 +453,8 @@ function ClassicScreen() {
         date ?? selectedDateRef.current,
       );
       setTimetable(tt);
-      void saveTimetableCache(tt);
+      // 仅默认视图写入缓存: 本周 + 非临时班级 + 未指定其他日期, 避免污染
+      if (!usingTempRef.current && !date) void saveTimetableCache(tt, weekKeyOf(date ?? selectedDateRef.current));
       // 按最新课表重排未来 7 天的提醒(上课/下课提前 N 分钟, 静默失败)
       scheduleClassReminders(tt);
     } catch (e) {

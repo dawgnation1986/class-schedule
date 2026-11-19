@@ -18,7 +18,7 @@ import {
   selectMajor,
   type Timetable,
 } from '@/lib/timetable';
-import { loadSettings, loadTimetableCache, saveTimetableCache, saveTimetableUI, type TimetableUI } from '@/lib/settings';
+import { loadSettings, loadTimetableCache, saveTimetableCache, saveTimetableUI, weekKeyOf, type TimetableUI } from '@/lib/settings';
 import { getPeriodTimes, subscribeTimes } from '@/lib/schedule-times';
 
 const WEEK_NAMES = ['日', '一', '二', '三', '四', '五', '六'];
@@ -70,11 +70,11 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
 
   useEffect(() => subscribeTimes(() => setPeriodTimes(getPeriodTimes())), []);
 
-  // 打开页面先显示上次缓存的课表(秒开), 后台再刷新最新数据
+  // 打开页面先显示本周的缓存课表(秒开), 后台必定重新拉取最新数据
   useEffect(() => {
     void loadTimetableCache().then((c) => {
-      if (c) {
-        setTimetable((cur) => cur ?? c);
+      if (c && c.weekKey === weekKeyOf(beijingNow())) {
+        setTimetable((cur) => cur ?? c.tt);
         setLoading(false);
       }
     });
@@ -100,7 +100,8 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
           const tt = await queryTimetable(withClasses, s.xb, s.zy, s.bj, 'realtime', selected);
           if (alive) {
             setTimetable(tt);
-            void saveTimetableCache(tt);
+            // 仅本周视图写入缓存, 避免翻看其他周污染缓存
+            if (weekKeyOf(selected) === weekKeyOf(beijingNow())) void saveTimetableCache(tt, weekKeyOf(selected));
           }
         } catch (e) {
           if (alive) setError(e instanceof Error ? e.message : '查询失败，请重试');
@@ -246,7 +247,7 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
         </View>
       )}
 
-      {!loading && error && (
+      {!noSettings && error && items.length === 0 && (
         <View style={styles.center}>
           <Ionicons name="alert-circle-outline" size={40} color="#ef4444" />
           <Text style={{ color: colors.textSecondary, marginTop: 10, paddingHorizontal: 40, textAlign: 'center' }}>{error}</Text>

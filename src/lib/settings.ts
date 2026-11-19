@@ -52,23 +52,31 @@ export async function saveSettings(s: Settings): Promise<void> {
 
 const TT_CACHE_KEY = 'timetable.cache.v1';
 
-/** 保存最近一次成功查询的课表(打开 App 先显示缓存, 后台刷新) */
-export async function saveTimetableCache(tt: Timetable): Promise<void> {
+/** 课表所属周标识(该周周一的日期串), 跨周缓存视为过期不展示 */
+export function weekKeyOf(d: Date): string {
+  const x = new Date(d);
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); // 回到本周周一
+  return `${x.getFullYear()}-${x.getMonth() + 1}-${x.getDate()}`;
+}
+
+/** 保存最近一次成功查询的课表(仅默认视图: 本周+非临时班级; 打开 App 先显示缓存, 后台刷新) */
+export async function saveTimetableCache(tt: Timetable, weekKey: string): Promise<void> {
   try {
     if (!tt?.rows?.length) return;
-    await AsyncStorage.setItem(TT_CACHE_KEY, JSON.stringify(tt));
+    await AsyncStorage.setItem(TT_CACHE_KEY, JSON.stringify({ weekKey, tt }));
   } catch {
     // 缓存失败不影响主流程
   }
 }
 
-/** 读取上次缓存的课表(无缓存返回 null) */
-export async function loadTimetableCache(): Promise<Timetable | null> {
+/** 读取上次缓存的课表(无缓存返回 null; 调用方自行比对 weekKey 是否为当前周) */
+export async function loadTimetableCache(): Promise<{ weekKey: string; tt: Timetable } | null> {
   try {
     const raw = await AsyncStorage.getItem(TT_CACHE_KEY);
     if (!raw) return null;
-    const tt = JSON.parse(raw) as Timetable;
-    return tt?.rows?.length ? tt : null;
+    const e = JSON.parse(raw) as { weekKey?: string; tt?: Timetable };
+    if (!e?.weekKey || !e.tt?.rows?.length) return null;
+    return { weekKey: e.weekKey, tt: e.tt };
   } catch {
     return null;
   }
