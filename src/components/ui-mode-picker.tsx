@@ -25,7 +25,7 @@ export function UiModePicker() {
   const colors = useTheme();
   const scheme = useColorScheme();
   const bgSetting = useBgSetting();
-  const glass = !!bgSetting.uri && !!bgSetting.ctrl;
+  const glass = !!bgSetting.ctrl;
   const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
   const [draft, setDraft] = useState<UiMode>(mode);
   useEffect(() => setDraft(mode), [mode]);

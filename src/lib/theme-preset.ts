@@ -5,8 +5,9 @@
  * - 导出/导入: JSON 写入 /Class/主题预设 (含背景图文件), 可跨设备分享
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system/legacy';
 
-import { DIR_BG, DIR_PRESET, classCopy, classDelete, hasClassAccess, listNames, readText, writeText } from '@/lib/class-folder';
+import { DIR_PRESET, classCopy, classCopyFrom, classDelete, hasClassAccess, listNames, readText, writeText } from '@/lib/class-folder';
 import { getBackground, setBgSetting, type BgSetting } from '@/lib/background';
 import { getThemeMode, saveThemeMode, type ThemeMode } from '@/lib/theme';
 import { getUiMode, saveUiMode, type UiMode } from '@/lib/ui-mode';
@@ -247,7 +248,7 @@ export async function canExportTheme(): Promise<boolean> {
 
 /** 导出当前主题到 /Class/主题预设/<名称>.theme.json (背景图一并复制) */
 export async function exportTheme(name: string): Promise<{ ok: boolean; path?: string; error?: string }> {
-  if (!(await hasClassAccess())) return { ok: false, error: '需要"所有文件访问"权限才能导出到 /Class' };
+  if (!(await hasClassAccess())) return { ok: false, error: '需要授权访问手机 Class 文件夹才能导出到 /Class' };
   const clean = name.trim().replace(/[\\/:*?"<>|]/g, '') || '我的主题';
   const bg = getBackground();
   const exp: ThemeExport = {
@@ -305,9 +306,10 @@ export async function applyThemeFile(item: PresetFile): Promise<void> {
   if (exp.bgFile) {
     const src = `${DIR_PRESET}${exp.bgFile}`;
     const ext = exp.bgFile.split('.').pop()?.toLowerCase() || 'jpg';
-    const dest = `${DIR_BG}imported-bg.${ext}`;
+    // 展示主副本放应用私有目录(零权限依赖), /Class/主题预设 原文件保留
+    const dest = `${FileSystem.documentDirectory}imported-bg.${ext}`;
     try {
-      await classCopy(src, dest);
+      await classCopyFrom(src, dest);
       bg = { ...bg, uri: dest };
     } catch {
       // 找不到背景图文件则无图

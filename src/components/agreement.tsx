@@ -61,7 +61,7 @@ export function AgreementModal({
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
   const bgSetting = useBgSetting();
-  const glass = !!bgSetting.uri && !!bgSetting.ctrl;
+  const glass = !!bgSetting.ctrl;
   const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
   const [checked, setChecked] = useState(false);
 

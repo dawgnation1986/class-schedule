@@ -30,7 +30,7 @@ export default function TempQueryScreen() {
   const pageBg = usePageBackground(colors);
   // 控件全透明模式: 设了背景图且开启开关 → 按钮只留文字 + 1px 外轮廓
   const bgSetting = useBgSetting();
-  const glass = !!bgSetting.uri && !!bgSetting.ctrl;
+  const glass = !!bgSetting.ctrl;
   const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
   const glassBorder = (active = false) =>
     glass ? { borderWidth: 1, borderColor: active ? 'rgba(37,99,235,0.55)' : glassLine } : null;

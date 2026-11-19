@@ -361,7 +361,7 @@ function ClassicScreen() {
   const pageBg = usePageBackground(colors);
   const bgSetting = useBgSetting();
   // 控件全透明模式: 设了背景图且开启开关 → 按钮/卡片/表格只留文字 + 1px 外轮廓
-  const glass = !!bgSetting.uri && !!bgSetting.ctrl;
+  const glass = !!bgSetting.ctrl;
   const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
   const btnBg = (active = false): string | null =>
     glass ? (active ? 'rgba(37,99,235,0.15)' : 'transparent') : null;

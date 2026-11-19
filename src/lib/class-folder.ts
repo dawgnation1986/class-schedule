@@ -152,6 +152,7 @@ async function safWriteFile(sub: string, name: string, data: string, encoding: '
     await FileSystem.writeAsStringAsync(fileUri, data, {
       encoding: encoding === 'base64' ? FileSystem.EncodingType.Base64 : FileSystem.EncodingType.UTF8,
     });
+    displayCache.delete(`class://${sub}/${name}`);
     return fileUri;
   } catch {
     return null;
@@ -345,6 +346,15 @@ export async function classCopy(from: string, toVPath: string): Promise<void> {
     return;
   }
   await FileSystem.copyAsync({ from, to: directPath(toVPath)! });
+}
+
+/** 把 /Class 虚拟路径的文件复制到任意目标路径(file:// 私有目录等), 失败抛错 */
+export async function classCopyFrom(vpath: string, toPath: string): Promise<void> {
+  const p = parseVPath(vpath);
+  if (!p?.name) throw new Error('路径无效');
+  const real = await toDisplayUri(vpath);
+  if (!real) throw new Error('找不到文件');
+  await FileSystem.copyAsync({ from: real, to: toPath });
 }
 
 /** 虚拟路径 → Image 可展示的真实 URI(file:// 或 content://); 非虚拟路径原样返回 */

@@ -30,7 +30,7 @@ export function ThemePresetPicker() {
   const uiMode = useUiMode();
   const night = uiMode === 'night';
   const bgSetting = useBgSetting();
-  const glass = !!bgSetting.uri && !!bgSetting.ctrl;
+  const glass = !!bgSetting.ctrl;
   const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
   const presetId = usePresetId();
   const [open, setOpen] = useState(false);

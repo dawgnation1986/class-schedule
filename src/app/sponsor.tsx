@@ -20,7 +20,7 @@ export default function SponsorScreen() {
   const colors = useTheme();
   const pageBg = usePageBackground(colors);
   const bgSetting = useBgSetting();
-  const glass = !!bgSetting.uri && !!bgSetting.ctrl;
+  const glass = !!bgSetting.ctrl;
   const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
   const uiMode = useUiMode();
   const night = uiMode === 'night';

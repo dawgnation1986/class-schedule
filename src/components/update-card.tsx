@@ -13,7 +13,7 @@ export function UpdateCard({ colors }: { colors: Palette }) {
   const scheme = useColorScheme();
   const bgSetting = useBgSetting();
   // 控件全透明模式: 与各页面一致, 卡片只留文字 + 1px 外轮廓
-  const glass = !!bgSetting.uri && !!bgSetting.ctrl;
+  const glass = !!bgSetting.ctrl;
   const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
   const [checking, setChecking] = useState(false);

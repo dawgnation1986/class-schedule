@@ -55,7 +55,7 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
   const pageBg = usePageBackground(colors);
   const bgSetting = useBgSetting();
   // 控件全透明模式: 只留文字 + 1px 外轮廓
-  const glass = !!bgSetting.uri && !!bgSetting.ctrl;
+  const glass = !!bgSetting.ctrl;
   const glassLine = isDark ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
   const router = useRouter();
 
