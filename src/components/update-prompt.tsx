@@ -1,4 +1,4 @@
-/** 启动自动检查更新: 每次进入 App 静默查询 GitHub Releases, 发现新版本弹窗提示(下载/取消) */
+﻿/** 启动自动检查更新: 每次进入 App 静默查询 GitHub Releases, 发现新版本弹窗提示(下载/取消) */
 import { useEffect, useState, type ElementType } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -73,7 +73,7 @@ export function UpdatePrompt() {
               ) : (
                 <Pressable
                   onPress={() => setDownloading(true)}
-                  style={[styles.btn, { backgroundColor: '#2563eb' }]}>
+                  style={[styles.btn, { backgroundColor: colors.primary }]}>
                   <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>下载更新</Text>
                 </Pressable>
               )}

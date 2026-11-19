@@ -1,4 +1,4 @@
-/** 今日课程: 从实时课表提取今天所有课程, 按时间排列并标注当前/下一节 */
+﻿/** 今日课程: 从实时课表提取今天所有课程, 按时间排列并标注当前/下一节 */
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
@@ -129,7 +129,7 @@ export default function TodayScreen() {
 
       {loading && (
         <View style={styles.centerWrap}>
-          <ActivityIndicator color="#2563eb" />
+          <ActivityIndicator color={colors.primary} />
           <Text style={{ color: colors.textSecondary, marginTop: 10 }}>正在查询课表…</Text>
         </View>
       )}
@@ -163,10 +163,10 @@ export default function TodayScreen() {
                   styles.card,
                   { backgroundColor: colors.backgroundElement },
                   st === 0 && { borderWidth: 2, borderColor: '#16a34a' },
-                  isNext && st === 1 && { borderWidth: 2, borderColor: '#2563eb' },
+                  isNext && st === 1 && { borderWidth: 2, borderColor: colors.primary },
                   st < 0 && { opacity: 0.55 },
                 ]}>
-                <View style={[styles.timeCol, { backgroundColor: st === 0 ? '#16a34a' : isNext ? '#2563eb' : 'rgba(128,128,128,0.25)' }]}>
+                <View style={[styles.timeCol, { backgroundColor: st === 0 ? '#16a34a' : isNext ? colors.primary : 'rgba(128,128,128,0.25)' }]}>
                   <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>{it.period}</Text>
                   {!!it.time && <Text style={styles.timeText}>{it.time[0]}</Text>}
                   {!!it.time && <Text style={styles.timeText}>{it.time[1]}</Text>}
@@ -196,7 +196,7 @@ export default function TodayScreen() {
                   </View>
                 ) : isNext ? (
                   <View style={[styles.stateChip, { backgroundColor: 'rgba(37,99,235,0.12)' }]}>
-                    <Text style={{ color: '#2563eb', fontSize: 11, fontWeight: '700' }}>下一节</Text>
+                    <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '700' }}>下一节</Text>
                   </View>
                 ) : st < 0 ? (
                   <View style={[styles.stateChip, { backgroundColor: 'rgba(128,128,128,0.15)' }]}>

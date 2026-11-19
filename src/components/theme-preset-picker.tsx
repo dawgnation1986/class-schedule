@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 主题预设档位: 自定义 / 纯白 / 纯黑 / 墨夜 / 护眼米黄 / 淡雅蓝
  * 可折叠卡片(默认收起); 网格色卡点选即换; 支持导出当前主题 / 导入 /Class/主题预设 下的主题文件
  * 适配"控件全透明"(glass)模式与墨夜模式
@@ -13,8 +13,16 @@ import { NightCard, NightTint } from '@/components/night-kit';
 import { usePresetId } from '@/hooks/use-preset-id';
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { useBgSetting } from '@/lib/background';
-import { applyPreset, applyThemeFile, CUSTOM_PALETTES, deleteThemeFile, exportTheme, getCustomPaletteId, listThemeFiles, PRESETS, setCustomPaletteId, subscribeCustomPalette, type CustomPaletteId, type PresetFile } from '@/lib/theme-preset';
-import { hasClassAccess, requestClassAccess, resetAccessAndEnsureDirs } from '@/lib/class-folder';
+import { applyPreset, applyThemeFile, ACCENT_PRESETS, CUSTOM_PALETTES, deleteThemeFile, exportTheme, getAccentColor, getCustomHex, getCustomPaletteId, listThemeFiles, PRESETS, setAccentColor, setCustomHex, setCustomPaletteId, subscribeCustomPalette, type CustomHex, type CustomPaletteId, type PresetFile } from '@/lib/theme-preset';
+import { hasClassAccess, lastAccessError, requestClassAccess, resetAccessAndEnsureDirs } from '@/lib/class-folder';
+
+const ColorsHexPlaceholder: Record<keyof CustomHex, string> = {
+  background: '如 #FFFFFF',
+  backgroundElement: '如 #F0F0F3',
+  backgroundSelected: '如 #E0E1E6',
+  text: '如 #1F2937',
+  textSecondary: '如 #60646C',
+};
 
 export function ThemePresetPicker() {
   const colors = useTheme();
@@ -27,7 +35,9 @@ export function ThemePresetPicker() {
   const presetId = usePresetId();
   const [open, setOpen] = useState(false);
   const [paletteId, setPaletteId] = useState<CustomPaletteId>(() => getCustomPaletteId());
-  useEffect(() => subscribeCustomPalette(() => setPaletteId(getCustomPaletteId())), []);
+  useEffect(() => subscribeCustomPalette(() => { setPaletteId(getCustomPaletteId()); setAccentState(getAccentColor()); }), []);
+  const [accent, setAccentState] = useState(() => getAccentColor());
+  const [hexDraft, setHexDraft] = useState<CustomHex>(() => getCustomHex());
   const [access, setAccess] = useState<boolean | null>(null);
   const [expOpen, setExpOpen] = useState(false);
   const [impOpen, setImpOpen] = useState(false);
@@ -95,6 +105,7 @@ export function ThemePresetPicker() {
       <Ionicons name="folder-open-outline" size={16} color="#f59e0b" />
       <Text style={styles.grantText}>
         授权"所有文件访问"后, 主题与背景可存到手机 /Class 文件夹
+        {lastAccessError ? `\n检测失败: ${lastAccessError}` : ''}
       </Text>
       <Ionicons name="chevron-forward" size={15} color={colors.textSecondary} />
     </Pressable>
@@ -128,7 +139,7 @@ export function ThemePresetPicker() {
                     styles.cell,
                     pressed && { opacity: 0.7 },
                     night && { backgroundColor: 'rgba(91,140,255,0.08)', borderColor: active ? 'rgba(91,140,255,0.55)' : NightTint.line },
-                    !night && !glass && { backgroundColor: active ? colors.backgroundSelected : colors.background, borderColor: active ? '#2563eb' : 'rgba(100,116,139,0.25)' },
+                    !night && !glass && { backgroundColor: active ? colors.backgroundSelected : colors.background, borderColor: active ? colors.primary : 'rgba(100,116,139,0.25)' },
                     !night && glass && {
                       backgroundColor: active ? 'rgba(37,99,235,0.18)' : scheme === 'dark' ? 'rgba(0,0,0,0.30)' : 'rgba(255,255,255,0.30)',
                       borderColor: active ? 'rgba(37,99,235,0.55)' : glassLine,
@@ -144,7 +155,7 @@ export function ThemePresetPicker() {
                     )}
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                    <Ionicons name={p.icon as keyof typeof Ionicons.glyphMap} size={14} color={active ? '#2563eb' : colors.textSecondary} />
+                    <Ionicons name={p.icon as keyof typeof Ionicons.glyphMap} size={14} color={active ? colors.primary : colors.textSecondary} />
                     <Text style={{ color: colors.text, fontWeight: active ? '800' : '600', fontSize: 13.5 }}>{p.name}</Text>
                   </View>
                   <Text style={{ color: colors.textSecondary, fontSize: 10.5 }} numberOfLines={1}>
@@ -172,7 +183,7 @@ export function ThemePresetPicker() {
                         styles.chip,
                         pressed && { opacity: 0.7 },
                         {
-                          borderColor: active ? '#2563eb' : night ? NightTint.line : glass ? glassLine : 'rgba(100,116,139,0.3)',
+                          borderColor: active ? colors.primary : night ? NightTint.line : glass ? glassLine : 'rgba(100,116,139,0.3)',
                           backgroundColor: active
                             ? night || glass
                               ? 'rgba(37,99,235,0.18)'
@@ -181,8 +192,8 @@ export function ThemePresetPicker() {
                         },
                       ]}>
                       <View style={[styles.chipDot, { backgroundColor: p.swatch }]} />
-                      <Text style={{ color: active ? '#2563eb' : colors.text, fontSize: 12, fontWeight: active ? '700' : '500' }}>{p.label}</Text>
-                      {active && <Ionicons name="checkmark" size={13} color="#2563eb" />}
+                      <Text style={{ color: active ? colors.primary : colors.text, fontSize: 12, fontWeight: active ? '700' : '500' }}>{p.label}</Text>
+                      {active && <Ionicons name="checkmark" size={13} color={colors.primary} />}
                     </Pressable>
                   );
                 })}
@@ -192,6 +203,92 @@ export function ThemePresetPicker() {
             <Text style={{ color: colors.textSecondary, fontSize: 11.5, marginTop: 10 }}>
               选"自定义"档位后，可在此自由搭配底色配色
             </Text>
+          )}
+
+          {/* 控件主色: 全局生效(按钮/链接/高亮) */}
+          <View style={{ marginTop: 12 }}>
+            <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13.5 }}>控件主色</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+              {ACCENT_PRESETS.map((p) => {
+                const active = accent.toLowerCase() === p.hex.toLowerCase();
+                return (
+                  <Pressable
+                    key={p.hex}
+                    onPress={() => void setAccentColor(p.hex)}
+                    style={({ pressed }) => [
+                      styles.chip,
+                      pressed && { opacity: 0.7 },
+                      {
+                        borderColor: active ? p.hex : night ? NightTint.line : glass ? glassLine : 'rgba(100,116,139,0.3)',
+                        backgroundColor: active ? (night || glass ? 'rgba(128,128,128,0.15)' : colors.backgroundSelected) : 'transparent',
+                      },
+                    ]}>
+                    <View style={[styles.chipDot, { backgroundColor: p.hex }]} />
+                    <Text style={{ color: active ? p.hex : colors.text, fontSize: 12, fontWeight: active ? '700' : '500' }}>{p.label}</Text>
+                    {active && <Ionicons name="checkmark" size={13} color={p.hex} />}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* 自定义 hex 配色: 仅"自定义"档 + "默认"配色时生效 */}
+          {presetId === 'custom' && paletteId === 'default' && (
+            <View style={{ marginTop: 12 }}>
+              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13.5 }}>自定义颜色 (十六进制)</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 2 }}>
+                留空保持默认; 支持 #RRGGBB 格式, 如 #FFF8E7
+              </Text>
+              {([
+                ['background', '页面底色'],
+                ['backgroundElement', '卡片底色'],
+                ['backgroundSelected', '选中/控件底'],
+                ['text', '主文字'],
+                ['textSecondary', '次文字'],
+              ] as const).map(([k, label]) => (
+                <View key={k} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                  <Text style={{ color: colors.text, fontSize: 12.5, width: 76 }}>{label}</Text>
+                  <TextInput
+                    value={hexDraft[k] ?? ''}
+                    onChangeText={(v) => setHexDraft((d) => ({ ...d, [k]: v }))}
+                    placeholder={ColorsHexPlaceholder[k]}
+                    placeholderTextColor={colors.textSecondary}
+                    autoCapitalize="none"
+                    style={{
+                      flex: 1,
+                      borderWidth: 1,
+                      borderColor: 'rgba(100,116,139,0.4)',
+                      borderRadius: 8,
+                      paddingHorizontal: 10,
+                      paddingVertical: 7,
+                      color: colors.text,
+                      fontSize: 13,
+                    }}
+                  />
+                </View>
+              ))}
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                <Pressable
+                  onPress={() => {
+                    const clean: CustomHex = {};
+                    for (const [k, v] of Object.entries(hexDraft)) {
+                      if (typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v.trim())) clean[k as keyof CustomHex] = v.trim();
+                    }
+                    void setCustomHex(clean);
+                  }}
+                  style={[styles.actionBtn, { backgroundColor: night ? 'rgba(91,140,255,0.14)' : colors.backgroundSelected, flex: 1 }]}>
+                  <Text style={{ color: colors.text, fontSize: 12.5, fontWeight: '700' }}>应用颜色</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    setHexDraft({});
+                    void setCustomHex({});
+                  }}
+                  style={[styles.actionBtn, { backgroundColor: night ? 'rgba(91,140,255,0.14)' : colors.backgroundSelected, flex: 1 }]}>
+                  <Text style={{ color: colors.text, fontSize: 12.5, fontWeight: '700' }}>恢复默认</Text>
+                </Pressable>
+              </View>
+            </View>
           )}
 
           <View style={styles.btnRow}>
@@ -207,7 +304,7 @@ export function ThemePresetPicker() {
                 !night && !glass && { backgroundColor: colors.backgroundSelected },
                 !night && glass && { borderWidth: 1, borderColor: glassLine },
               ]}>
-              <Ionicons name="cloud-upload-outline" size={15} color="#2563eb" />
+              <Ionicons name="cloud-upload-outline" size={15} color={colors.primary} />
               <Text style={{ color: colors.text, fontSize: 12.5, fontWeight: '700' }}>导出主题</Text>
             </Pressable>
             <Pressable
@@ -222,7 +319,7 @@ export function ThemePresetPicker() {
                 !night && !glass && { backgroundColor: colors.backgroundSelected },
                 !night && glass && { borderWidth: 1, borderColor: glassLine },
               ]}>
-              <Ionicons name="cloud-download-outline" size={15} color="#2563eb" />
+              <Ionicons name="cloud-download-outline" size={15} color={colors.primary} />
               <Text style={{ color: colors.text, fontSize: 12.5, fontWeight: '700' }}>导入主题</Text>
             </Pressable>
           </View>
@@ -263,7 +360,7 @@ export function ThemePresetPicker() {
               <Pressable
                 disabled={busy}
                 onPress={() => void tryExport()}
-                style={[styles.boxBtn, { backgroundColor: busy ? colors.backgroundElement : '#2563eb' }]}>
+                style={[styles.boxBtn, { backgroundColor: busy ? colors.backgroundElement : colors.primary }]}>
                 {busy ? <ActivityIndicator size="small" /> : <Text style={{ color: '#fff', fontWeight: '700' }}>导出</Text>}
               </Pressable>
             </View>

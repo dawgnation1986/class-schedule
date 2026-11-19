@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { type Palette } from '@/constants/theme';
@@ -8,7 +8,7 @@ import { ApkDownload } from '@/components/download-view';
 import { MirrorSettings } from '@/components/mirror-settings';
 import { checkUpdate, currentVersion, type UpdateInfo } from '@/lib/updates';
 
-/** 检查更新卡片: 显示当前版本 + 查询 GitHub Releases + 内置下载 APK */
+/** 检查更新卡片: 显示当前版本 + 自动/手动查询 GitHub Releases + 内置下载 APK */
 export function UpdateCard({ colors }: { colors: Palette }) {
   const scheme = useColorScheme();
   const bgSetting = useBgSetting();
@@ -19,6 +19,19 @@ export function UpdateCard({ colors }: { colors: Palette }) {
   const [checking, setChecking] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [mirrorOpen, setMirrorOpen] = useState(false);
+  const [latest, setLatest] = useState<string | null>(null);
+
+  // 进入页面自动查询一次 GitHub 最新版本并展示
+  useEffect(() => {
+    void checkUpdate()
+      .then((r) => {
+        if (r) {
+          setLatest(r.latest);
+          setUpdate(r);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <View
@@ -51,14 +64,16 @@ export function UpdateCard({ colors }: { colors: Palette }) {
             {checking ? (
               <ActivityIndicator size="small" />
             ) : (
-              <Text style={{ color: '#2563eb', fontSize: 14 }}>检查更新</Text>
+              <Text style={{ color: colors.primary, fontSize: 14 }}>检查更新</Text>
             )}
           </Pressable>
         </View>
       </View>
       {!!err && <Text style={[styles.msg, { color: '#ef4444' }]}>{err}</Text>}
-      {update && !update.hasUpdate && (
-        <Text style={[styles.msg, { color: colors.textSecondary }]}>已是最新版本 ✓</Text>
+      {latest && !update?.hasUpdate && (
+        <Text style={[styles.msg, { color: colors.textSecondary }]}>
+          GitHub 最新: v{latest}{update ? ' · 已是最新 ✓' : ''}
+        </Text>
       )}
       {update?.hasUpdate && (
         <View style={{ gap: 8 }}>

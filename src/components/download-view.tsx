@@ -1,4 +1,4 @@
-/** 内置 APK 下载视图: 按钮 → 进度条 + 下载日志(固定宽度可滚动), 两处更新入口共用 */
+﻿/** 内置 APK 下载视图: 按钮 → 进度条 + 下载日志(固定宽度可滚动), 两处更新入口共用 */
 import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -75,7 +75,7 @@ export function ApkDownload({
         )}
         <Pressable
           onPress={start}
-          style={{ backgroundColor: '#2563eb', borderRadius: 10, alignItems: 'center', paddingVertical: 11 }}>
+          style={{ backgroundColor: colors.primary, borderRadius: 10, alignItems: 'center', paddingVertical: 11 }}>
           <Text style={{ color: '#fff', fontWeight: '700' }}>
             {phase === 'error' ? '重试下载 APK' : '下载 APK 安装包'}
           </Text>

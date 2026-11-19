@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ElementType } from 'react';
+﻿import { useCallback, useEffect, useRef, useState, type ElementType } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -249,7 +249,7 @@ export default function SettingsScreen() {
             style={[
               styles.saveBtn,
               glassBorder(!!ready),
-              { backgroundColor: glass ? (ready ? 'rgba(37,99,235,0.15)' : 'transparent') : ready ? '#2563eb' : colors.backgroundElement },
+              { backgroundColor: glass ? (ready ? 'rgba(37,99,235,0.15)' : 'transparent') : ready ? colors.primary : colors.backgroundElement },
             ]}>
             {busy ? (
               <ActivityIndicator color={colors.text} />
@@ -278,7 +278,7 @@ export default function SettingsScreen() {
           <Pressable
             onPress={() => startCoachTour()}
             style={({ pressed }) => [styles.guideRow, pressed && { opacity: 0.6 }]}>
-            <View style={[styles.guideIcon, { backgroundColor: '#2563eb' }]}>
+            <View style={[styles.guideIcon, { backgroundColor: colors.primary }]}>
               <Ionicons name="compass" size={19} color="#fff" />
             </View>
             <View style={{ flex: 1, gap: 2 }}>
@@ -326,7 +326,7 @@ export default function SettingsScreen() {
               {checking ? (
                 <ActivityIndicator size="small" />
               ) : (
-                <Text style={{ color: '#2563eb', fontSize: 14 }}>检查更新</Text>
+                <Text style={{ color: colors.primary, fontSize: 14 }}>检查更新</Text>
               )}
             </Pressable>
           </View>

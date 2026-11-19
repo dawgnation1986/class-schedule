@@ -16,6 +16,8 @@ export const DIR_BACKUP = `${CLASS_ROOT}备份/`;
 export const DIR_CACHE = `${CLASS_ROOT}缓存/`;
 
 let accessCache: boolean | null = null;
+/** 最近一次权限检测失败的原因(供界面诊断展示) */
+export let lastAccessError: string | null = null;
 
 /** 是否可在 /Class 读写 (用测试文件实测, 结果缓存) */
 export async function hasClassAccess(): Promise<boolean> {
@@ -27,8 +29,10 @@ export async function hasClassAccess(): Promise<boolean> {
     await FileSystem.writeAsStringAsync(test, 'ok');
     await FileSystem.deleteAsync(test, { idempotent: true });
     accessCache = true;
-  } catch {
+    lastAccessError = null;
+  } catch (e) {
     accessCache = false;
+    lastAccessError = e instanceof Error ? e.message : String(e);
   }
   return accessCache;
 }
@@ -51,7 +55,10 @@ export function requestClassAccess(): void {
 export async function resetAccessAndEnsureDirs(): Promise<boolean> {
   accessCache = null;
   const ok = await hasClassAccess();
-  if (ok) await ensureDirs();
+  if (ok) {
+    lastAccessError = null;
+    await ensureDirs();
+  }
   return ok;
 }
 

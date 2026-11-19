@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 赞助独立页面: 展示开发者收款码(官网下发优先, GitHub 兜底) + 赞助说明
  * 从"我的 → 支持开发者"进入
  */
@@ -33,9 +33,9 @@ export default function SponsorScreen() {
     fetchSponsor()
       .then((s) => {
         if (s && (s.wechat || s.alipay)) setInfo(s);
-        else setErr('暂未配置收款码, 稍后再来看看');
+        else setErr('接口未返回收款码(后台未配置或官网地址不对)');
       })
-      .catch(() => setErr('加载失败, 请检查网络或官网接口地址'));
+      .catch((e) => setErr(`加载失败: ${String(e?.message ?? e)}\n可到 我的→通用→官网接口地址 检查地址`));
   }, []);
 
   const Card = night ? NightCard : View;
@@ -98,7 +98,7 @@ export default function SponsorScreen() {
           <Pressable
             onPress={() => void sponsorPageUrl().then((u) => Linking.openURL(u))}
             style={[styles.webBtn, glass && { borderWidth: 1, borderColor: glassLine, backgroundColor: 'transparent' }, !glass && { backgroundColor: night ? 'rgba(91,140,255,0.14)' : colors.backgroundSelected }]}>
-            <Ionicons name="globe-outline" size={15} color="#2563eb" />
+            <Ionicons name="globe-outline" size={15} color={colors.primary} />
             <Text style={{ color: colors.text, fontSize: 12.5, fontWeight: '700' }}>在网页查看</Text>
           </Pressable>
         </Card>

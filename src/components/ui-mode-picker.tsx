@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 界面设置: 原版界面 / 墨夜主题
  * 选择器带水滴动效: 指示器拉伸滑到目标档位, 一颗小水珠拖尾跟来, 落定收拢
  *
@@ -70,7 +70,7 @@ export function UiModePicker() {
       : colors.background === '#000000'
         ? 'rgba(255,255,255,0.20)'
         : 'rgba(37,99,235,0.12)';
-  const activeColor = night ? '#5B8CFF' : '#2563eb';
+  const activeColor = night ? '#5B8CFF' : colors.primary;
 
   const pick = (v: UiMode) => {
     setDraft(v);

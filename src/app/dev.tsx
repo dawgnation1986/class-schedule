@@ -1,4 +1,4 @@
-/** 开发者页面: 登录修复 / 登录字段缓存 / 联通测试 / 通知调试 / 存储概览 / 诊断与日志导出 / 危险操作 */
+﻿/** 开发者页面: 登录修复 / 登录字段缓存 / 联通测试 / 通知调试 / 存储概览 / 诊断与日志导出 / 危险操作 */
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Image, Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

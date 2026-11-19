@@ -42,7 +42,7 @@ const SNAP_KEY = 'theme-appearance-snap-v1';
 /** 自定义外观快照(切到内置档位前保存, 切回"自定义"时还原) */
 type AppearanceSnap = { uiMode: UiMode; themeMode: ThemeMode; bg: BgSetting };
 
-let cache: { presetId: PresetId; snap: AppearanceSnap | null; customPalette?: CustomPaletteId } = { presetId: 'custom', snap: null };
+let cache: { presetId: PresetId; snap: AppearanceSnap | null; customPalette?: CustomPaletteId; accent?: string; customHex?: CustomHex } = { presetId: 'custom', snap: null };
 let loaded = false;
 const subs = new Set<() => void>();
 
@@ -61,6 +61,8 @@ export async function primeThemePreset(): Promise<void> {
     if (snapRaw) cache.snap = JSON.parse(snapRaw) as AppearanceSnap;
     const cpRaw = await AsyncStorage.getItem(CPALETTE_KEY);
     if (cpRaw && CUSTOM_PALETTES.some((p) => p.id === cpRaw)) cache.customPalette = cpRaw as CustomPaletteId;
+    cache.accent = (await AsyncStorage.getItem(ACCENT_KEY)) ?? undefined;
+    primeCustomHex(await AsyncStorage.getItem(CHEX_KEY));
   } catch {
     // 保持默认
   }
@@ -159,6 +161,64 @@ export async function setCustomPaletteId(id: CustomPaletteId): Promise<void> {
 export function subscribeCustomPalette(cb: () => void): () => void {
   subs.add(cb);
   return () => subs.delete(cb);
+}
+
+// ---------- 控件主色(accent): 全局按钮/链接/高亮色 ----------
+
+export const ACCENT_PRESETS: { label: string; hex: string }[] = [
+  { label: '默认蓝', hex: '#2563eb' },
+  { label: '青', hex: '#0891b2' },
+  { label: '绿', hex: '#16a34a' },
+  { label: '紫', hex: '#7c3aed' },
+  { label: '橙', hex: '#ea580c' },
+  { label: '粉', hex: '#db2777' },
+  { label: '红', hex: '#dc2626' },
+  { label: '黑', hex: '#1f2937' },
+];
+
+const ACCENT_KEY = 'theme-accent-v1';
+
+/** 当前控件主色(默认 #2563eb) */
+export function getAccentColor(): string {
+  return cache.accent ?? '#2563eb';
+}
+
+export async function setAccentColor(hex: string): Promise<void> {
+  cache.accent = hex;
+  await AsyncStorage.setItem(ACCENT_KEY, hex).catch(() => {});
+  notify();
+}
+
+// ---------- 自定义十六进制配色(仅"自定义"档且自定义配色选"默认"时生效) ----------
+
+export type CustomHex = Partial<{
+  text: string;
+  background: string;
+  backgroundElement: string;
+  backgroundSelected: string;
+  textSecondary: string;
+}>;
+
+const CHEX_KEY = 'theme-custom-hex-v1';
+
+export function getCustomHex(): CustomHex {
+  return cache.customHex ?? {};
+}
+
+export async function setCustomHex(hex: CustomHex): Promise<void> {
+  cache.customHex = { ...(cache.customHex ?? {}), ...hex };
+  await AsyncStorage.setItem(CHEX_KEY, JSON.stringify(cache.customHex)).catch(() => {});
+  notify();
+}
+
+function primeCustomHex(raw: string | null) {
+  if (!raw) return;
+  try {
+    const v = JSON.parse(raw) as CustomHex;
+    if (v && typeof v === 'object') cache.customHex = v;
+  } catch {
+    // 忽略损坏数据
+  }
 }
 
 // ---------- 导出 / 导入 ----------

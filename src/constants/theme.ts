@@ -14,6 +14,7 @@ export const Colors = {
     backgroundElement: '#F0F0F3',
     backgroundSelected: '#E0E1E6',
     textSecondary: '#60646C',
+    primary: '#2563eb',
   },
   dark: {
     text: '#ffffff',
@@ -21,6 +22,7 @@ export const Colors = {
     backgroundElement: '#212225',
     backgroundSelected: '#2E3135',
     textSecondary: '#B0B4BA',
+    primary: '#2563eb',
   },
 } as const;
 
@@ -33,6 +35,8 @@ export type Palette = {
   backgroundElement: string;
   backgroundSelected: string;
   textSecondary: string;
+  /** 控件主色(按钮/链接/高亮), 可由用户自定义 */
+  primary: string;
 };
 
 /**
@@ -45,6 +49,7 @@ export const NightColors: Palette = {
   backgroundElement: '#151B2B',
   backgroundSelected: 'rgba(91,140,255,0.16)',
   textSecondary: '#8A94AC',
+  primary: '#2563eb',
 };
 
 /** 护眼米黄预设: 暖米色纸感底色, 低刺激适合长时间阅读 */
@@ -54,6 +59,7 @@ export const SepiaColors: Palette = {
   backgroundElement: '#EFE7D3',
   backgroundSelected: '#E3D9BF',
   textSecondary: '#857A61',
+  primary: '#2563eb',
 };
 
 /** 淡雅蓝预设: 浅蓝清爽底色, 蓝色点缀 */
@@ -63,6 +69,7 @@ export const AzureColors: Palette = {
   backgroundElement: '#E4EEF8',
   backgroundSelected: '#CFE0F0',
   textSecondary: '#5B7B9E',
+  primary: '#2563eb',
 };
 
 export const Fonts = Platform.select({

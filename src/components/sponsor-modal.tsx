@@ -1,4 +1,4 @@
-/** 赞助开发者弹窗: 展示微信/支付宝收款码(官网后台下发, GitHub 兜底) */
+﻿/** 赞助开发者弹窗: 展示微信/支付宝收款码(官网后台下发, GitHub 兜底) */
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
@@ -76,7 +76,7 @@ export function SponsorModal({
             </Pressable>
             <Pressable
               onPress={() => void sponsorPageUrl().then((u) => Linking.openURL(u))}
-              style={[styles.btn, { backgroundColor: '#2563eb' }]}>
+              style={[styles.btn, { backgroundColor: colors.primary }]}>
               <Text style={{ color: '#fff', fontWeight: '700' }}>在网页查看</Text>
             </Pressable>
           </View>

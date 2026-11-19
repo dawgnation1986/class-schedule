@@ -1,4 +1,4 @@
-/** 启动公告检查: 官网后台下发的未读公告弹窗展示（延迟避开启动动画与更新弹窗） */
+﻿/** 启动公告检查: 官网后台下发的未读公告弹窗展示（延迟避开启动动画与更新弹窗） */
 import { useEffect, useState, type ElementType } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -56,7 +56,7 @@ export function NoticePrompt() {
             {night ? (
               <NightPrimaryButton title="我知道了" onPress={dismiss} style={{ flex: 1 }} />
             ) : (
-              <Pressable onPress={dismiss} style={[styles.btn, { backgroundColor: '#2563eb' }]}>
+              <Pressable onPress={dismiss} style={[styles.btn, { backgroundColor: colors.primary }]}>
                 <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>我知道了</Text>
               </Pressable>
             )}

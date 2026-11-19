@@ -1,4 +1,4 @@
-/** 用户协议: 首次启动在图文教程后弹出(全屏, 必须勾选才能同意, 拒绝则退出 App);
+﻿/** 用户协议: 首次启动在图文教程后弹出(全屏, 必须勾选才能同意, 拒绝则退出 App);
  *  「我的」页可随时查看(view 模式, 仅关闭)。支持控件全透明(glass)模式 */
 import { useState } from 'react';
 import { BackHandler, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -94,8 +94,8 @@ export function AgreementModal({
             <View
               style={[
                 styles.checkBox,
-                { borderColor: checked ? '#2563eb' : glass ? glassLine : colors.backgroundElement },
-                checked && { backgroundColor: '#2563eb' },
+                { borderColor: checked ? colors.primary : glass ? glassLine : colors.backgroundElement },
+                checked && { backgroundColor: colors.primary },
                 glass && !checked && { borderWidth: 1.5 },
               ]}>
               {checked && <Ionicons name="checkmark" size={15} color="#fff" />}

@@ -3,11 +3,11 @@
  * https://docs.expo.dev/guides/color-schemes/
  */
 
-import { AzureColors, Colors, NightColors, SepiaColors } from '@/constants/theme';
+import { AzureColors, Colors, NightColors, SepiaColors, type Palette } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { usePresetId } from '@/hooks/use-preset-id';
 import { useUiMode } from '@/hooks/use-ui-mode';
-import { CUSTOM_PALETTES, getCustomPaletteId, subscribeCustomPalette } from '@/lib/theme-preset';
+import { CUSTOM_PALETTES, getAccentColor, getCustomHex, getCustomPaletteId, subscribeCustomPalette } from '@/lib/theme-preset';
 import { useEffect, useState } from 'react';
 
 function useCustomPaletteId() {
@@ -16,6 +16,7 @@ function useCustomPaletteId() {
   return id;
 }
 
+/** 控件主色 + 自定义 hex 配色合并结果 */
 export function useTheme() {
   const scheme = useColorScheme();
   const theme = scheme === 'unspecified' ? 'light' : scheme;
@@ -23,15 +24,24 @@ export function useTheme() {
   const mode = useUiMode();
   // 护眼米黄/淡雅蓝预设使用专属调色板
   const presetId = usePresetId();
-  // 自定义档下的自定义配色
+  // 自定义档下的自定义配色 + 控件主色
   const cpId = useCustomPaletteId();
 
   if (mode === 'night') return NightColors;
   if (presetId === 'sepia') return SepiaColors;
   if (presetId === 'azure') return AzureColors;
-  if (presetId === 'custom' && cpId !== 'default') {
-    const def = CUSTOM_PALETTES.find((p) => p.id === cpId);
-    if (def) return { ...Colors[theme], ...(theme === 'dark' ? def.dark : def.light) };
-  }
-  return Colors[theme];
+  const base =
+    presetId === 'custom' && cpId !== 'default'
+      ? (() => {
+          const def = CUSTOM_PALETTES.find((p) => p.id === cpId);
+          return def ? { ...Colors[theme], ...(theme === 'dark' ? def.dark : def.light) } : Colors[theme];
+        })()
+      : Colors[theme];
+  // 控件主色(全局按钮/链接)与自定义 hex 覆盖
+  const hex = getCustomHex();
+  return {
+    ...base,
+    ...(presetId === 'custom' && cpId === 'default' ? hex : null),
+    primary: getAccentColor(),
+  } as Palette & { primary: string };
 }

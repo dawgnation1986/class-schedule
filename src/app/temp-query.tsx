@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -182,7 +182,7 @@ export default function TempQueryScreen() {
                       ? 'rgba(37,99,235,0.15)'
                       : 'transparent'
                     : queryType === t.value
-                      ? '#2563eb'
+                      ? colors.primary
                       : colors.backgroundElement,
                 },
               ]}>
@@ -198,7 +198,7 @@ export default function TempQueryScreen() {
           style={[
             styles.goBtn,
             glassBorder(!!ready),
-            { backgroundColor: glass ? (ready ? 'rgba(37,99,235,0.15)' : 'transparent') : ready ? '#2563eb' : colors.backgroundElement },
+            { backgroundColor: glass ? (ready ? 'rgba(37,99,235,0.15)' : 'transparent') : ready ? colors.primary : colors.backgroundElement },
           ]}>
           <Text style={{ color: ready ? (glass ? colors.text : '#fff') : colors.textSecondary, fontWeight: '700' }}>
             {ready ? '查询该班级课表' : '请先选择系部 / 专业 / 班级'}

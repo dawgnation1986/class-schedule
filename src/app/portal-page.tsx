@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -735,7 +735,7 @@ export default function PortalPageScreen() {
     if (checking) {
       return (
         <View style={styles.center}>
-          <ActivityIndicator size="small" color="#2563eb" />
+          <ActivityIndicator size="small" color={colors.primary} />
         </View>
       );
     }
@@ -743,7 +743,7 @@ export default function PortalPageScreen() {
       return (
         <View style={[styles.center, { gap: Spacing.two, padding: Spacing.three }]}>
           <Text style={{ color: colors.textSecondary, textAlign: 'center' }}>会话已失效，请到“主站”重新登录后再进入此页面。</Text>
-          <Pressable onPress={() => router.navigate('/home')} style={[styles.loginBtn, { backgroundColor: '#2563eb' }]}>
+          <Pressable onPress={() => router.navigate('/home')} style={[styles.loginBtn, { backgroundColor: colors.primary }]}>
             <Text style={{ color: '#fff', fontSize: 14 }}>去主站登录</Text>
           </Pressable>
         </View>
@@ -814,7 +814,7 @@ export default function PortalPageScreen() {
         </Text>
         {/* 右侧占位与返回按钮等宽, 保证标题真正居中; 加载中显示指示器(不设刷新按钮) */}
         <View style={styles.headerSide}>
-          {firstLoading && !checking ? <ActivityIndicator size="small" color="#2563eb" /> : null}
+          {firstLoading && !checking ? <ActivityIndicator size="small" color={colors.primary} /> : null}
         </View>
       </View>
       <View style={styles.body}>{body()}</View>

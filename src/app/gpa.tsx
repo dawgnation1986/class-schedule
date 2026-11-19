@@ -1,4 +1,4 @@
-/** 成绩统计: 平均分 / 平均绩点(等权重估算) / 学期趋势 */
+﻿/** 成绩统计: 平均分 / 平均绩点(等权重估算) / 学期趋势 */
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -69,7 +69,7 @@ export default function GpaScreen() {
           <View style={styles.overview}>
             <View style={[styles.overCard, { backgroundColor: colors.backgroundElement }]}>
               <Text style={[styles.overLabel, { color: colors.textSecondary }]}>总平均分</Text>
-              <Text style={[styles.overValue, { color: '#2563eb' }]}>{stat.overallAvg}</Text>
+              <Text style={[styles.overValue, { color: colors.primary }]}>{stat.overallAvg}</Text>
             </View>
             <View style={[styles.overCard, { backgroundColor: colors.backgroundElement }]}>
               <Text style={[styles.overLabel, { color: colors.textSecondary }]}>平均绩点</Text>

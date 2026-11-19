@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ElementType } from 'react';
+﻿import { useCallback, useEffect, useMemo, useState, type ElementType } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -209,7 +209,7 @@ export default function PortalScreen() {
                 style={[
                   styles.loginBtn,
                   glassBorder(!!(username && password && captcha)),
-                  { backgroundColor: glass ? (username && password && captcha ? 'rgba(37,99,235,0.15)' : 'transparent') : username && password && captcha ? '#2563eb' : colors.backgroundElement },
+                  { backgroundColor: glass ? (username && password && captcha ? 'rgba(37,99,235,0.15)' : 'transparent') : username && password && captcha ? colors.primary : colors.backgroundElement },
                 ]}>
                 {loggingIn ? (
                   <ActivityIndicator color={colors.text} />
@@ -224,7 +224,7 @@ export default function PortalScreen() {
               站点限制：每次进入都需重新输入验证码登录。
             </Text>
             <Pressable onPress={() => router.navigate('/timetable')} style={styles.skipLogin}>
-              <Text style={{ color: '#2563eb', fontSize: 13 }}>班级课表查询无需登录，直接去查 →</Text>
+              <Text style={{ color: colors.primary, fontSize: 13 }}>班级课表查询无需登录，直接去查 →</Text>
             </Pressable>
           </CardWrap>
         )}

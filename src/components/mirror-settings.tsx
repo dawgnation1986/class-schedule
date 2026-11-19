@@ -1,4 +1,4 @@
-/** 镜像管理弹窗: 内置/自定义镜像列表 + 测速 + 增删 + 开关 */
+﻿/** 镜像管理弹窗: 内置/自定义镜像列表 + 测速 + 增删 + 开关 */
 import { useCallback, useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -118,7 +118,7 @@ export function MirrorSettings({
                   .then(() => setInput(''))
                   .catch((e) => setErr(e instanceof Error ? e.message : '添加失败'));
               }}
-              style={[styles.chip, { backgroundColor: '#2563eb' }]}>
+              style={[styles.chip, { backgroundColor: colors.primary }]}>
               <Text style={{ color: '#fff', fontSize: 13 }}>添加</Text>
             </Pressable>
           </View>
@@ -131,7 +131,7 @@ export function MirrorSettings({
               style={[styles.btn, { backgroundColor: colors.backgroundElement }]}>
               <Text style={{ color: colors.text, fontSize: 14 }}>{testing ? '测试中…' : '测试连接性'}</Text>
             </Pressable>
-            <Pressable onPress={onClose} style={[styles.btn, { backgroundColor: '#2563eb' }]}>
+            <Pressable onPress={onClose} style={[styles.btn, { backgroundColor: colors.primary }]}>
               <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>完成</Text>
             </Pressable>
           </View>

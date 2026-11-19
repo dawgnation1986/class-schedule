@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ElementType } from 'react';
+﻿import { useCallback, useEffect, useRef, useState, type ElementType } from 'react';
 import {
   Alert,
   Modal,
@@ -129,8 +129,8 @@ function DatePickModal({
         onPress={() => setSel(new Date(view.y, view.m - 1, d))}
         style={[
           styles.calDay,
-          isToday && !isSel && { borderWidth: 1, borderColor: '#2563eb' },
-          isSel && { backgroundColor: '#2563eb' },
+          isToday && !isSel && { borderWidth: 1, borderColor: colors.primary },
+          isSel && { backgroundColor: colors.primary },
         ]}>
         <Text style={{ color: isSel ? '#fff' : colors.text, fontSize: 13, fontWeight: isSel || isToday ? '700' : '400' }}>
           {d}
@@ -174,7 +174,7 @@ function DatePickModal({
               style={[styles.modalBtn, { backgroundColor: colors.backgroundElement }]}>
               <Text style={{ color: colors.text }}>回到今天</Text>
             </Pressable>
-            <Pressable onPress={() => onConfirm(sel)} style={[styles.modalBtn, { backgroundColor: '#2563eb' }]}>
+            <Pressable onPress={() => onConfirm(sel)} style={[styles.modalBtn, { backgroundColor: colors.primary }]}>
               <Text style={{ color: '#fff', fontWeight: '700' }}>查询</Text>
             </Pressable>
           </View>
@@ -281,7 +281,7 @@ function FullWeekView({
             <Pressable
               onPress={onClose}
               style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, backgroundColor: 'rgba(37,99,235,0.15)' }}>
-              <Text style={{ color: '#2563eb', fontSize: 12, fontWeight: '700' }}>关闭</Text>
+              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>关闭</Text>
             </Pressable>
           </View>
           <GestureDetector gesture={gesture}>
@@ -705,9 +705,9 @@ function ClassicScreen() {
           <Pressable
             disabled={isToday}
             onPress={() => confirmDate(beijingNow())}
-            style={[styles.dayBtn, glassBorder(isToday), { backgroundColor: glass ? (isToday ? 'rgba(37,99,235,0.15)' : 'transparent') : isToday ? 'rgba(37,99,235,0.10)' : '#2563eb', opacity: isToday && !glass ? 0.6 : 1 }]}>
-            <Ionicons name="today-outline" size={14} color={isToday ? '#2563eb' : '#fff'} />
-            <Text style={{ color: isToday ? '#2563eb' : '#fff', fontSize: 13, fontWeight: isToday ? '400' : '700' }}>回到今天</Text>
+            style={[styles.dayBtn, glassBorder(isToday), { backgroundColor: glass ? (isToday ? 'rgba(37,99,235,0.15)' : 'transparent') : isToday ? 'rgba(37,99,235,0.10)' : colors.primary, opacity: isToday && !glass ? 0.6 : 1 }]}>
+            <Ionicons name="today-outline" size={14} color={isToday ? colors.primary : '#fff'} />
+            <Text style={{ color: isToday ? colors.primary : '#fff', fontSize: 13, fontWeight: isToday ? '400' : '700' }}>回到今天</Text>
           </Pressable>
           <Pressable onPress={() => shiftDate(-1)} style={[styles.dayBtn, glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }]}>
             <Text style={{ color: colors.text, fontSize: 13 }}>前一天</Text>
@@ -756,7 +756,7 @@ function ClassicScreen() {
 
       {usingTemp && settings && (
         <Pressable onPress={exitTemp} style={[styles.tempBanner, { backgroundColor: 'rgba(37,99,235,0.12)' }]}>
-          <Text style={{ color: '#2563eb', fontSize: 12 }}>
+          <Text style={{ color: colors.primary, fontSize: 12 }}>
             临时查看：{settings.bjLabel} · 点击返回我的班级
           </Text>
         </Pressable>
@@ -778,7 +778,7 @@ function ClassicScreen() {
               <CardWrap
                 key={`${e.course}-${e.date}-${i}`}
                 style={cardStyle(styles.examCard)}>
-                <Text style={[styles.examDays, { color: urgent ? '#ef4444' : '#2563eb' }]}>
+                <Text style={[styles.examDays, { color: urgent ? '#ef4444' : colors.primary }]}>
                   {e.daysLeft === 0 ? '今天考' : `${e.daysLeft} 天`}
                 </Text>
                 <View style={{ flex: 1 }}>
@@ -854,7 +854,7 @@ function ClassicScreen() {
                       {
                         top: m.y,
                         height: m.h,
-                        backgroundColor: isTarget ? '#2563eb' : glass ? 'transparent' : colors.backgroundElement,
+                        backgroundColor: isTarget ? colors.primary : glass ? 'transparent' : colors.backgroundElement,
                       },
                     ]}>
                     <Text
@@ -956,7 +956,7 @@ function ClassicScreen() {
                                       <Text style={{ color: colors.textSecondary, fontSize: 10 }}>{c.teacher}</Text>
                                     )}
                                     {queryType === 'original' && !!c.weeks && (
-                                      <Text style={{ color: '#2563eb', fontSize: 10 }}>{c.weeks}</Text>
+                                      <Text style={{ color: colors.primary, fontSize: 10 }}>{c.weeks}</Text>
                                     )}
                                   </View>
                                 </Pressable>
@@ -1017,7 +1017,7 @@ function ClassicScreen() {
                 if (sameDay(selectedDate, now)) {
                   if (mins < s) {
                     hint = `距上课还有 ${s - mins} 分钟`;
-                    hintColor = '#2563eb';
+                    hintColor = colors.primary;
                   } else if (mins < e) {
                     hint = `已上课 · 还有 ${e - mins} 分钟下课`;
                     hintColor = '#16a34a';

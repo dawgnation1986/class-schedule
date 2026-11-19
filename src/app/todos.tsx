@@ -1,4 +1,4 @@
-/** 作业/事项清单: 本地待办, 可关联课表节次
+﻿/** 作业/事项清单: 本地待办, 可关联课表节次
  *  重构版: 添加卡片化 + 未完成/已完成分组 + 已完成折叠与一键清空 */
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -137,8 +137,8 @@ export default function TodosScreen() {
                 !glass && { backgroundColor: isToday ? 'rgba(37,99,235,0.14)' : colors.backgroundSelected },
                 glass && { borderWidth: 1, borderColor: glassLine, backgroundColor: 'transparent' },
               ]}>
-              <Ionicons name={isToday ? 'today-outline' : 'calendar-outline'} size={11} color={isToday ? '#2563eb' : colors.textSecondary} />
-              <Text style={{ color: isToday ? '#2563eb' : colors.textSecondary, fontSize: 11 }}>
+              <Ionicons name={isToday ? 'today-outline' : 'calendar-outline'} size={11} color={isToday ? colors.primary : colors.textSecondary} />
+              <Text style={{ color: isToday ? colors.primary : colors.textSecondary, fontSize: 11 }}>
                 {isToday ? '今天' : dayShort(item.linkDay)}
                 {item.linkPeriod ? ` · ${item.linkPeriod} 节` : ''}
               </Text>
@@ -183,8 +183,8 @@ export default function TodosScreen() {
                 <Text style={{ color: colors.textSecondary, fontSize: 11 }}>关联：</Text>
                 {!!linkDay && (
                   <Pressable onPress={() => { setLinkDay(null); setLinkPeriod(null); }} style={[styles.selChip, { backgroundColor: 'rgba(37,99,235,0.12)' }]}>
-                    <Text style={{ color: '#2563eb', fontSize: 11 }}>{dayShort(linkDay)}{linkPeriod ? ` · ${linkPeriod}节` : ''}</Text>
-                    <Ionicons name="close" size={12} color="#2563eb" />
+                    <Text style={{ color: colors.primary, fontSize: 11 }}>{dayShort(linkDay)}{linkPeriod ? ` · ${linkPeriod}节` : ''}</Text>
+                    <Ionicons name="close" size={12} color={colors.primary} />
                   </Pressable>
                 )}
               </View>
@@ -193,7 +193,7 @@ export default function TodosScreen() {
               {DAY_NAMES.map((d) => chip(dayShort(d), linkDay === d, () => {
                 setLinkDay(linkDay === d ? null : d);
                 setLinkPeriod(null);
-              }, '#2563eb', d))}
+              }, colors.primary, d))}
               {!!linkDay && PERIODS.map((p) => chip(p, linkPeriod === p, () => setLinkPeriod(linkPeriod === p ? null : p), '#16a34a', p))}
             </ScrollView>
           </View>
@@ -203,11 +203,11 @@ export default function TodosScreen() {
             style={[
               styles.addBtn,
               glass && { borderWidth: 1, borderColor: canSubmit ? 'rgba(37,99,235,0.55)' : glassLine, backgroundColor: canSubmit ? 'rgba(37,99,235,0.15)' : 'transparent' },
-              !glass && { backgroundColor: canSubmit ? '#2563eb' : colors.backgroundSelected },
+              !glass && { backgroundColor: canSubmit ? colors.primary : colors.backgroundSelected },
               !canSubmit && { opacity: 0.5 },
             ]}>
-            <Ionicons name="add" size={20} color={glass && canSubmit ? '#2563eb' : !glass && canSubmit ? '#fff' : colors.textSecondary} />
-            <Text style={{ color: glass && canSubmit ? '#2563eb' : !glass && canSubmit ? '#fff' : colors.textSecondary, fontSize: 13, fontWeight: '700' }}>添加</Text>
+            <Ionicons name="add" size={20} color={glass && canSubmit ? colors.primary : !glass && canSubmit ? '#fff' : colors.textSecondary} />
+            <Text style={{ color: glass && canSubmit ? colors.primary : !glass && canSubmit ? '#fff' : colors.textSecondary, fontSize: 13, fontWeight: '700' }}>添加</Text>
           </Pressable>
         </View>
       </View>
@@ -229,8 +229,8 @@ export default function TodosScreen() {
                 <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
                   <Pressable onPress={() => setShowDone((v) => !v)} hitSlop={6}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                      <Text style={{ color: '#2563eb', fontSize: 12 }}>{showDone ? '收起' : '展开'}</Text>
-                      <Ionicons name={showDone ? 'chevron-up' : 'chevron-down'} size={13} color="#2563eb" />
+                      <Text style={{ color: colors.primary, fontSize: 12 }}>{showDone ? '收起' : '展开'}</Text>
+                      <Ionicons name={showDone ? 'chevron-up' : 'chevron-down'} size={13} color={colors.primary} />
                     </View>
                   </Pressable>
                   {showDone && (

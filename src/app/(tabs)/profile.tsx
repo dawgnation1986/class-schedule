@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ElementType } from 'react';
+﻿import { useCallback, useEffect, useRef, useState, type ElementType } from 'react';
 import {
   Alert,
   Modal,
@@ -144,7 +144,7 @@ function TimesEditorModal({
             <Pressable onPress={onClose} style={[styles.modalBtn, { backgroundColor: colors.backgroundElement }]}>
               <Text style={{ color: colors.text }}>取消</Text>
             </Pressable>
-            <Pressable onPress={save} style={[styles.modalBtn, { backgroundColor: '#2563eb' }]}>
+            <Pressable onPress={save} style={[styles.modalBtn, { backgroundColor: colors.primary }]}>
               <Text style={{ color: '#fff', fontWeight: '700' }}>保存</Text>
             </Pressable>
           </View>
@@ -211,7 +211,7 @@ function JsonImportModal({
             <Pressable
               disabled={!text.trim()}
               onPress={doImport}
-              style={[styles.modalBtn, { backgroundColor: text.trim() ? '#2563eb' : colors.backgroundElement }]}>
+              style={[styles.modalBtn, { backgroundColor: text.trim() ? colors.primary : colors.backgroundElement }]}>
               <Text style={{ color: text.trim() ? '#fff' : colors.textSecondary, fontWeight: '700' }}>导入</Text>
             </Pressable>
           </View>
@@ -269,6 +269,30 @@ export default function ProfileScreen() {
   const [siteInput, setSiteInput] = useState('');
   // 登记滚动容器: 新手引导可自动滚动到屏幕外的目标
   const scrollRef = useRef<ScrollView>(null);
+  // 设置搜索: 关键字匹配后跳转/展开
+  const [q, setQ] = useState('');
+  const goBottom = () => scrollRef.current?.scrollToEnd({ animated: true });
+  const goTop = () => scrollRef.current?.scrollTo({ y: 0, animated: true });
+  const SEARCH_ITEMS = [
+    { title: '主题预设 (纯白/纯黑/墨夜/护眼米黄/淡雅蓝/自定义)', kw: '主题 预设 纯白 纯黑 墨夜 护眼 米黄 淡雅 蓝 皮肤 配色 导出 导入 主题文件', hint: '本页 · 外观', icon: 'color-palette-outline' as const, go: goTop },
+    { title: '自定义配色 / 自定义颜色 (十六进制)', kw: '自定义 配色 颜色 hex 底色 卡片 文字', hint: '本页 · 主题预设内', icon: 'options-outline' as const, go: goTop },
+    { title: '控件主色 (按钮/链接颜色)', kw: '主色 控件 按钮 链接 颜色 accent', hint: '本页 · 主题预设内', icon: 'brush-outline' as const, go: goTop },
+    { title: '界面设置 (原版界面/墨夜主题)', kw: '界面 设置 墨夜 原版 主题 模式 切换', hint: '本页 · 外观', icon: 'contrast-outline' as const, go: goTop },
+    { title: '外观模式 (跟随系统/浅色/深色)', kw: '外观 模式 浅色 深色 跟随 系统 亮色 暗色', hint: '本页 · 外观', icon: 'sunny-outline' as const, go: goTop },
+    { title: '自定义背景图 (背景/壁纸/透明度/控件透明)', kw: '背景 壁纸 图片 透明度 控件 全透明 毛玻璃', hint: '本页 · 外观', icon: 'image-outline' as const, go: goTop },
+    { title: '班级课表设置 (系部/专业/班级)', kw: '班级 课表 系部 专业 设置 校园 数据', hint: '校园数据', icon: 'school-outline' as const, go: () => router.push('/settings' as never) },
+    { title: '作息时间表 (冬季/夏季/手动编辑/JSON导入)', kw: '作息 时间 表 冬季 夏季 上课 下课 时间点', hint: '校园数据', icon: 'time-outline' as const, go: () => setShowTimes(true) },
+    { title: '天气城市 (跟随定位/手动设置)', kw: '天气 城市 定位 温度 手动', hint: '校园数据', icon: 'cloud-outline' as const, go: () => setWxOpen(true) },
+    { title: '倒计时 (四六级/期末考试)', kw: '倒计时 四六级 期末 考试 日期', hint: '本页', icon: 'hourglass-outline' as const, go: goBottom },
+    { title: '备份导出 / 导入 / 保存到手机', kw: '备份 导出 导入 保存 手机 换机 迁移 JSON', hint: '数据与备份', icon: 'save-outline' as const, go: goBottom },
+    { title: '支持开发者 (赞助/收款码)', kw: '赞助 支持 开发者 收款码 微信 支付宝 奶茶', hint: '独立页面', icon: 'heart-outline' as const, go: () => router.push('/sponsor' as never) },
+    { title: '官网接口地址 (公告/收款码下发)', kw: '官网 接口 地址 下发 公告 服务器', hint: '通用', icon: 'globe-outline' as const, go: () => setSiteOpen(true) },
+    { title: '新手引导 (方块高亮指引)', kw: '新手 引导 指引 教程 高亮', hint: '通用', icon: 'compass-outline' as const, go: () => startCoachTour() },
+    { title: '图文功能教程 (6页图文)', kw: '图文 教程 功能 介绍 回看', hint: '通用', icon: 'book-outline' as const, go: () => setIntroOpen(true) },
+    { title: '用户协议', kw: '用户 协议 条款', hint: '通用', icon: 'document-text-outline' as const, go: () => setAgreementOpen(true) },
+    { title: '检查更新 / 镜像设置 / 当前版本', kw: '检查 更新 版本 镜像 下载 升级', hint: '页面底部', icon: 'download-outline' as const, go: goBottom },
+    { title: '开发者选项 (登录修复/调试)', kw: '开发者 选项 调试 登录 修复', hint: '通用', icon: 'terminal-outline' as const, go: () => router.push('/dev' as never) },
+  ];
   useEffect(() => {
     registerTourScroller('/profile', scrollRef.current);
   }, []);
@@ -346,6 +370,57 @@ export default function ProfileScreen() {
       {/* 墨夜背景: 深空渐变 + 顶部辉光(绝对定位铺满, 原版模式不渲染) */}
       {night && <NightGlowBackground>{null}</NightGlowBackground>}
       <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        {/* 设置搜索: 关键字匹配功能并跳转 */}
+        <View style={[glass ? { borderWidth: 1, borderColor: glassLine } : { backgroundColor: colors.backgroundElement }, { borderRadius: 12, padding: 12 }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Ionicons name="search" size={16} color={colors.textSecondary} />
+            <TextInput
+              value={q}
+              onChangeText={setQ}
+              placeholder="搜索设置: 主题 / 天气 / 备份 / 赞助 ..."
+              placeholderTextColor={colors.textSecondary}
+              style={{ flex: 1, color: colors.text, fontSize: 14, paddingVertical: 4 }}
+            />
+            {q !== '' && (
+              <Pressable hitSlop={8} onPress={() => setQ('')}>
+                <Ionicons name="close-circle" size={16} color={colors.textSecondary} />
+              </Pressable>
+            )}
+          </View>
+          {q.trim() !== '' && (
+            <View style={{ marginTop: 8, gap: 6 }}>
+              {SEARCH_ITEMS.filter((it) => {
+                const s = q.trim().toLowerCase();
+                return (it.title + ' ' + it.kw).toLowerCase().includes(s) || it.title.includes(q.trim());
+              }).map((it) => (
+                <Pressable
+                  key={it.title}
+                  onPress={() => {
+                    it.go();
+                    setQ('');
+                  }}
+                  style={({ pressed }) => [
+                    { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 10, backgroundColor: night ? 'rgba(91,140,255,0.08)' : glass ? 'rgba(37,99,235,0.08)' : colors.background },
+                    pressed && { opacity: 0.6 },
+                  ]}>
+                  <Ionicons name={it.icon} size={15} color={colors.primary} />
+                  <Text style={{ flex: 1, color: colors.text, fontSize: 13.5, fontWeight: '600' }} numberOfLines={1}>
+                    {it.title}
+                  </Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: 11 }}>{it.hint}</Text>
+                  <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
+                </Pressable>
+              ))}
+              {SEARCH_ITEMS.filter((it) => {
+                const s = q.trim().toLowerCase();
+                return (it.title + ' ' + it.kw).toLowerCase().includes(s) || it.title.includes(q.trim());
+              }).length === 0 && (
+                <Text style={{ color: colors.textSecondary, fontSize: 12.5, paddingVertical: 8 }}>没有匹配的设置项</Text>
+              )}
+            </View>
+          )}
+        </View>
+
         <Text style={[styles.title, { color: colors.text }]}>我的</Text>
 
         {/* 主站账号 */}
@@ -384,7 +459,7 @@ export default function ProfileScreen() {
                 style={[
                   styles.startBtn,
                   glassBorder(startPage === v),
-                  { backgroundColor: glass ? (startPage === v ? 'rgba(37,99,235,0.15)' : 'transparent') : startPage === v ? '#2563eb' : colors.backgroundElement },
+                  { backgroundColor: glass ? (startPage === v ? 'rgba(37,99,235,0.15)' : 'transparent') : startPage === v ? colors.primary : colors.backgroundElement },
                 ]}>
                 <Text style={{ color: startPage === v && !glass ? '#fff' : colors.text, fontSize: 13, fontWeight: startPage === v ? '700' : '400' }}>
                   {label}
@@ -399,7 +474,7 @@ export default function ProfileScreen() {
             style={[
               styles.saveBtn,
               glassBorder(!!(username && password)),
-              { backgroundColor: glass ? (username && password ? 'rgba(37,99,235,0.15)' : 'transparent') : username && password ? '#2563eb' : colors.backgroundElement },
+              { backgroundColor: glass ? (username && password ? 'rgba(37,99,235,0.15)' : 'transparent') : username && password ? colors.primary : colors.backgroundElement },
             ]}>
             <Text style={{ color: username && password ? (glass ? colors.text : '#fff') : colors.textSecondary, fontWeight: '700' }}>
               {saved ? '已保存 ✓' : '保存'}
@@ -426,7 +501,7 @@ export default function ProfileScreen() {
                   style={[
                     styles.timesBtn,
                     glassBorder(themeMode === m),
-                    { backgroundColor: glass ? (themeMode === m ? 'rgba(37,99,235,0.15)' : 'transparent') : themeMode === m ? '#2563eb' : colors.backgroundSelected, flex: 1 },
+                    { backgroundColor: glass ? (themeMode === m ? 'rgba(37,99,235,0.15)' : 'transparent') : themeMode === m ? colors.primary : colors.backgroundSelected, flex: 1 },
                   ]}>
                   <Text
                     style={{
@@ -470,7 +545,7 @@ export default function ProfileScreen() {
                     style={[
                       styles.timesBtn,
                       glassBorder(bg.opacity === op),
-                      { backgroundColor: glass ? (bg.opacity === op ? 'rgba(37,99,235,0.15)' : 'transparent') : bg.opacity === op ? '#2563eb' : colors.backgroundSelected, flex: 1 },
+                      { backgroundColor: glass ? (bg.opacity === op ? 'rgba(37,99,235,0.15)' : 'transparent') : bg.opacity === op ? colors.primary : colors.backgroundSelected, flex: 1 },
                     ]}>
                     <Text style={{ color: bg.opacity === op && !glass ? '#fff' : colors.text, fontSize: 11 }}>
                       {Math.round(op * 100)}%
@@ -486,7 +561,7 @@ export default function ProfileScreen() {
                   style={[
                     styles.timesBtn,
                     glassBorder(bg.ctrl),
-                    { flex: 1, backgroundColor: glass ? (bg.ctrl ? 'rgba(37,99,235,0.15)' : 'transparent') : bg.ctrl ? '#2563eb' : colors.backgroundSelected },
+                    { flex: 1, backgroundColor: glass ? (bg.ctrl ? 'rgba(37,99,235,0.15)' : 'transparent') : bg.ctrl ? colors.primary : colors.backgroundSelected },
                   ]}>
                   <Text style={{ color: bg.ctrl && !glass ? '#fff' : colors.text, fontSize: 11 }}>
                     控件全透明：{bg.ctrl ? '开' : '关'}（只留文字+1px轮廓）
@@ -515,7 +590,7 @@ export default function ProfileScreen() {
                 style={[
                   styles.timesBtn,
                   glassBorder(ttUI === v),
-                  { backgroundColor: glass ? (ttUI === v ? 'rgba(37,99,235,0.15)' : 'transparent') : ttUI === v ? '#2563eb' : colors.backgroundSelected, flex: 1 },
+                  { backgroundColor: glass ? (ttUI === v ? 'rgba(37,99,235,0.15)' : 'transparent') : ttUI === v ? colors.primary : colors.backgroundSelected, flex: 1 },
                 ]}>
                 <Text style={{ color: ttUI === v && !glass ? '#fff' : colors.text, fontSize: 12, fontWeight: ttUI === v ? '700' : '400' }}>
                   {label}
@@ -544,7 +619,7 @@ export default function ProfileScreen() {
           <View style={[styles.subBlock, styles.hairline, { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' }]}>
             <Pressable onPress={() => setShowTimes((v) => !v)} style={styles.timesHead}>
               <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>作息时间表</Text>
-              <Text style={{ color: '#2563eb', fontSize: 13 }}>{showTimes ? '收起 ▲' : '查看 ▼'}</Text>
+              <Text style={{ color: colors.primary, fontSize: 13 }}>{showTimes ? '收起 ▲' : '查看 ▼'}</Text>
             </Pressable>
             <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 4 }}>
               当前使用：{source}
@@ -596,7 +671,7 @@ export default function ProfileScreen() {
                 style={[
                   styles.timesBtn,
                   glassBorder(!wxCity),
-                  { flex: 1, backgroundColor: glass ? (!wxCity ? 'rgba(37,99,235,0.15)' : 'transparent') : !wxCity ? '#2563eb' : colors.backgroundSelected },
+                  { flex: 1, backgroundColor: glass ? (!wxCity ? 'rgba(37,99,235,0.15)' : 'transparent') : !wxCity ? colors.primary : colors.backgroundSelected },
                 ]}>
                 <Text style={{ color: !wxCity && !glass ? '#fff' : colors.text, fontSize: 12 }}>跟随定位</Text>
               </Pressable>
@@ -656,7 +731,7 @@ export default function ProfileScreen() {
             />
             <Pressable
               onPress={addCd}
-              style={[styles.timesBtn, { backgroundColor: '#2563eb', minHeight: 40, paddingHorizontal: 14 }]}>
+              style={[styles.timesBtn, { backgroundColor: colors.primary, minHeight: 40, paddingHorizontal: 14 }]}>
               <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>添加</Text>
             </Pressable>
           </View>
@@ -725,7 +800,7 @@ export default function ProfileScreen() {
               setSiteOpen(true);
             }}
             style={[styles.rowBtn, styles.hairline, { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' }]}>
-            <Ionicons name="globe-outline" size={17} color="#2563eb" />
+            <Ionicons name="globe-outline" size={17} color={colors.primary} />
             <View style={{ flex: 1 }}>
               <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>官网接口地址</Text>
               <Text style={{ color: colors.textSecondary, fontSize: 11 }} numberOfLines={1}>
@@ -738,7 +813,7 @@ export default function ProfileScreen() {
           <Pressable
             onPress={() => startCoachTour()}
             style={[styles.rowBtn, styles.hairline, { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' }]}>
-            <Ionicons name="compass" size={17} color="#2563eb" />
+            <Ionicons name="compass" size={17} color={colors.primary} />
             <View style={{ flex: 1 }}>
               <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>新手引导</Text>
               <Text style={{ color: colors.textSecondary, fontSize: 11 }}>方块高亮+箭头指引, 一步步逛 App</Text>
@@ -811,7 +886,7 @@ export default function ProfileScreen() {
               </Pressable>
               <Pressable
                 onPress={() => void Share.share({ message: bkJson })}
-                style={[styles.modalBtn, { backgroundColor: '#2563eb' }]}>
+                style={[styles.modalBtn, { backgroundColor: colors.primary }]}>
                 <Text style={{ color: '#fff', fontWeight: '700' }}>分享 / 复制</Text>
               </Pressable>
             </View>
@@ -854,7 +929,7 @@ export default function ProfileScreen() {
                     }
                   })
                 }
-                style={[styles.modalBtn, { backgroundColor: bkText.trim() ? '#2563eb' : colors.backgroundElement }]}>
+                style={[styles.modalBtn, { backgroundColor: bkText.trim() ? colors.primary : colors.backgroundElement }]}>
                 <Text style={{ color: bkText.trim() ? '#fff' : colors.textSecondary, fontWeight: '700' }}>导入</Text>
               </Pressable>
             </View>
@@ -898,7 +973,7 @@ export default function ProfileScreen() {
                     setWxOpen(false);
                   });
                 }}
-                style={[styles.modalBtn, { backgroundColor: '#2563eb' }]}>
+                style={[styles.modalBtn, { backgroundColor: colors.primary }]}>
                 <Text style={{ color: '#fff', fontWeight: '700' }}>保存</Text>
               </Pressable>
             </View>
@@ -950,7 +1025,7 @@ export default function ProfileScreen() {
                     setSiteOpen(false);
                   });
                 }}
-                style={[styles.modalBtn, { backgroundColor: '#2563eb' }]}>
+                style={[styles.modalBtn, { backgroundColor: colors.primary }]}>
                 <Text style={{ color: '#fff', fontWeight: '700' }}>保存</Text>
               </Pressable>
             </View>

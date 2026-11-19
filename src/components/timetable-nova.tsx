@@ -1,4 +1,4 @@
-/** 新版课表界面(Nova): 日程时间轴视图
+﻿/** 新版课表界面(Nova): 日程时间轴视图
  *  与经典网格界面完全独立; 默认显示今天(可点日期条选任意一天),
  *  课程卡片按名称着色, 标注上课中/下一节/已结束。 */
 import { useCallback, useEffect, useState } from 'react';
@@ -180,7 +180,7 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
         {!sameDay(selected, now) && (
           <Pressable
             onPress={() => setSelected(beijingNow())}
-            style={[styles.headerBtn, { backgroundColor: '#2563eb' }]}>
+            style={[styles.headerBtn, { backgroundColor: colors.primary }]}>
             <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>今天</Text>
           </Pressable>
         )}
@@ -202,8 +202,8 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
               onPress={() => setSelected(new Date(d))}
               style={[
                 styles.dayChip,
-                active ? { backgroundColor: '#2563eb' } : { backgroundColor: 'transparent' },
-                today && !active && { borderWidth: 1.5, borderColor: '#2563eb' },
+                active ? { backgroundColor: colors.primary } : { backgroundColor: 'transparent' },
+                today && !active && { borderWidth: 1.5, borderColor: colors.primary },
               ]}>
               <Text style={{ color: active ? 'rgba(255,255,255,0.85)' : colors.textSecondary, fontSize: 10 }}>
                 {WEEK_NAMES[(i + 1) % 7]}
@@ -218,7 +218,7 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
 
       {loading && (
         <View style={styles.center}>
-          <ActivityIndicator color="#2563eb" />
+          <ActivityIndicator color={colors.primary} />
           <Text style={{ color: colors.textSecondary, marginTop: 10 }}>正在查询课表…</Text>
         </View>
       )}
@@ -289,7 +289,7 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
                   )}
                   {st === 1 && i === nextIdx && (
                     <View style={[styles.stateChip, { backgroundColor: 'rgba(37,99,235,0.15)' }]}>
-                      <Text style={{ color: '#2563eb', fontSize: 11, fontWeight: '700' }}>下一节</Text>
+                      <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '700' }}>下一节</Text>
                     </View>
                   )}
                   {st < 0 && (

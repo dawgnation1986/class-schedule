@@ -1,4 +1,4 @@
-/** 天气弹层: 15 天预报列表(今天蓝圈高亮) + 单日详情(滑动过渡) */
+﻿/** 天气弹层: 15 天预报列表(今天蓝圈高亮) + 单日详情(滑动过渡) */
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -109,8 +109,8 @@ export function WeatherModal({
                 }}
                 hitSlop={6}
                 style={[styles.cityBtn, { borderColor: 'rgba(100,116,139,0.45)' }]}>
-                <Ionicons name="location-outline" size={12} color="#2563eb" />
-                <Text style={{ color: '#2563eb', fontSize: 11 }}>切换城市</Text>
+                <Ionicons name="location-outline" size={12} color={colors.primary} />
+                <Text style={{ color: colors.primary, fontSize: 11 }}>切换城市</Text>
               </Pressable>
             </View>
             <Pressable onPress={onClose} hitSlop={10}>
@@ -120,7 +120,7 @@ export function WeatherModal({
 
           {!data && (
             <View style={styles.loadingWrap}>
-              {loading ? <ActivityIndicator color="#2563eb" /> : <Text style={{ color: colors.textSecondary }}>暂无天气数据</Text>}
+              {loading ? <ActivityIndicator color={colors.primary} /> : <Text style={{ color: colors.textSecondary }}>暂无天气数据</Text>}
             </View>
           )}
 
@@ -136,7 +136,7 @@ export function WeatherModal({
                     style={[
                       styles.dayCard,
                       { backgroundColor: colors.backgroundElement },
-                      today && { borderWidth: 2, borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.08)' },
+                      today && { borderWidth: 2, borderColor: colors.primary, backgroundColor: 'rgba(37,99,235,0.08)' },
                     ]}>
                     <Ionicons name={d.icon as React.ComponentProps<typeof Ionicons>['name']} size={24} color={d.tint} />
                     <View style={{ flex: 1, marginLeft: 10 }}>
@@ -197,7 +197,7 @@ export function WeatherModal({
                       onChangeCity?.(c);
                     });
                   }}
-                  style={[styles.cityBtnBig, { backgroundColor: '#2563eb' }]}>
+                  style={[styles.cityBtnBig, { backgroundColor: colors.primary }]}>
                   <Text style={{ color: '#fff', fontWeight: '700' }}>保存</Text>
                 </Pressable>
               </View>
