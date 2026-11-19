@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { UpdatePrompt } from '@/components/update-prompt';
+import { NoticePrompt } from '@/components/notice-prompt';
 import { CoachTour, startCoachTour, shouldShowTour } from '@/components/tour';
 import { OnboardingModal, shouldShowOnboarding } from '@/components/onboarding';
 import { AgreementModal, shouldShowAgreement } from '@/components/agreement';
@@ -54,6 +55,7 @@ export default function RootLayout() {
       {/* 自定义背景图层(页面背景透明时露出) */}
       <BackgroundLayer />
       <UpdatePrompt />
+      <NoticePrompt />
       {/* 交互式新手引导(全屏遮罩层, 首次启动自动/教程设置手动) */}
       <CoachTour />
       {/* 首次启动: 图文教程 → 用户协议 */}

@@ -1,15 +1,15 @@
 /**
- * 赞助信息获取: 从 GitHub 仓库 sponsor/sponsor.json 下发收款码配置
- * 走 gh-mirrors 镜像通道, 与 APK 下载同一套容错
+ * 赞助信息获取: 优先官网后台下发（我的页面可配置官网地址）, 失败回退 GitHub 仓库 sponsor.json
  */
 import { REPO } from '@/lib/updates';
 import { getMirrors } from '@/lib/gh-mirrors';
+import { fetchSiteConfig, getSiteUrl, siteAssetUrl } from '@/lib/site';
 
 const RAW_URL = `https://raw.githubusercontent.com/${REPO}/master/sponsor/sponsor.json`;
 export const SPONSOR_PAGE_URL = `https://github.com/${REPO}/blob/master/sponsor`;
 
 export type SponsorInfo = {
-  /** 收款码图片地址(绝对 URL 或仓库相对路径) */
+  /** 收款码图片地址(完整 URL) */
   wechat?: string;
   alipay?: string;
   /** 感谢语/说明 */
@@ -19,12 +19,12 @@ export type SponsorInfo = {
 
 const RAW_BASE = `https://raw.githubusercontent.com/${REPO}/master/sponsor/`;
 
-function resolveImg(v: string): string {
+function resolveRawImg(v: string): string {
   return /^https?:\/\//.test(v) ? v : `${RAW_BASE}${v}`;
 }
 
-/** 拉取赞助配置(镜像容错, 全失败返回 null) */
-export async function fetchSponsor(): Promise<SponsorInfo | null> {
+/** GitHub raw 通道兜底(镜像容错, 全失败返回 null) */
+async function fetchSponsorFromGitHub(): Promise<SponsorInfo | null> {
   const mirrors = await getMirrors();
   for (const m of mirrors) {
     try {
@@ -34,8 +34,8 @@ export async function fetchSponsor(): Promise<SponsorInfo | null> {
       if (j && typeof j === 'object') {
         return {
           ...j,
-          wechat: j.wechat ? resolveImg(j.wechat) : undefined,
-          alipay: j.alipay ? resolveImg(j.alipay) : undefined,
+          wechat: j.wechat ? resolveRawImg(j.wechat) : undefined,
+          alipay: j.alipay ? resolveRawImg(j.alipay) : undefined,
         };
       }
     } catch {
@@ -43,4 +43,23 @@ export async function fetchSponsor(): Promise<SponsorInfo | null> {
     }
   }
   return null;
+}
+
+/** 拉取赞助配置: 官网优先, 官网不可用回退 GitHub */
+export async function fetchSponsor(): Promise<SponsorInfo | null> {
+  try {
+    const cfg = await fetchSiteConfig();
+    const s = cfg?.sponsor;
+    if (s && (s.wechat || s.alipay)) {
+      return {
+        wechat: s.wechat ? await siteAssetUrl(s.wechat) : undefined,
+        alipay: s.alipay ? await siteAssetUrl(s.alipay) : undefined,
+        note: s.note || undefined,
+        updated: s.updated || undefined,
+      };
+    }
+  } catch {
+    // 落回 GitHub 通道
+  }
+  return fetchSponsorFromGitHub();
 }

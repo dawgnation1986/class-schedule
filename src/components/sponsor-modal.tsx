@@ -1,4 +1,4 @@
-/** 赞助开发者弹窗: 展示微信/支付宝收款码(由仓库 sponsor/sponsor.json 下发) */
+/** 赞助开发者弹窗: 展示微信/支付宝收款码(官网后台下发, GitHub 兜底) */
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';

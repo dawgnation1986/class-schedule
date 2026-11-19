@@ -53,6 +53,7 @@ import { UpdateCard } from '@/components/update-card';
 import { SponsorModal } from '@/components/sponsor-modal';
 import { TourTarget, registerTourScroller } from '@/components/tour';
 import { AgreementModal } from '@/components/agreement';
+import { DEFAULT_SITE_URL, getSiteUrl, setSiteUrl, subscribeSiteUrl } from '@/lib/site';
 
 const PERIOD_ORDER = ['1-2', '3-4', '中午', '5-6', '7-8', '9-10'];
 
@@ -230,7 +231,7 @@ export default function ProfileScreen() {
   const night = uiMode === 'night';
   // 墨夜模式: 分组卡片交给 NightCard 重绘, 去掉原背景/玻璃描边, 保留圆角与内边距
   const CardWrap: ElementType = night ? NightCard : View;
-  const cardStyle = (base: ViewStyle): StyleProp<ViewStyle> =>
+  const cardStyle = (base: ViewStyle | ViewStyle[]): StyleProp<ViewStyle> =>
     night ? base : [base, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }];
   const router = useRouter();
 
@@ -258,6 +259,10 @@ export default function ProfileScreen() {
   const [bkText, setBkText] = useState('');
   const [agreementOpen, setAgreementOpen] = useState(false);
   const [sponsorOpen, setSponsorOpen] = useState(false);
+  // 官网接口地址(公告/收款码下发源)
+  const [siteUrl, setSiteUrlState] = useState<string>(DEFAULT_SITE_URL);
+  const [siteOpen, setSiteOpen] = useState(false);
+  const [siteInput, setSiteInput] = useState('');
   // 登记滚动容器: 新手引导可自动滚动到屏幕外的目标
   const scrollRef = useRef<ScrollView>(null);
   useEffect(() => {
@@ -266,6 +271,8 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     void getWeatherCity().then(setWxCity);
+    void getSiteUrl().then(setSiteUrlState);
+    return subscribeSiteUrl(() => void getSiteUrl().then(setSiteUrlState));
   }, []);
 
   useEffect(() => {
@@ -337,176 +344,267 @@ export default function ProfileScreen() {
       <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={[styles.title, { color: colors.text }]}>我的</Text>
 
-        <Text style={[styles.label, { color: colors.textSecondary }]}>主站账号（学号）</Text>
-        <TextInput
-          value={username}
-          onChangeText={setUsername}
-          placeholder="请输入学号"
-          placeholderTextColor={colors.textSecondary}
-          style={[styles.input, { backgroundColor: glass ? 'transparent' : colors.backgroundElement, color: colors.text, borderColor: glass ? glassLine : colors.backgroundElement }]}
-          autoCapitalize="none"
-        />
-        <Text style={[styles.label, { color: colors.textSecondary }]}>密码</Text>
-        <TextInput
-          value={password}
-          onChangeText={setPassword}
-          placeholder="请输入密码"
-          placeholderTextColor={colors.textSecondary}
-          style={[styles.input, { backgroundColor: glass ? 'transparent' : colors.backgroundElement, color: colors.text, borderColor: glass ? glassLine : colors.backgroundElement }]}
-          secureTextEntry
-        />
-
-        <Text style={[styles.label, { color: colors.textSecondary }]}>默认起始页</Text>
-        <View style={styles.startRow}>
-          {(
-            [
-              ['home', '主站（综合管理平台）'],
-              ['timetable', '班级课表查询'],
-            ] as [StartPage, string][]
-          ).map(([v, label]) => (
-            <Pressable
-              key={v}
-              onPress={() => setStartPage(v)}
-              style={[
-                styles.startBtn,
-                glassBorder(startPage === v),
-                { backgroundColor: glass ? (startPage === v ? 'rgba(37,99,235,0.15)' : 'transparent') : startPage === v ? '#2563eb' : colors.backgroundElement },
-              ]}>
-              <Text style={{ color: startPage === v && !glass ? '#fff' : colors.text, fontSize: 13, fontWeight: startPage === v ? '700' : '400' }}>
-                {label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <Pressable
-          disabled={!username || !password}
-          onPress={save}
-          style={[
-            styles.saveBtn,
-            glassBorder(!!(username && password)),
-            { backgroundColor: glass ? (username && password ? 'rgba(37,99,235,0.15)' : 'transparent') : username && password ? '#2563eb' : colors.backgroundElement },
-          ]}>
-          <Text style={{ color: username && password ? (glass ? colors.text : '#fff') : colors.textSecondary, fontWeight: '700' }}>
-            {saved ? '已保存 ✓' : '保存'}
-          </Text>
-        </Pressable>
-
+        {/* 主站账号 */}
         <CardWrap style={cardStyle(styles.section)}>
-          <Text style={{ color: colors.text, fontWeight: '700' }}>班级课表设置</Text>
-          <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 4 }}>
-            当前班级：{classLabel ?? '未设置'}
-          </Text>
+          <Text style={[styles.secTitle, { color: colors.text }]}>主站账号</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>学号</Text>
+          <TextInput
+            value={username}
+            onChangeText={setUsername}
+            placeholder="请输入学号"
+            placeholderTextColor={colors.textSecondary}
+            style={[styles.input, { backgroundColor: glass ? 'transparent' : colors.backgroundElement, color: colors.text, borderColor: glass ? glassLine : colors.backgroundElement }]}
+            autoCapitalize="none"
+          />
+          <Text style={[styles.label, { color: colors.textSecondary }]}>密码</Text>
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            placeholder="请输入密码"
+            placeholderTextColor={colors.textSecondary}
+            style={[styles.input, { backgroundColor: glass ? 'transparent' : colors.backgroundElement, color: colors.text, borderColor: glass ? glassLine : colors.backgroundElement }]}
+            secureTextEntry
+          />
+
+          <Text style={[styles.label, { color: colors.textSecondary }]}>默认起始页</Text>
+          <View style={styles.startRow}>
+            {(
+              [
+                ['home', '主站（综合管理平台）'],
+                ['timetable', '班级课表查询'],
+              ] as [StartPage, string][]
+            ).map(([v, label]) => (
+              <Pressable
+                key={v}
+                onPress={() => setStartPage(v)}
+                style={[
+                  styles.startBtn,
+                  glassBorder(startPage === v),
+                  { backgroundColor: glass ? (startPage === v ? 'rgba(37,99,235,0.15)' : 'transparent') : startPage === v ? '#2563eb' : colors.backgroundElement },
+                ]}>
+                <Text style={{ color: startPage === v && !glass ? '#fff' : colors.text, fontSize: 13, fontWeight: startPage === v ? '700' : '400' }}>
+                  {label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
           <Pressable
-            onPress={() => router.push('/settings')}
-            style={[styles.linkBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected }]}>
-            <Text style={{ color: colors.text, fontSize: 13 }}>去设置系部 / 专业 / 班级</Text>
+            disabled={!username || !password}
+            onPress={save}
+            style={[
+              styles.saveBtn,
+              glassBorder(!!(username && password)),
+              { backgroundColor: glass ? (username && password ? 'rgba(37,99,235,0.15)' : 'transparent') : username && password ? '#2563eb' : colors.backgroundElement },
+            ]}>
+            <Text style={{ color: username && password ? (glass ? colors.text : '#fff') : colors.textSecondary, fontWeight: '700' }}>
+              {saved ? '已保存 ✓' : '保存'}
+            </Text>
           </Pressable>
         </CardWrap>
 
-        {/* 作息时间表 */}
-        <CardWrap style={cardStyle(styles.section)}>
-          <Pressable onPress={() => setShowTimes((v) => !v)} style={styles.timesHead}>
-            <Text style={{ color: colors.text, fontWeight: '700' }}>作息时间表</Text>
-            <Text style={{ color: '#2563eb', fontSize: 13 }}>{showTimes ? '收起 ▲' : '查看 ▼'}</Text>
-          </Pressable>
-          <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 4 }}>
-            当前使用：{source}
-          </Text>
-          {showTimes && (
-            <View style={{ marginTop: 8, gap: 4 }}>
-              {PERIOD_ORDER.filter((p) => times[p]).map((p) => (
-                <View key={p} style={styles.timeRow}>
-                  <Text style={{ color: colors.text, width: 52, fontSize: 13 }}>{p} 节</Text>
-                  <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
-                    {times[p][0]} — {times[p][1]}
+        {/* 外观: 主题模式 / 自定义背景 / 课表界面 */}
+        <TourTarget id="pf.theme">
+          <CardWrap style={cardStyle([styles.section, styles.subCard])}>
+            <Text style={[styles.secTitle, { color: colors.text }]}>外观模式</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 12 }}>跟随系统 / 浅色 / 深色，搭配主题预设更出彩</Text>
+            <View style={[styles.timesBtnRow, { marginTop: 10, marginBottom: 0 }]}>
+              {THEME_OPTIONS.map((m) => (
+                <Pressable
+                  key={m}
+                  onPress={() => void saveThemeMode(m)}
+                  style={[
+                    styles.timesBtn,
+                    glassBorder(themeMode === m),
+                    { backgroundColor: glass ? (themeMode === m ? 'rgba(37,99,235,0.15)' : 'transparent') : themeMode === m ? '#2563eb' : colors.backgroundSelected, flex: 1 },
+                  ]}>
+                  <Text
+                    style={{
+                      color: themeMode === m && !glass ? '#fff' : colors.text,
+                      fontSize: 12,
+                      fontWeight: themeMode === m ? '700' : '400',
+                    }}>
+                    {themeModeLabel(m)}
                   </Text>
-                </View>
+                </Pressable>
               ))}
             </View>
-          )}
-          <View style={styles.timesBtnRow}>
-            <Pressable
-              onPress={() => useSeasonPreset('winter')}
-              style={[styles.timesBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected }]}>
-              <Text style={{ color: colors.text, fontSize: 12 }}>导入冬季</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => useSeasonPreset('summer')}
-              style={[styles.timesBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected }]}>
-              <Text style={{ color: colors.text, fontSize: 12 }}>导入夏季</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setEditOpen(true)}
-              style={[styles.timesBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected }]}>
-              <Text style={{ color: colors.text, fontSize: 12 }}>手动编辑</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setJsonOpen(true)}
-              style={[styles.timesBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected }]}>
-              <Text style={{ color: colors.text, fontSize: 12 }}>JSON 导入</Text>
-            </Pressable>
-          </View>
-        </CardWrap>
+          </CardWrap>
+        </TourTarget>
 
-        {/* 外观模式 */}
-        <TourTarget id="pf.theme">
-        <CardWrap style={cardStyle(styles.section)}>
-          <Text style={{ color: colors.text, fontWeight: '700' }}>外观模式</Text>
-          <View style={[styles.timesBtnRow, { marginTop: 10, marginBottom: 0 }]}>
-            {THEME_OPTIONS.map((m) => (
+        <TourTarget id="pf.bg">
+          <CardWrap style={cardStyle([styles.section, styles.subCard])}>
+            <Text style={[styles.secTitle, { color: colors.text }]}>自定义背景</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
+              {bg.uri ? '已设置背景图片，全App生效' : '未设置，使用默认纯色背景'}
+            </Text>
+            <View style={[styles.timesBtnRow, { marginTop: 10 }]}>
               <Pressable
-                key={m}
-                onPress={() => void saveThemeMode(m)}
+                onPress={() => void pickBackground()}
+                style={[styles.timesBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected, flex: 1 }]}>
+                <Text style={{ color: colors.text, fontSize: 12 }}>{bg.uri ? '更换图片' : '选择图片'}</Text>
+              </Pressable>
+              <Pressable
+                disabled={!bg.uri}
+                onPress={() => void clearBackground()}
+                style={[styles.timesBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected, flex: 1, opacity: bg.uri ? 1 : 0.4 }]}>
+                <Text style={{ color: colors.text, fontSize: 12 }}>恢复默认背景</Text>
+              </Pressable>
+            </View>
+            {!!bg.uri && (
+              <View style={[styles.timesBtnRow, { marginTop: 8, marginBottom: 0 }]}>
+                {BG_OPACITIES.map((op) => (
+                  <Pressable
+                    key={op}
+                    onPress={() => void setBackgroundOpacity(op)}
+                    style={[
+                      styles.timesBtn,
+                      glassBorder(bg.opacity === op),
+                      { backgroundColor: glass ? (bg.opacity === op ? 'rgba(37,99,235,0.15)' : 'transparent') : bg.opacity === op ? '#2563eb' : colors.backgroundSelected, flex: 1 },
+                    ]}>
+                    <Text style={{ color: bg.opacity === op && !glass ? '#fff' : colors.text, fontSize: 11 }}>
+                      {Math.round(op * 100)}%
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+            {!!bg.uri && (
+              <View style={[styles.timesBtnRow, { marginTop: 8, marginBottom: 0 }]}>
+                <Pressable
+                  onPress={() => void setControlsTransparent(!bg.ctrl)}
+                  style={[
+                    styles.timesBtn,
+                    glassBorder(bg.ctrl),
+                    { flex: 1, backgroundColor: glass ? (bg.ctrl ? 'rgba(37,99,235,0.15)' : 'transparent') : bg.ctrl ? '#2563eb' : colors.backgroundSelected },
+                  ]}>
+                  <Text style={{ color: bg.ctrl && !glass ? '#fff' : colors.text, fontSize: 11 }}>
+                    控件全透明：{bg.ctrl ? '开' : '关'}（只留文字+1px轮廓）
+                  </Text>
+                </Pressable>
+              </View>
+            )}
+          </CardWrap>
+        </TourTarget>
+
+        <CardWrap style={cardStyle([styles.section, styles.subCard])}>
+          <Text style={[styles.secTitle, { color: colors.text }]}>课表界面</Text>
+          <View style={[styles.timesBtnRow, { marginTop: 10, marginBottom: 0 }]}>
+            {(
+              [
+                ['classic', '旧版网格'],
+                ['nova', '新版日程'],
+              ] as [TimetableUI, string][]
+            ).map(([v, label]) => (
+              <Pressable
+                key={v}
+                onPress={() => {
+                  setTtUI(v);
+                  void saveTimetableUI(v);
+                }}
                 style={[
                   styles.timesBtn,
-                  glassBorder(themeMode === m),
-                  { backgroundColor: glass ? (themeMode === m ? 'rgba(37,99,235,0.15)' : 'transparent') : themeMode === m ? '#2563eb' : colors.backgroundSelected, flex: 1 },
+                  glassBorder(ttUI === v),
+                  { backgroundColor: glass ? (ttUI === v ? 'rgba(37,99,235,0.15)' : 'transparent') : ttUI === v ? '#2563eb' : colors.backgroundSelected, flex: 1 },
                 ]}>
-                <Text
-                  style={{
-                    color: themeMode === m && !glass ? '#fff' : colors.text,
-                    fontSize: 12,
-                    fontWeight: themeMode === m ? '700' : '400',
-                  }}>
-                  {themeModeLabel(m)}
+                <Text style={{ color: ttUI === v && !glass ? '#fff' : colors.text, fontSize: 12, fontWeight: ttUI === v ? '700' : '400' }}>
+                  {label}
                 </Text>
               </Pressable>
             ))}
           </View>
         </CardWrap>
-        </TourTarget>
 
-        {/* 天气城市 */}
+        {/* 校园数据: 班级课表 / 作息时间 / 天气城市 */}
         <CardWrap style={cardStyle(styles.section)}>
-          <Text style={{ color: colors.text, fontWeight: '700' }}>天气城市</Text>
-          <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
-            {wxCity ? `手动指定：${wxCity}` : '自动定位（IP 定位，城市可能不准）'}
-          </Text>
-          <View style={[styles.timesBtnRow, { marginTop: 10, marginBottom: 0 }]}>
+          <Text style={[styles.secTitle, { color: colors.text }]}>校园数据</Text>
+
+          <View style={styles.subBlock}>
+            <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>班级课表</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 4 }}>
+              当前班级：{classLabel ?? '未设置'}
+            </Text>
             <Pressable
-              onPress={() => void setWeatherCity(null).then(() => setWxCity(null))}
-              style={[
-                styles.timesBtn,
-                glassBorder(!wxCity),
-                { flex: 1, backgroundColor: glass ? (!wxCity ? 'rgba(37,99,235,0.15)' : 'transparent') : !wxCity ? '#2563eb' : colors.backgroundSelected },
-              ]}>
-              <Text style={{ color: !wxCity && !glass ? '#fff' : colors.text, fontSize: 12 }}>跟随定位</Text>
+              onPress={() => router.push('/settings')}
+              style={[styles.linkBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected }]}>
+              <Text style={{ color: colors.text, fontSize: 13 }}>去设置系部 / 专业 / 班级</Text>
             </Pressable>
-            <Pressable
-              onPress={() => {
-                setWxInput(wxCity ?? '');
-                setWxOpen(true);
-              }}
-              style={[styles.timesBtn, glassBorder(!!wxCity), { flex: 1, backgroundColor: glass ? 'transparent' : colors.backgroundSelected }]}>
-              <Text style={{ color: colors.text, fontSize: 12 }}>手动设置</Text>
+          </View>
+
+          <View style={[styles.subBlock, styles.hairline, { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' }]}>
+            <Pressable onPress={() => setShowTimes((v) => !v)} style={styles.timesHead}>
+              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>作息时间表</Text>
+              <Text style={{ color: '#2563eb', fontSize: 13 }}>{showTimes ? '收起 ▲' : '查看 ▼'}</Text>
             </Pressable>
+            <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 4 }}>
+              当前使用：{source}
+            </Text>
+            {showTimes && (
+              <View style={{ marginTop: 8, gap: 4 }}>
+                {PERIOD_ORDER.filter((p) => times[p]).map((p) => (
+                  <View key={p} style={styles.timeRow}>
+                    <Text style={{ color: colors.text, width: 52, fontSize: 13 }}>{p} 节</Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
+                      {times[p][0]} — {times[p][1]}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+            <View style={styles.timesBtnRow}>
+              <Pressable
+                onPress={() => useSeasonPreset('winter')}
+                style={[styles.timesBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected }]}>
+                <Text style={{ color: colors.text, fontSize: 12 }}>导入冬季</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => useSeasonPreset('summer')}
+                style={[styles.timesBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected }]}>
+                <Text style={{ color: colors.text, fontSize: 12 }}>导入夏季</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setEditOpen(true)}
+                style={[styles.timesBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected }]}>
+                <Text style={{ color: colors.text, fontSize: 12 }}>手动编辑</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setJsonOpen(true)}
+                style={[styles.timesBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected }]}>
+                <Text style={{ color: colors.text, fontSize: 12 }}>JSON 导入</Text>
+              </Pressable>
+            </View>
+          </View>
+
+          <View style={[styles.subBlock, styles.hairline, { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' }]}>
+            <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>天气城市</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
+              {wxCity ? `手动指定：${wxCity}` : '自动定位（IP 定位，城市可能不准）'}
+            </Text>
+            <View style={[styles.timesBtnRow, { marginTop: 10, marginBottom: 0 }]}>
+              <Pressable
+                onPress={() => void setWeatherCity(null).then(() => setWxCity(null))}
+                style={[
+                  styles.timesBtn,
+                  glassBorder(!wxCity),
+                  { flex: 1, backgroundColor: glass ? (!wxCity ? 'rgba(37,99,235,0.15)' : 'transparent') : !wxCity ? '#2563eb' : colors.backgroundSelected },
+                ]}>
+                <Text style={{ color: !wxCity && !glass ? '#fff' : colors.text, fontSize: 12 }}>跟随定位</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  setWxInput(wxCity ?? '');
+                  setWxOpen(true);
+                }}
+                style={[styles.timesBtn, glassBorder(!!wxCity), { flex: 1, backgroundColor: glass ? 'transparent' : colors.backgroundSelected }]}>
+                <Text style={{ color: colors.text, fontSize: 12 }}>手动设置</Text>
+              </Pressable>
+            </View>
           </View>
         </CardWrap>
 
         {/* 倒计时 */}
         <CardWrap style={cardStyle(styles.section)}>
-          <Text style={{ color: colors.text, fontWeight: '700' }}>倒计时</Text>
+          <Text style={[styles.secTitle, { color: colors.text }]}>倒计时</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
             显示在课表页顶部，如四六级、期末考试
           </Text>
@@ -554,105 +652,9 @@ export default function ProfileScreen() {
           </View>
         </CardWrap>
 
-        {/* 自定义背景 */}
-        <TourTarget id="pf.bg">
+        {/* 数据与备份 */}
         <CardWrap style={cardStyle(styles.section)}>
-          <Text style={{ color: colors.text, fontWeight: '700' }}>自定义背景</Text>
-          <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
-            {bg.uri ? '已设置背景图片，全App生效' : '未设置，使用默认纯色背景'}
-          </Text>
-          <View style={[styles.timesBtnRow, { marginTop: 10 }]}>
-            <Pressable
-              onPress={() => void pickBackground()}
-              style={[styles.timesBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected, flex: 1 }]}>
-              <Text style={{ color: colors.text, fontSize: 12 }}>{bg.uri ? '更换图片' : '选择图片'}</Text>
-            </Pressable>
-            <Pressable
-              disabled={!bg.uri}
-              onPress={() => void clearBackground()}
-              style={[styles.timesBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected, flex: 1, opacity: bg.uri ? 1 : 0.4 }]}>
-              <Text style={{ color: colors.text, fontSize: 12 }}>恢复默认背景</Text>
-            </Pressable>
-          </View>
-          {!!bg.uri && (
-            <View style={[styles.timesBtnRow, { marginTop: 8, marginBottom: 0 }]}>
-              {BG_OPACITIES.map((op) => (
-                <Pressable
-                  key={op}
-                  onPress={() => void setBackgroundOpacity(op)}
-                  style={[
-                    styles.timesBtn,
-                    glassBorder(bg.opacity === op),
-                    { backgroundColor: glass ? (bg.opacity === op ? 'rgba(37,99,235,0.15)' : 'transparent') : bg.opacity === op ? '#2563eb' : colors.backgroundSelected, flex: 1 },
-                  ]}>
-                  <Text style={{ color: bg.opacity === op && !glass ? '#fff' : colors.text, fontSize: 11 }}>
-                    {Math.round(op * 100)}%
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
-          {!!bg.uri && (
-            <View style={[styles.timesBtnRow, { marginTop: 8, marginBottom: 0 }]}>
-              <Pressable
-                onPress={() => void setControlsTransparent(!bg.ctrl)}
-                style={[
-                  styles.timesBtn,
-                  glassBorder(bg.ctrl),
-                  { flex: 1, backgroundColor: glass ? (bg.ctrl ? 'rgba(37,99,235,0.15)' : 'transparent') : bg.ctrl ? '#2563eb' : colors.backgroundSelected },
-                ]}>
-                <Text style={{ color: bg.ctrl && !glass ? '#fff' : colors.text, fontSize: 11 }}>
-                  控件全透明：{bg.ctrl ? '开' : '关'}（只留文字+1px轮廓）
-                </Text>
-              </Pressable>
-            </View>
-          )}
-        </CardWrap>
-        </TourTarget>
-
-        {/* 课表界面风格 */}
-        <CardWrap style={cardStyle(styles.section)}>
-          <Text style={{ color: colors.text, fontWeight: '700' }}>课表界面</Text>
-          <View style={[styles.timesBtnRow, { marginTop: 10, marginBottom: 0 }]}>
-            {(
-              [
-                ['classic', '旧版网格'],
-                ['nova', '新版日程'],
-              ] as [TimetableUI, string][]
-            ).map(([v, label]) => (
-              <Pressable
-                key={v}
-                onPress={() => {
-                  setTtUI(v);
-                  void saveTimetableUI(v);
-                }}
-                style={[
-                  styles.timesBtn,
-                  glassBorder(ttUI === v),
-                  { backgroundColor: glass ? (ttUI === v ? 'rgba(37,99,235,0.15)' : 'transparent') : ttUI === v ? '#2563eb' : colors.backgroundSelected, flex: 1 },
-                ]}>
-                <Text style={{ color: ttUI === v && !glass ? '#fff' : colors.text, fontSize: 12, fontWeight: ttUI === v ? '700' : '400' }}>
-                  {label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </CardWrap>
-
-        {/* 支持开发者(赞助收款码) */}
-        <Pressable
-          onPress={() => setSponsorOpen(true)}
-          style={[styles.timesBtn, glassBorder(), { marginTop: Spacing.three, backgroundColor: glass ? 'transparent' : colors.backgroundSelected, justifyContent: 'center', minHeight: 44 }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            <Ionicons name="heart" size={16} color="#ef4444" />
-            <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>支持开发者</Text>
-            <Text style={{ color: colors.textSecondary, fontSize: 11 }}>(请喝杯奶茶)</Text>
-          </View>
-        </Pressable>
-
-        {/* 数据备份 */}
-        <CardWrap style={cardStyle(styles.section)}>
-          <Text style={{ color: colors.text, fontWeight: '700' }}>数据备份</Text>
+          <Text style={[styles.secTitle, { color: colors.text }]}>数据与备份</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
             备份班级设置、作息、待办、倒计时、主题、镜像与账号。导出的 JSON 可发送到微信/QQ 收藏，换机或重装后粘贴导入。
           </Text>
@@ -688,26 +690,56 @@ export default function ProfileScreen() {
           </Pressable>
         </CardWrap>
 
-        {/* 开发者选项入口 */}
-        <Pressable
-          onPress={() => router.push('/dev' as never)}
-          style={[styles.timesBtn, glassBorder(), { marginTop: Spacing.three, backgroundColor: glass ? 'transparent' : colors.backgroundSelected, justifyContent: 'center', minHeight: 44 }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            <Ionicons name="terminal-outline" size={16} color={colors.textSecondary} />
-            <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>开发者选项</Text>
-            <Text style={{ color: colors.textSecondary, fontSize: 11 }}>(登录修复 / 调试)</Text>
-          </View>
-        </Pressable>
+        {/* 通用 */}
+        <CardWrap style={cardStyle(styles.section)}>
+          <Text style={[styles.secTitle, { color: colors.text }]}>通用</Text>
 
-        {/* 用户协议 */}
-        <Pressable
-          onPress={() => setAgreementOpen(true)}
-          style={[styles.timesBtn, glassBorder(), { marginTop: Spacing.two, backgroundColor: glass ? 'transparent' : colors.backgroundSelected, justifyContent: 'center', minHeight: 44 }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            <Ionicons name="document-text-outline" size={16} color={colors.textSecondary} />
-            <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>用户协议</Text>
-          </View>
-        </Pressable>
+          <Pressable onPress={() => setSponsorOpen(true)} style={styles.rowBtn}>
+            <Ionicons name="heart" size={17} color="#ef4444" />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>支持开发者</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 11 }}>请开发者喝杯奶茶（收款码）</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+          </Pressable>
+
+          <Pressable
+            onPress={() => {
+              setSiteInput(siteUrl);
+              setSiteOpen(true);
+            }}
+            style={[styles.rowBtn, styles.hairline, { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' }]}>
+            <Ionicons name="globe-outline" size={17} color="#2563eb" />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>官网接口地址</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 11 }} numberOfLines={1}>
+                {siteUrl}（公告 / 收款码下发）
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push('/dev' as never)}
+            style={[styles.rowBtn, styles.hairline, { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' }]}>
+            <Ionicons name="terminal-outline" size={17} color={colors.textSecondary} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>开发者选项</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 11 }}>登录修复 / 调试</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+          </Pressable>
+
+          <Pressable
+            onPress={() => setAgreementOpen(true)}
+            style={[styles.rowBtn, styles.hairline, { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' }]}>
+            <Ionicons name="document-text-outline" size={17} color={colors.textSecondary} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>用户协议</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+          </Pressable>
+        </CardWrap>
 
         <UpdateCard colors={colors} />
       </ScrollView>
@@ -834,6 +866,58 @@ export default function ProfileScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+      <Modal visible={siteOpen} transparent animationType="fade" onRequestClose={() => setSiteOpen(false)}>
+        <Pressable style={styles.modalMask} onPress={() => setSiteOpen(false)}>
+          <Pressable style={[styles.modalBox, { backgroundColor: colors.background }]} onPress={() => {}}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>官网接口地址</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 13, lineHeight: 20 }}>
+              App 从官网拉取公告与赞助收款码。地址填站点根（不带 /api/config.php），默认 {DEFAULT_SITE_URL}
+            </Text>
+            <TextInput
+              value={siteInput}
+              onChangeText={setSiteInput}
+              placeholder={DEFAULT_SITE_URL}
+              placeholderTextColor={colors.textSecondary}
+              autoCapitalize="none"
+              keyboardType="url"
+              style={[
+                styles.editInput,
+                {
+                  backgroundColor: colors.backgroundElement,
+                  color: colors.text,
+                  marginTop: 10,
+                  borderWidth: 1,
+                  borderColor: 'rgba(100,116,139,0.45)',
+                  minHeight: 44,
+                  fontSize: 14,
+                },
+              ]}
+            />
+            <View style={styles.modalBtnRow}>
+              <Pressable
+                onPress={() => {
+                  void setSiteUrl(null).then(() => {
+                    setSiteUrlState(DEFAULT_SITE_URL);
+                    setSiteOpen(false);
+                  });
+                }}
+                style={[styles.modalBtn, { backgroundColor: colors.backgroundElement }]}>
+                <Text style={{ color: colors.text }}>恢复默认</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  void setSiteUrl(siteInput).then((u) => {
+                    setSiteUrlState(u);
+                    setSiteOpen(false);
+                  });
+                }}
+                style={[styles.modalBtn, { backgroundColor: '#2563eb' }]}>
+                <Text style={{ color: '#fff', fontWeight: '700' }}>保存</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -848,6 +932,11 @@ const styles = StyleSheet.create({
   startBtn: { flex: 1, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   saveBtn: { borderRadius: 12, alignItems: 'center', paddingVertical: 13, marginTop: Spacing.three },
   section: { borderRadius: 12, padding: Spacing.two, marginTop: Spacing.three, gap: Spacing.one },
+  secTitle: { fontSize: 15, fontWeight: '800' },
+  subCard: { marginTop: Spacing.two },
+  subBlock: { paddingTop: Spacing.one, marginTop: 2 },
+  hairline: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: Spacing.one },
+  rowBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, marginTop: 2 },
   linkBtn: { borderRadius: 10, paddingVertical: 10, alignItems: 'center', marginTop: Spacing.one },
   timesHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   timeRow: { flexDirection: 'row', alignItems: 'center' },
