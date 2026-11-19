@@ -112,7 +112,7 @@ export async function applyPreset(id: PresetId): Promise<void> {
   if (cache.presetId === 'custom') await snapshotCustom();
   await saveUiMode(def.uiMode);
   await saveThemeMode(def.scheme);
-  await setBgSetting({ ...getBackground(), uri: null });
+  // 保留背景图不清除: 用户可在"自定义背景"里手动恢复默认, 避免切档位丢背景
   await setPresetId(id);
 }
 

@@ -356,14 +356,41 @@ export async function toDisplayUri(vpath: string): Promise<string | null> {
   if (!vpath.startsWith('class://')) return vpath;
   const hit = displayCache.get(vpath);
   if (hit) return hit;
-  if (!(await ensureMode())) return null;
   const p = parseVPath(vpath);
   if (!p?.name) return null;
-  let uri: string | null = null;
-  if (mode === 'saf') uri = await safFileUri(p.sub, p.name);
-  else uri = directPath(vpath);
-  if (uri) displayCache.set(vpath, uri);
-  return uri;
+  const fallback = directPath(vpath);
+  if (await ensureMode()) {
+    if (mode === 'saf') {
+      const uri = await safFileUri(p.sub, p.name);
+      if (!uri) {
+        // SAF 目录里找不到(可能是直连时代写入的旧文件): 兜底直连路径
+        if (fallback) displayCache.set(vpath, fallback);
+        return fallback;
+      }
+      // 拷贝到应用缓存目录再展示(content:// 部分机型 Image 组件不认)
+      try {
+        const b64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+        const ext = p.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const cacheUri = `${FileSystem.cacheDirectory}class-display.${ext}`;
+        await FileSystem.writeAsStringAsync(cacheUri, b64, { encoding: FileSystem.EncodingType.Base64 });
+        displayCache.set(vpath, cacheUri);
+        return cacheUri;
+      } catch {
+        displayCache.set(vpath, uri);
+        return uri;
+      }
+    }
+    if (fallback) {
+      displayCache.set(vpath, fallback);
+      return fallback;
+    }
+  }
+  // 无权限: 兜底返回直连路径(文件存在时 Image 可直接读, 与旧版本行为一致)
+  if (fallback) {
+    displayCache.set(vpath, fallback);
+    return fallback;
+  }
+  return null;
 }
 
 /** 当前访问通道(供诊断展示): 'direct' | 'saf' | null */

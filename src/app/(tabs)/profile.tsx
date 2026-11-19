@@ -371,8 +371,10 @@ export default function ProfileScreen() {
       {/* 墨夜背景: 深空渐变 + 顶部辉光(绝对定位铺满, 原版模式不渲染) */}
       {night && <NightGlowBackground>{null}</NightGlowBackground>}
       <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {/* 设置搜索: 关键字匹配功能并跳转 */}
-        <View style={[glass ? { borderWidth: 1, borderColor: glassLine } : { backgroundColor: colors.backgroundElement }, { borderRadius: 12, padding: 12 }]}>
+        <Text style={[styles.title, { color: colors.text }]}>我的</Text>
+
+        {/* 设置搜索: 关键字匹配功能并跳转(位于标题下方) */}
+        <View style={[glass ? { borderWidth: 1, borderColor: glassLine } : { backgroundColor: colors.backgroundElement }, { borderRadius: 12, padding: 12, marginTop: 4 }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Ionicons name="search" size={16} color={colors.textSecondary} />
             <TextInput
@@ -421,8 +423,6 @@ export default function ProfileScreen() {
             </View>
           )}
         </View>
-
-        <Text style={[styles.title, { color: colors.text }]}>我的</Text>
 
         {/* 主站账号 */}
         <CardWrap style={cardStyle(styles.section)}>
@@ -537,39 +537,35 @@ export default function ProfileScreen() {
                 <Text style={{ color: colors.text, fontSize: 12 }}>恢复默认背景</Text>
               </Pressable>
             </View>
-            {!!bg.uri && (
-              <View style={[styles.timesBtnRow, { marginTop: 8, marginBottom: 0 }]}>
-                {BG_OPACITIES.map((op) => (
-                  <Pressable
-                    key={op}
-                    onPress={() => void setBackgroundOpacity(op)}
-                    style={[
-                      styles.timesBtn,
-                      glassBorder(bg.opacity === op),
-                      { backgroundColor: glass ? (bg.opacity === op ? 'rgba(37,99,235,0.15)' : 'transparent') : bg.opacity === op ? colors.primary : colors.backgroundSelected, flex: 1 },
-                    ]}>
-                    <Text style={{ color: bg.opacity === op && !glass ? '#fff' : colors.text, fontSize: 11 }}>
-                      {Math.round(op * 100)}%
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-            {!!bg.uri && (
-              <View style={[styles.timesBtnRow, { marginTop: 8, marginBottom: 0 }]}>
+            <View style={[styles.timesBtnRow, { marginTop: 8, marginBottom: 0 }]}>
+              {BG_OPACITIES.map((op) => (
                 <Pressable
-                  onPress={() => void setControlsTransparent(!bg.ctrl)}
+                  key={op}
+                  onPress={() => void setBackgroundOpacity(op)}
                   style={[
                     styles.timesBtn,
-                    glassBorder(bg.ctrl),
-                    { flex: 1, backgroundColor: glass ? (bg.ctrl ? 'rgba(37,99,235,0.15)' : 'transparent') : bg.ctrl ? colors.primary : colors.backgroundSelected },
+                    glassBorder(bg.opacity === op),
+                    { backgroundColor: glass ? (bg.opacity === op ? 'rgba(37,99,235,0.15)' : 'transparent') : bg.opacity === op ? colors.primary : colors.backgroundSelected, flex: 1 },
                   ]}>
-                  <Text style={{ color: bg.ctrl && !glass ? '#fff' : colors.text, fontSize: 11 }}>
-                    控件全透明：{bg.ctrl ? '开' : '关'}（只留文字+1px轮廓）
+                  <Text style={{ color: bg.opacity === op && !glass ? '#fff' : colors.text, fontSize: 11 }}>
+                    {Math.round(op * 100)}%
                   </Text>
                 </Pressable>
-              </View>
-            )}
+              ))}
+            </View>
+            <View style={[styles.timesBtnRow, { marginTop: 8, marginBottom: 0 }]}>
+              <Pressable
+                onPress={() => void setControlsTransparent(!bg.ctrl)}
+                style={[
+                  styles.timesBtn,
+                  glassBorder(bg.ctrl),
+                  { flex: 1, backgroundColor: glass ? (bg.ctrl ? 'rgba(37,99,235,0.15)' : 'transparent') : bg.ctrl ? colors.primary : colors.backgroundSelected },
+                ]}>
+                <Text style={{ color: bg.ctrl && !glass ? '#fff' : colors.text, fontSize: 11 }}>
+                  控件全透明：{bg.ctrl ? '开' : '关'}（只留文字+1px轮廓）
+                </Text>
+              </Pressable>
+            </View>
           </CardWrap>
         </TourTarget>
 

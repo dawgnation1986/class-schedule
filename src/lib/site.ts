@@ -72,7 +72,8 @@ export async function fetchSiteConfig(): Promise<SiteConfig | null> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 8000);
   try {
-    const r = await fetch(`${base}/api/config.php`, { signal: ctrl.signal });
+    // 加时间戳参数穿透任何中间缓存, 保证公告启停立即生效
+    const r = await fetch(`${base}/api/config.php?t=${Date.now()}`, { signal: ctrl.signal });
     if (!r.ok) return null;
     const j = (await r.json()) as SiteConfig;
     return j && typeof j === 'object' ? j : null;
