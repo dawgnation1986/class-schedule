@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { QueryType } from './timetable';
+import type { QueryType, Timetable } from './timetable';
 
 export type Settings = {
   xb: string; // 系部代码, 如 08
@@ -48,4 +48,28 @@ export async function loadSettings(): Promise<Settings | null> {
 
 export async function saveSettings(s: Settings): Promise<void> {
   await AsyncStorage.setItem(KEY, JSON.stringify(s));
+}
+
+const TT_CACHE_KEY = 'timetable.cache.v1';
+
+/** 保存最近一次成功查询的课表(打开 App 先显示缓存, 后台刷新) */
+export async function saveTimetableCache(tt: Timetable): Promise<void> {
+  try {
+    if (!tt?.rows?.length) return;
+    await AsyncStorage.setItem(TT_CACHE_KEY, JSON.stringify(tt));
+  } catch {
+    // 缓存失败不影响主流程
+  }
+}
+
+/** 读取上次缓存的课表(无缓存返回 null) */
+export async function loadTimetableCache(): Promise<Timetable | null> {
+  try {
+    const raw = await AsyncStorage.getItem(TT_CACHE_KEY);
+    if (!raw) return null;
+    const tt = JSON.parse(raw) as Timetable;
+    return tt?.rows?.length ? tt : null;
+  } catch {
+    return null;
+  }
 }

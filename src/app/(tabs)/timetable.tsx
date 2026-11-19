@@ -36,7 +36,7 @@ import {
   type Timetable,
   type TimetableRow,
 } from '@/lib/timetable';
-import { DEFAULT_QUERY_TYPE, loadSettings, loadTimetableUI, type Settings, type TimetableUI } from '@/lib/settings';
+import { DEFAULT_QUERY_TYPE, loadSettings, loadTimetableCache, loadTimetableUI, saveTimetableCache, type Settings, type TimetableUI } from '@/lib/settings';
 import { getTempOverride, setTempOverride } from '@/lib/tempOverride';
 import { fetchWeather, fetchWeatherFull, setWeatherCity, type Weather, type WeatherFull } from '@/lib/weather';
 import { WeatherModal } from '@/components/weather-modal';
@@ -378,6 +378,10 @@ function ClassicScreen() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [usingTemp, setUsingTemp] = useState(false); // 是否正在临时查看其他班级
   const [timetable, setTimetable] = useState<Timetable | null>(null);
+  // 打开页面先显示上次缓存的课表(秒开), 后台再刷新最新数据
+  useEffect(() => {
+    void loadTimetableCache().then((c) => setTimetable((cur) => cur ?? c));
+  }, []);
   const [queryType, setQueryType] = useState<QueryType>(DEFAULT_QUERY_TYPE);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -445,7 +449,8 @@ function ClassicScreen() {
         date ?? selectedDateRef.current,
       );
       setTimetable(tt);
-      // 按最新课表重排未来 7 天的提醒(上课前 5 分钟 + 下课前 1 分钟, 静默失败)
+      void saveTimetableCache(tt);
+      // 按最新课表重排未来 7 天的提醒(上课/下课提前 N 分钟, 静默失败)
       scheduleClassReminders(tt);
     } catch (e) {
       setError(e instanceof Error ? e.message : '查询失败，请重试');
@@ -818,11 +823,11 @@ function ClassicScreen() {
       )}
 
       {error && <Text style={styles.error}>{error}</Text>}
-      {loading && <Text style={[styles.loadingText, { color: colors.textSecondary }]}>正在查询课表…</Text>}
+      {loading && !timetable && <Text style={[styles.loadingText, { color: colors.textSecondary }]}>正在查询课表…</Text>}
       {!loading && timetable && timetable.rows.length === 0 && (
         <Text style={[styles.loadingText, { color: colors.textSecondary }]}>没有查询到课表数据</Text>
       )}
-      {!loading && timetable && timetable.rows.length > 0 && (
+      {timetable && timetable.rows.length > 0 && (
         <TourTarget id="tt.grid" style={{ flex: 1 }}>
         <PinchZoom>
           <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.tableContent}>

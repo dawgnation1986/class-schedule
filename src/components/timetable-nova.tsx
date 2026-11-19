@@ -18,7 +18,7 @@ import {
   selectMajor,
   type Timetable,
 } from '@/lib/timetable';
-import { loadSettings, saveTimetableUI, type TimetableUI } from '@/lib/settings';
+import { loadSettings, loadTimetableCache, saveTimetableCache, saveTimetableUI, type TimetableUI } from '@/lib/settings';
 import { getPeriodTimes, subscribeTimes } from '@/lib/schedule-times';
 
 const WEEK_NAMES = ['日', '一', '二', '三', '四', '五', '六'];
@@ -70,6 +70,16 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
 
   useEffect(() => subscribeTimes(() => setPeriodTimes(getPeriodTimes())), []);
 
+  // 打开页面先显示上次缓存的课表(秒开), 后台再刷新最新数据
+  useEffect(() => {
+    void loadTimetableCache().then((c) => {
+      if (c) {
+        setTimetable((cur) => cur ?? c);
+        setLoading(false);
+      }
+    });
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       let alive = true;
@@ -88,7 +98,10 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
           const withMajors = await selectDepartment(initial, s.xb);
           const withClasses = await selectMajor(withMajors, s.xb, s.zy);
           const tt = await queryTimetable(withClasses, s.xb, s.zy, s.bj, 'realtime', selected);
-          if (alive) setTimetable(tt);
+          if (alive) {
+            setTimetable(tt);
+            void saveTimetableCache(tt);
+          }
         } catch (e) {
           if (alive) setError(e instanceof Error ? e.message : '查询失败，请重试');
         } finally {
@@ -216,7 +229,7 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
         })}
       </View>
 
-      {loading && (
+      {loading && items.length === 0 && (
         <View style={styles.center}>
           <ActivityIndicator color={colors.primary} />
           <Text style={{ color: colors.textSecondary, marginTop: 10 }}>正在查询课表…</Text>
@@ -240,7 +253,7 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
         </View>
       )}
 
-      {!loading && !noSettings && !error && items.length === 0 && (
+      {!noSettings && !error && items.length === 0 && (
         <View style={styles.center}>
           <Ionicons name="sunny-outline" size={44} color="#f59e0b" />
           <Text style={{ color: colors.text, fontSize: 17, fontWeight: '700', marginTop: 12 }}>这一天没有课</Text>
@@ -248,7 +261,7 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
         </View>
       )}
 
-      {!loading && !noSettings && !error && items.length > 0 && (
+      {!noSettings && !error && items.length > 0 && (
         <ScrollView style={styles.list} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
           {items.map((it, i) => {
             const st = statusOf(it);
