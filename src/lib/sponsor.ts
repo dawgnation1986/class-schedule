@@ -6,7 +6,17 @@ import { getMirrors } from '@/lib/gh-mirrors';
 import { fetchSiteConfig, getSiteUrl, siteAssetUrl } from '@/lib/site';
 
 const RAW_URL = `https://raw.githubusercontent.com/${REPO}/master/sponsor/sponsor.json`;
-export const SPONSOR_PAGE_URL = `https://github.com/${REPO}/blob/master/sponsor`;
+
+/** 赞助网页地址: 官网 sponsor.php 优先, 拿不到官网地址时回退 GitHub 页面 */
+export async function sponsorPageUrl(): Promise<string> {
+  try {
+    const base = await getSiteUrl();
+    if (base) return `${base.replace(/\/+$/, '')}/sponsor.php`;
+  } catch {
+    // 落回 GitHub
+  }
+  return `https://github.com/${REPO}/blob/master/sponsor`;
+}
 
 export type SponsorInfo = {
   /** 收款码图片地址(完整 URL) */

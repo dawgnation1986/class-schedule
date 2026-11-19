@@ -51,8 +51,13 @@ import {
 } from '@/lib/schedule-times';
 import { UpdateCard } from '@/components/update-card';
 import { SponsorModal } from '@/components/sponsor-modal';
-import { TourTarget, registerTourScroller } from '@/components/tour';
+import { ThemePresetPicker } from '@/components/theme-preset-picker';
+import { UiModePicker } from '@/components/ui-mode-picker';
+import { AboutGithub } from '@/components/about-github';
+import { OnboardingModal } from '@/components/onboarding';
+import { TourTarget, registerTourScroller, startCoachTour } from '@/components/tour';
 import { AgreementModal } from '@/components/agreement';
+import { requestClassAccess } from '@/lib/class-folder';
 import { DEFAULT_SITE_URL, getSiteUrl, setSiteUrl, subscribeSiteUrl } from '@/lib/site';
 
 const PERIOD_ORDER = ['1-2', '3-4', '中午', '5-6', '7-8', '9-10'];
@@ -259,6 +264,7 @@ export default function ProfileScreen() {
   const [bkText, setBkText] = useState('');
   const [agreementOpen, setAgreementOpen] = useState(false);
   const [sponsorOpen, setSponsorOpen] = useState(false);
+  const [introOpen, setIntroOpen] = useState(false);
   // 官网接口地址(公告/收款码下发源)
   const [siteUrl, setSiteUrlState] = useState<string>(DEFAULT_SITE_URL);
   const [siteOpen, setSiteOpen] = useState(false);
@@ -402,6 +408,12 @@ export default function ProfileScreen() {
             </Text>
           </Pressable>
         </CardWrap>
+
+        {/* 主题预设: 自定义/纯白/纯黑/墨夜/护眼米黄/淡雅蓝 (含主题导出/导入/自定义配色) */}
+        <ThemePresetPicker />
+
+        {/* 界面设置: 原版界面 / 墨夜主题 */}
+        <UiModePicker />
 
         {/* 外观: 主题模式 / 自定义背景 / 课表界面 */}
         <TourTarget id="pf.theme">
@@ -682,7 +694,11 @@ export default function ProfileScreen() {
             onPress={() =>
               void saveBackupToClass().then((r) => {
                 if (r.ok) Alert.alert('已保存', `备份文件已存到 ${r.path}`);
-                else Alert.alert('保存失败', r.error ?? '未知错误');
+                else
+                  Alert.alert('保存失败', `${r.error ?? '未知错误'}\n点"去授权"后返回重试`, [
+                    { text: '取消', style: 'cancel' },
+                    { text: '去授权', onPress: () => requestClassAccess() },
+                  ]);
               })
             }
             style={[styles.timesBtn, glassBorder(), { marginTop: 8, backgroundColor: glass ? 'transparent' : colors.backgroundSelected, justifyContent: 'center', minHeight: 40 }]}>
@@ -720,6 +736,28 @@ export default function ProfileScreen() {
           </Pressable>
 
           <Pressable
+            onPress={() => startCoachTour()}
+            style={[styles.rowBtn, styles.hairline, { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' }]}>
+            <Ionicons name="compass" size={17} color="#2563eb" />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>新手引导</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 11 }}>方块高亮+箭头指引, 一步步逛 App</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+          </Pressable>
+
+          <Pressable
+            onPress={() => setIntroOpen(true)}
+            style={[styles.rowBtn, styles.hairline, { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' }]}>
+            <Ionicons name="book" size={17} color="#7c3aed" />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>图文功能教程</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 11 }}>6 页图文介绍, 随时回看</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+          </Pressable>
+
+          <Pressable
             onPress={() => router.push('/dev' as never)}
             style={[styles.rowBtn, styles.hairline, { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' }]}>
             <Ionicons name="terminal-outline" size={17} color={colors.textSecondary} />
@@ -742,12 +780,15 @@ export default function ProfileScreen() {
         </CardWrap>
 
         <UpdateCard colors={colors} />
+        <AboutGithub colors={colors} />
       </ScrollView>
 
       <TimesEditorModal visible={editOpen} initial={times} onClose={() => setEditOpen(false)} colors={colors} />
       <JsonImportModal visible={jsonOpen} onClose={() => setJsonOpen(false)} colors={colors} />
       {/* 用户协议(查看模式) */}
       <AgreementModal visible={agreementOpen} mode="view" onClose={() => setAgreementOpen(false)} />
+      {/* 图文功能教程(常驻入口) */}
+      <OnboardingModal visible={introOpen} onClose={() => setIntroOpen(false)} />
       {/* 赞助开发者(收款码) */}
       <SponsorModal visible={sponsorOpen} onClose={() => setSponsorOpen(false)} colors={colors} />
       {/* 导出备份: 展示 JSON + 系统分享 */}

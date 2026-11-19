@@ -42,7 +42,7 @@ const SNAP_KEY = 'theme-appearance-snap-v1';
 /** 自定义外观快照(切到内置档位前保存, 切回"自定义"时还原) */
 type AppearanceSnap = { uiMode: UiMode; themeMode: ThemeMode; bg: BgSetting };
 
-let cache: { presetId: PresetId; snap: AppearanceSnap | null } = { presetId: 'custom', snap: null };
+let cache: { presetId: PresetId; snap: AppearanceSnap | null; customPalette?: CustomPaletteId } = { presetId: 'custom', snap: null };
 let loaded = false;
 const subs = new Set<() => void>();
 
@@ -59,6 +59,8 @@ export async function primeThemePreset(): Promise<void> {
     if (id && PRESETS.some((p) => p.id === id)) cache.presetId = id;
     const snapRaw = await AsyncStorage.getItem(SNAP_KEY);
     if (snapRaw) cache.snap = JSON.parse(snapRaw) as AppearanceSnap;
+    const cpRaw = await AsyncStorage.getItem(CPALETTE_KEY);
+    if (cpRaw && CUSTOM_PALETTES.some((p) => p.id === cpRaw)) cache.customPalette = cpRaw as CustomPaletteId;
   } catch {
     // 保持默认
   }
@@ -116,6 +118,47 @@ export async function applyPreset(id: PresetId): Promise<void> {
 /** 是否处于自定义调色板预设(护眼米黄/淡雅蓝) */
 export function presetPalette(id: PresetId): 'sepia' | 'azure' | null {
   return PRESETS.find((p) => p.id === id)?.palette ?? null;
+}
+
+// ---------- 自定义配色(仅"自定义"档生效, 覆盖浅色/深色底色) ----------
+
+export type CustomPaletteId = 'default' | 'sepia' | 'azure' | 'green' | 'pink' | 'violet';
+
+type PaletteOverride = {
+  text: string;
+  background: string;
+  backgroundElement: string;
+  backgroundSelected: string;
+  textSecondary: string;
+};
+
+export const CUSTOM_PALETTES: { id: CustomPaletteId; label: string; swatch: string; light: PaletteOverride; dark: PaletteOverride }[] = [
+  { id: 'default', label: '默认', swatch: '#E0E1E6', light: { text: '#000000', background: '#ffffff', backgroundElement: '#F0F0F3', backgroundSelected: '#E0E1E6', textSecondary: '#60646C' }, dark: { text: '#ffffff', background: '#000000', backgroundElement: '#212225', backgroundSelected: '#2E3135', textSecondary: '#B0B4BA' } },
+  { id: 'sepia', label: '米黄', swatch: '#F7F1E3', light: { text: '#3E3423', background: '#F7F1E3', backgroundElement: '#EFE7D3', backgroundSelected: '#E3D9BF', textSecondary: '#857A61' }, dark: { text: '#EFE7D3', background: '#1C1913', backgroundElement: '#2A251B', backgroundSelected: '#38311F', textSecondary: '#A99F86' } },
+  { id: 'azure', label: '浅蓝', swatch: '#CFE0F0', light: { text: '#1B3A5C', background: '#F3F8FD', backgroundElement: '#E4EEF8', backgroundSelected: '#CFE0F0', textSecondary: '#5B7B9E' }, dark: { text: '#DCE8F5', background: '#0F1620', backgroundElement: '#1A2330', backgroundSelected: '#24334A', textSecondary: '#8FA6C0' } },
+  { id: 'green', label: '浅绿', swatch: '#CFE4D1', light: { text: '#1F3A26', background: '#F1F8F2', backgroundElement: '#E2EFE3', backgroundSelected: '#CFE4D1', textSecondary: '#5F7D68' }, dark: { text: '#DCEBDC', background: '#101710', backgroundElement: '#1A261A', backgroundSelected: '#243324', textSecondary: '#93A893' } },
+  { id: 'pink', label: '樱花粉', swatch: '#F2D5DF', light: { text: '#43242F', background: '#FDF3F6', backgroundElement: '#F9E6EC', backgroundSelected: '#F2D5DF', textSecondary: '#96687A' }, dark: { text: '#F5DCE4', background: '#1B1013', backgroundElement: '#2A1A20', backgroundSelected: '#38222B', textSecondary: '#B293A0' } },
+  { id: 'violet', label: '淡紫', swatch: '#DFD7F1', light: { text: '#2C2350', background: '#F6F3FD', backgroundElement: '#ECE7F9', backgroundSelected: '#DFD7F1', textSecondary: '#71679B' }, dark: { text: '#E6DDF7', background: '#14101E', backgroundElement: '#201A30', backgroundSelected: '#2B2340', textSecondary: '#A296BF' } },
+];
+
+const CPALETTE_KEY = 'theme-custom-palette-v1';
+
+/** 取当前自定义配色(默认/未设置时为 'default') */
+export function getCustomPaletteId(): CustomPaletteId {
+  return cache.customPalette ?? 'default';
+}
+
+/** 切换自定义配色(仅"自定义"档使用; 其他档位会忽略) */
+export async function setCustomPaletteId(id: CustomPaletteId): Promise<void> {
+  cache.customPalette = id;
+  await AsyncStorage.setItem(CPALETTE_KEY, id).catch(() => {});
+  notify();
+}
+
+/** 自定义配色改动也走同一订阅通道(usePresetId 会刷新) */
+export function subscribeCustomPalette(cb: () => void): () => void {
+  subs.add(cb);
+  return () => subs.delete(cb);
 }
 
 // ---------- 导出 / 导入 ----------

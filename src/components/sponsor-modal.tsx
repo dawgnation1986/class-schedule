@@ -4,7 +4,7 @@ import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, T
 import { Image } from 'expo-image';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
-import { fetchSponsor, SPONSOR_PAGE_URL, type SponsorInfo } from '@/lib/sponsor';
+import { fetchSponsor, sponsorPageUrl, type SponsorInfo } from '@/lib/sponsor';
 import { type Palette } from '@/constants/theme';
 
 export function SponsorModal({
@@ -75,7 +75,7 @@ export function SponsorModal({
               <Text style={{ color: colors.text }}>关闭</Text>
             </Pressable>
             <Pressable
-              onPress={() => void Linking.openURL(SPONSOR_PAGE_URL)}
+              onPress={() => void sponsorPageUrl().then((u) => Linking.openURL(u))}
               style={[styles.btn, { backgroundColor: '#2563eb' }]}>
               <Text style={{ color: '#fff', fontWeight: '700' }}>在网页查看</Text>
             </Pressable>

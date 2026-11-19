@@ -10,7 +10,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { NightCard, NightTint } from '@/components/night-kit';
 import { usePresetId } from '@/hooks/use-preset-id';
 import { useUiMode } from '@/hooks/use-ui-mode';
-import { applyPreset, applyThemeFile, deleteThemeFile, exportTheme, listThemeFiles, PRESETS, type PresetFile } from '@/lib/theme-preset';
+import { applyPreset, applyThemeFile, CUSTOM_PALETTES, deleteThemeFile, exportTheme, getCustomPaletteId, listThemeFiles, PRESETS, setCustomPaletteId, subscribeCustomPalette, type CustomPaletteId, type PresetFile } from '@/lib/theme-preset';
 import { hasClassAccess, requestClassAccess } from '@/lib/class-folder';
 
 export function ThemePresetPicker() {
@@ -18,6 +18,8 @@ export function ThemePresetPicker() {
   const uiMode = useUiMode();
   const night = uiMode === 'night';
   const presetId = usePresetId();
+  const [paletteId, setPaletteId] = useState<CustomPaletteId>(() => getCustomPaletteId());
+  useEffect(() => subscribeCustomPalette(() => setPaletteId(getCustomPaletteId())), []);
   const [access, setAccess] = useState<boolean | null>(null);
   const [expOpen, setExpOpen] = useState(false);
   const [impOpen, setImpOpen] = useState(false);
@@ -115,6 +117,36 @@ export function ThemePresetPicker() {
       </View>
 
       {grantRow}
+
+      {/* 自定义配色: 仅"自定义"档生效 */}
+      {presetId === 'custom' ? (
+        <View style={{ marginTop: 12 }}>
+          <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13.5 }}>自定义配色</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+            {CUSTOM_PALETTES.map((p) => {
+              const active = paletteId === p.id;
+              return (
+                <Pressable
+                  key={p.id}
+                  onPress={() => void setCustomPaletteId(p.id)}
+                  style={({ pressed }) => [
+                    styles.chip,
+                    pressed && { opacity: 0.7 },
+                    { borderColor: active ? '#2563eb' : night ? NightTint.line : 'rgba(100,116,139,0.3)', backgroundColor: active ? (night ? 'rgba(91,140,255,0.12)' : colors.backgroundSelected) : 'transparent' },
+                  ]}>
+                  <View style={[styles.chipDot, { backgroundColor: p.swatch }]} />
+                  <Text style={{ color: active ? '#2563eb' : colors.text, fontSize: 12, fontWeight: active ? '700' : '500' }}>{p.label}</Text>
+                  {active && <Ionicons name="checkmark" size={13} color="#2563eb" />}
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      ) : (
+        <Text style={{ color: colors.textSecondary, fontSize: 11.5, marginTop: 10 }}>
+          选"自定义"档位后，可在此自由搭配底色配色
+        </Text>
+      )}
 
       <View style={styles.btnRow}>
         <Pressable
@@ -270,6 +302,16 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
   },
   grantRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, marginTop: 4 },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1.5,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  chipDot: { width: 14, height: 14, borderRadius: 7, borderWidth: 1, borderColor: 'rgba(0,0,0,0.15)' },
   grantText: { color: '#f59e0b', fontSize: 12, flex: 1, lineHeight: 17 },
   btnRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
   actionBtn: {
