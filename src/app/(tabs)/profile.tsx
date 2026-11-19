@@ -50,14 +50,13 @@ import {
   type PeriodTimes,
 } from '@/lib/schedule-times';
 import { UpdateCard } from '@/components/update-card';
-import { SponsorModal } from '@/components/sponsor-modal';
 import { ThemePresetPicker } from '@/components/theme-preset-picker';
 import { UiModePicker } from '@/components/ui-mode-picker';
 import { AboutGithub } from '@/components/about-github';
 import { OnboardingModal } from '@/components/onboarding';
 import { TourTarget, registerTourScroller, startCoachTour } from '@/components/tour';
 import { AgreementModal } from '@/components/agreement';
-import { requestClassAccess } from '@/lib/class-folder';
+import { requestClassAccess, resetAccessAndEnsureDirs } from '@/lib/class-folder';
 import { DEFAULT_SITE_URL, getSiteUrl, setSiteUrl, subscribeSiteUrl } from '@/lib/site';
 
 const PERIOD_ORDER = ['1-2', '3-4', '中午', '5-6', '7-8', '9-10'];
@@ -263,7 +262,6 @@ export default function ProfileScreen() {
   const [bkInOpen, setBkInOpen] = useState(false);
   const [bkText, setBkText] = useState('');
   const [agreementOpen, setAgreementOpen] = useState(false);
-  const [sponsorOpen, setSponsorOpen] = useState(false);
   const [introOpen, setIntroOpen] = useState(false);
   // 官网接口地址(公告/收款码下发源)
   const [siteUrl, setSiteUrlState] = useState<string>(DEFAULT_SITE_URL);
@@ -692,7 +690,9 @@ export default function ProfileScreen() {
           </View>
           <Pressable
             onPress={() =>
-              void saveBackupToClass().then((r) => {
+              void resetAccessAndEnsureDirs()
+                .then((ok) => (ok ? saveBackupToClass() : ({ ok: false, error: '需要"所有文件访问"权限才能保存到 /Class' } as const)))
+                .then((r) => {
                 if (r.ok) Alert.alert('已保存', `备份文件已存到 ${r.path}`);
                 else
                   Alert.alert('保存失败', `${r.error ?? '未知错误'}\n点"去授权"后返回重试`, [
@@ -710,7 +710,7 @@ export default function ProfileScreen() {
         <CardWrap style={cardStyle(styles.section)}>
           <Text style={[styles.secTitle, { color: colors.text }]}>通用</Text>
 
-          <Pressable onPress={() => setSponsorOpen(true)} style={styles.rowBtn}>
+          <Pressable onPress={() => router.push('/sponsor' as never)} style={styles.rowBtn}>
             <Ionicons name="heart" size={17} color="#ef4444" />
             <View style={{ flex: 1 }}>
               <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>支持开发者</Text>
@@ -789,8 +789,6 @@ export default function ProfileScreen() {
       <AgreementModal visible={agreementOpen} mode="view" onClose={() => setAgreementOpen(false)} />
       {/* 图文功能教程(常驻入口) */}
       <OnboardingModal visible={introOpen} onClose={() => setIntroOpen(false)} />
-      {/* 赞助开发者(收款码) */}
-      <SponsorModal visible={sponsorOpen} onClose={() => setSponsorOpen(false)} colors={colors} />
       {/* 导出备份: 展示 JSON + 系统分享 */}
       <Modal visible={bkOutOpen} transparent animationType="fade" onRequestClose={() => setBkOutOpen(false)}>
         <Pressable style={styles.modalMask} onPress={() => setBkOutOpen(false)}>

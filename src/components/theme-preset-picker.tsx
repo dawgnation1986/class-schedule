@@ -1,23 +1,31 @@
 /**
  * 主题预设档位: 自定义 / 纯白 / 纯黑 / 墨夜 / 护眼米黄 / 淡雅蓝
- * 网格色卡点选即换; 支持导出当前主题 / 导入 /Class/主题预设 下的主题文件
+ * 可折叠卡片(默认收起); 网格色卡点选即换; 支持导出当前主题 / 导入 /Class/主题预设 下的主题文件
+ * 适配"控件全透明"(glass)模式与墨夜模式
  */
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useTheme } from '@/hooks/use-theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { NightCard, NightTint } from '@/components/night-kit';
 import { usePresetId } from '@/hooks/use-preset-id';
 import { useUiMode } from '@/hooks/use-ui-mode';
+import { useBgSetting } from '@/lib/background';
 import { applyPreset, applyThemeFile, CUSTOM_PALETTES, deleteThemeFile, exportTheme, getCustomPaletteId, listThemeFiles, PRESETS, setCustomPaletteId, subscribeCustomPalette, type CustomPaletteId, type PresetFile } from '@/lib/theme-preset';
-import { hasClassAccess, requestClassAccess } from '@/lib/class-folder';
+import { hasClassAccess, requestClassAccess, resetAccessAndEnsureDirs } from '@/lib/class-folder';
 
 export function ThemePresetPicker() {
   const colors = useTheme();
+  const scheme = useColorScheme();
   const uiMode = useUiMode();
   const night = uiMode === 'night';
+  const bgSetting = useBgSetting();
+  const glass = !!bgSetting.uri && !!bgSetting.ctrl;
+  const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
   const presetId = usePresetId();
+  const [open, setOpen] = useState(false);
   const [paletteId, setPaletteId] = useState<CustomPaletteId>(() => getCustomPaletteId());
   useEffect(() => subscribeCustomPalette(() => setPaletteId(getCustomPaletteId())), []);
   const [access, setAccess] = useState<boolean | null>(null);
@@ -56,6 +64,23 @@ export function ThemePresetPicker() {
     }
   };
 
+  /** 导出前实时重测权限(从授权页回来立即生效, 不用重启) */
+  const tryExport = async () => {
+    setBusy(true);
+    try {
+      const ok = await resetAccessAndEnsureDirs();
+      setAccess(ok);
+      if (ok) await doExport();
+      else
+        Alert.alert('需要权限', '请先授权"所有文件访问"', [
+          { text: '取消', style: 'cancel' },
+          { text: '去授权', onPress: requestClassAccess },
+        ]);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const doImport = (item: PresetFile) => {
     void applyThemeFile(item).then(() => {
       setImpOpen(false);
@@ -75,101 +100,134 @@ export function ThemePresetPicker() {
     </Pressable>
   );
 
+  const activeName = PRESETS.find((p) => p.id === presetId)?.name ?? '自定义';
+
   const body = (
     <>
-      <Text style={{ color: colors.text, fontWeight: '800', fontSize: 15 }}>主题预设</Text>
-      <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
-        一键切换整体配色; 选"自定义"回到自己搭配的样子
-      </Text>
+      {/* 折叠头: 标题 + 当前档位 + 展开/收起 */}
+      <Pressable onPress={() => setOpen((v) => !v)} style={({ pressed }) => [styles.header, pressed && { opacity: 0.7 }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: colors.text, fontWeight: '800', fontSize: 15 }}>主题预设</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }} numberOfLines={1}>
+            {open ? '一键切换整体配色; 选"自定义"回到自己搭配的样子' : `当前: ${activeName} · 点击展开选择`}
+          </Text>
+        </View>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textSecondary} />
+      </Pressable>
 
-      <View style={styles.grid}>
-        {PRESETS.map((p) => {
-          const active = presetId === p.id;
-          return (
-            <Pressable
-              key={p.id}
-              onPress={() => onPreset(p.id)}
-              style={({ pressed }) => [
-                styles.cell,
-                pressed && { opacity: 0.7 },
-                night && { backgroundColor: 'rgba(91,140,255,0.08)', borderColor: active ? 'rgba(91,140,255,0.55)' : NightTint.line },
-                !night && { backgroundColor: active ? colors.backgroundSelected : colors.background, borderColor: active ? '#2563eb' : 'rgba(100,116,139,0.25)' },
-              ]}>
-              <View style={styles.swatchWrap}>
-                <View style={[styles.swatchA, { backgroundColor: p.swatch[0] }, !night && { borderColor: 'rgba(100,116,139,0.3)' }]} />
-                <View style={[styles.swatchB, { backgroundColor: p.swatch[1] }, !night && { borderColor: 'rgba(100,116,139,0.3)' }]} />
-                {active && (
-                  <View style={[styles.check, night && { backgroundColor: 'rgba(91,140,255,0.9)' }]}>
-                    <Ionicons name="checkmark" size={12} color="#fff" />
-                  </View>
-                )}
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                <Ionicons name={p.icon as keyof typeof Ionicons.glyphMap} size={14} color={active ? '#2563eb' : colors.textSecondary} />
-                <Text style={{ color: colors.text, fontWeight: active ? '800' : '600', fontSize: 13.5 }}>{p.name}</Text>
-              </View>
-              <Text style={{ color: colors.textSecondary, fontSize: 10.5 }} numberOfLines={1}>
-                {p.desc}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {grantRow}
-
-      {/* 自定义配色: 仅"自定义"档生效 */}
-      {presetId === 'custom' ? (
-        <View style={{ marginTop: 12 }}>
-          <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13.5 }}>自定义配色</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-            {CUSTOM_PALETTES.map((p) => {
-              const active = paletteId === p.id;
+      {open && (
+        <>
+          <View style={styles.grid}>
+            {PRESETS.map((p) => {
+              const active = presetId === p.id;
               return (
                 <Pressable
                   key={p.id}
-                  onPress={() => void setCustomPaletteId(p.id)}
+                  onPress={() => onPreset(p.id)}
                   style={({ pressed }) => [
-                    styles.chip,
+                    styles.cell,
                     pressed && { opacity: 0.7 },
-                    { borderColor: active ? '#2563eb' : night ? NightTint.line : 'rgba(100,116,139,0.3)', backgroundColor: active ? (night ? 'rgba(91,140,255,0.12)' : colors.backgroundSelected) : 'transparent' },
+                    night && { backgroundColor: 'rgba(91,140,255,0.08)', borderColor: active ? 'rgba(91,140,255,0.55)' : NightTint.line },
+                    !night && !glass && { backgroundColor: active ? colors.backgroundSelected : colors.background, borderColor: active ? '#2563eb' : 'rgba(100,116,139,0.25)' },
+                    !night && glass && {
+                      backgroundColor: active ? 'rgba(37,99,235,0.18)' : scheme === 'dark' ? 'rgba(0,0,0,0.30)' : 'rgba(255,255,255,0.30)',
+                      borderColor: active ? 'rgba(37,99,235,0.55)' : glassLine,
+                    },
                   ]}>
-                  <View style={[styles.chipDot, { backgroundColor: p.swatch }]} />
-                  <Text style={{ color: active ? '#2563eb' : colors.text, fontSize: 12, fontWeight: active ? '700' : '500' }}>{p.label}</Text>
-                  {active && <Ionicons name="checkmark" size={13} color="#2563eb" />}
+                  <View style={styles.swatchWrap}>
+                    <View style={[styles.swatchA, { backgroundColor: p.swatch[0] }, !night && { borderColor: 'rgba(100,116,139,0.3)' }]} />
+                    <View style={[styles.swatchB, { backgroundColor: p.swatch[1] }, !night && { borderColor: 'rgba(100,116,139,0.3)' }]} />
+                    {active && (
+                      <View style={[styles.check, night && { backgroundColor: 'rgba(91,140,255,0.9)' }]}>
+                        <Ionicons name="checkmark" size={12} color="#fff" />
+                      </View>
+                    )}
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                    <Ionicons name={p.icon as keyof typeof Ionicons.glyphMap} size={14} color={active ? '#2563eb' : colors.textSecondary} />
+                    <Text style={{ color: colors.text, fontWeight: active ? '800' : '600', fontSize: 13.5 }}>{p.name}</Text>
+                  </View>
+                  <Text style={{ color: colors.textSecondary, fontSize: 10.5 }} numberOfLines={1}>
+                    {p.desc}
+                  </Text>
                 </Pressable>
               );
             })}
           </View>
-        </View>
-      ) : (
-        <Text style={{ color: colors.textSecondary, fontSize: 11.5, marginTop: 10 }}>
-          选"自定义"档位后，可在此自由搭配底色配色
-        </Text>
-      )}
 
-      <View style={styles.btnRow}>
-        <Pressable
-          onPress={() => {
-            refreshAccess();
-            setExpName('我的主题');
-            setExpOpen(true);
-          }}
-          style={[styles.actionBtn, { backgroundColor: night ? 'rgba(91,140,255,0.14)' : colors.backgroundSelected }]}>
-          <Ionicons name="cloud-upload-outline" size={15} color="#2563eb" />
-          <Text style={{ color: colors.text, fontSize: 12.5, fontWeight: '700' }}>导出主题</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => {
-            refreshAccess();
-            loadFiles();
-            setImpOpen(true);
-          }}
-          style={[styles.actionBtn, { backgroundColor: night ? 'rgba(91,140,255,0.14)' : colors.backgroundSelected }]}>
-          <Ionicons name="cloud-download-outline" size={15} color="#2563eb" />
-          <Text style={{ color: colors.text, fontSize: 12.5, fontWeight: '700' }}>导入主题</Text>
-        </Pressable>
-      </View>
+          {grantRow}
+
+          {/* 自定义配色: 仅"自定义"档生效 */}
+          {presetId === 'custom' ? (
+            <View style={{ marginTop: 12 }}>
+              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13.5 }}>自定义配色</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                {CUSTOM_PALETTES.map((p) => {
+                  const active = paletteId === p.id;
+                  return (
+                    <Pressable
+                      key={p.id}
+                      onPress={() => void setCustomPaletteId(p.id)}
+                      style={({ pressed }) => [
+                        styles.chip,
+                        pressed && { opacity: 0.7 },
+                        {
+                          borderColor: active ? '#2563eb' : night ? NightTint.line : glass ? glassLine : 'rgba(100,116,139,0.3)',
+                          backgroundColor: active
+                            ? night || glass
+                              ? 'rgba(37,99,235,0.18)'
+                              : colors.backgroundSelected
+                            : 'transparent',
+                        },
+                      ]}>
+                      <View style={[styles.chipDot, { backgroundColor: p.swatch }]} />
+                      <Text style={{ color: active ? '#2563eb' : colors.text, fontSize: 12, fontWeight: active ? '700' : '500' }}>{p.label}</Text>
+                      {active && <Ionicons name="checkmark" size={13} color="#2563eb" />}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ) : (
+            <Text style={{ color: colors.textSecondary, fontSize: 11.5, marginTop: 10 }}>
+              选"自定义"档位后，可在此自由搭配底色配色
+            </Text>
+          )}
+
+          <View style={styles.btnRow}>
+            <Pressable
+              onPress={() => {
+                refreshAccess();
+                setExpName('我的主题');
+                setExpOpen(true);
+              }}
+              style={[
+                styles.actionBtn,
+                night && { backgroundColor: 'rgba(91,140,255,0.14)' },
+                !night && !glass && { backgroundColor: colors.backgroundSelected },
+                !night && glass && { borderWidth: 1, borderColor: glassLine },
+              ]}>
+              <Ionicons name="cloud-upload-outline" size={15} color="#2563eb" />
+              <Text style={{ color: colors.text, fontSize: 12.5, fontWeight: '700' }}>导出主题</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                refreshAccess();
+                loadFiles();
+                setImpOpen(true);
+              }}
+              style={[
+                styles.actionBtn,
+                night && { backgroundColor: 'rgba(91,140,255,0.14)' },
+                !night && !glass && { backgroundColor: colors.backgroundSelected },
+                !night && glass && { borderWidth: 1, borderColor: glassLine },
+              ]}>
+              <Ionicons name="cloud-download-outline" size={15} color="#2563eb" />
+              <Text style={{ color: colors.text, fontSize: 12.5, fontWeight: '700' }}>导入主题</Text>
+            </Pressable>
+          </View>
+        </>
+      )}
     </>
   );
 
@@ -177,6 +235,8 @@ export function ThemePresetPicker() {
     <>
       {night ? (
         <NightCard style={styles.nightCard}>{body}</NightCard>
+      ) : glass ? (
+        <View style={[styles.card, { backgroundColor: 'transparent', borderWidth: 1, borderColor: glassLine }]}>{body}</View>
       ) : (
         <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>{body}</View>
       )}
@@ -196,21 +256,15 @@ export function ThemePresetPicker() {
               placeholderTextColor={colors.textSecondary}
               style={[styles.input, { backgroundColor: colors.backgroundElement, color: colors.text, borderColor: 'rgba(100,116,139,0.45)' }]}
             />
-            {access === false && (
-              <Pressable onPress={requestClassAccess} style={styles.grantRow}>
-                <Ionicons name="warning-outline" size={15} color="#f59e0b" />
-                <Text style={styles.grantText}>需要"所有文件访问"权限，点击去授权，返回后再点导出</Text>
-              </Pressable>
-            )}
             <View style={styles.boxBtnRow}>
               <Pressable onPress={() => setExpOpen(false)} style={[styles.boxBtn, { backgroundColor: colors.backgroundElement }]}>
                 <Text style={{ color: colors.text }}>取消</Text>
               </Pressable>
               <Pressable
-                disabled={busy || access === false}
-                onPress={() => void doExport()}
-                style={[styles.boxBtn, { backgroundColor: busy || access === false ? colors.backgroundElement : '#2563eb' }]}>
-                {busy ? <ActivityIndicator size="small" /> : <Text style={{ color: access === false ? colors.textSecondary : '#fff', fontWeight: '700' }}>导出</Text>}
+                disabled={busy}
+                onPress={() => void tryExport()}
+                style={[styles.boxBtn, { backgroundColor: busy ? colors.backgroundElement : '#2563eb' }]}>
+                {busy ? <ActivityIndicator size="small" /> : <Text style={{ color: '#fff', fontWeight: '700' }}>导出</Text>}
               </Pressable>
             </View>
           </Pressable>
@@ -276,6 +330,7 @@ export function ThemePresetPicker() {
 const styles = StyleSheet.create({
   card: { borderRadius: 12, padding: 16, marginTop: 24, gap: 4 },
   nightCard: { padding: 16, marginTop: 24, gap: 4 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 2 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
   cell: {
     width: '47.5%',

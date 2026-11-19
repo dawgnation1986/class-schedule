@@ -136,21 +136,40 @@ async function locate(): Promise<{ lat: number; lon: number; city: string }> {
   return out;
 }
 
+const LAST_WEATHER_KEY = 'weather-last-v1';
+
 export async function fetchWeather(): Promise<Weather> {
   if (chipCache && Date.now() - chipCache.at < TTL) return chipCache.data;
 
-  const { lat, lon, city } = await locate();
-  const r = await fetch(
-    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-      '&current=temperature_2m,weather_code,is_day&timezone=auto',
-  );
-  if (!r.ok) throw new Error('weather http ' + r.status);
-  const w = await r.json();
-  const cur = w.current;
-  const [desc, icon, tint] = describe(cur.weather_code, cur.is_day === 1);
-  const data: Weather = { city, temp: Math.round(cur.temperature_2m), desc, icon, tint };
-  chipCache = { at: Date.now(), data };
-  return data;
+  try {
+    const { lat, lon, city } = await locate();
+    const r = await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+        '&current=temperature_2m,weather_code,is_day&timezone=auto',
+    );
+    if (!r.ok) throw new Error('weather http ' + r.status);
+    const w = await r.json();
+    const cur = w.current;
+    const [desc, icon, tint] = describe(cur.weather_code, cur.is_day === 1);
+    const data: Weather = { city, temp: Math.round(cur.temperature_2m), desc, icon, tint };
+    chipCache = { at: Date.now(), data };
+    // 持久化最近一次成功结果: 网络失败时兜底展示
+    await AsyncStorage.setItem(LAST_WEATHER_KEY, JSON.stringify(data)).catch(() => {});
+    return data;
+  } catch {
+    // 网络/定位失败 → 展示最近一次缓存的天气(保持胶囊常显)
+    const stale = await AsyncStorage.getItem(LAST_WEATHER_KEY).catch(() => null);
+    if (stale) {
+      try {
+        const data = JSON.parse(stale) as Weather;
+        chipCache = { at: Date.now(), data };
+        return data;
+      } catch {
+        // 缓存损坏 → 抛错隐藏
+      }
+    }
+    throw new Error('weather unavailable');
+  }
 }
 
 export async function fetchWeatherFull(): Promise<WeatherFull> {

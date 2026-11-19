@@ -10,7 +10,9 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { useTheme } from '@/hooks/use-theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { saveUiMode, type UiMode } from '@/lib/ui-mode';
+import { useBgSetting } from '@/lib/background';
 import { NightCard, NightTint } from '@/components/night-kit';
 
 const OPTIONS: { value: UiMode; label: string; hint: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -21,6 +23,10 @@ const OPTIONS: { value: UiMode; label: string; hint: string; icon: keyof typeof 
 export function UiModePicker() {
   const mode = useUiMode();
   const colors = useTheme();
+  const scheme = useColorScheme();
+  const bgSetting = useBgSetting();
+  const glass = !!bgSetting.uri && !!bgSetting.ctrl;
+  const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
   const [draft, setDraft] = useState<UiMode>(mode);
   useEffect(() => setDraft(mode), [mode]);
 
@@ -59,9 +65,11 @@ export function UiModePicker() {
   const night = mode === 'night';
   const indBg = night
     ? 'rgba(91,140,255,0.22)'
-    : colors.background === '#000000'
-      ? 'rgba(255,255,255,0.20)'
-      : 'rgba(37,99,235,0.12)';
+    : glass
+      ? 'rgba(37,99,235,0.20)'
+      : colors.background === '#000000'
+        ? 'rgba(255,255,255,0.20)'
+        : 'rgba(37,99,235,0.12)';
   const activeColor = night ? '#5B8CFF' : '#2563eb';
 
   const pick = (v: UiMode) => {
@@ -77,7 +85,7 @@ export function UiModePicker() {
       </Text>
 
       <View
-        style={styles.segWrap}
+        style={[styles.segWrap, glass && !night && styles.segWrapGlass]}
         onLayout={(e) => setSegW(e.nativeEvent.layout.width / OPTIONS.length)}>
         {/* 拖尾小水珠 */}
         <Animated.View
@@ -110,6 +118,13 @@ export function UiModePicker() {
   if (night) {
     return <NightCard style={styles.nightCard}>{body}</NightCard>;
   }
+  if (glass) {
+    return (
+      <View style={[styles.card, { backgroundColor: 'transparent', borderWidth: 1, borderColor: glassLine }]}>
+        {body}
+      </View>
+    );
+  }
   return <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>{body}</View>;
 }
 
@@ -124,6 +139,9 @@ const styles = StyleSheet.create({
     borderColor: NightTint.line,
     overflow: 'hidden',
     backgroundColor: 'rgba(91,140,255,0.06)',
+  },
+  segWrapGlass: {
+    backgroundColor: 'transparent',
   },
   row: { flex: 1, flexDirection: 'row' },
   opt: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 14 },

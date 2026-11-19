@@ -1,6 +1,8 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { AppState, Platform } from 'react-native';
 import { Stack } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SplashScreen from 'expo-splash-screen';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
@@ -34,12 +36,17 @@ export default function RootLayout() {
     void primeThemePreset();
     void primeBackground();
     void initNotifications();
-    // /Class 公共目录: 建齐子目录并写课表缓存快照; 未授权时自动跳系统授权页(已同意协议的老用户)
+    // /Class 公共目录: 建齐子目录并写课表缓存快照; 未授权时仅首次自动跳系统授权页
     void resetAccessAndEnsureDirs().then((ok) => {
       void writeCacheSnapshot();
-      if (!ok) {
-        void shouldShowAgreement().then((needAgree) => {
-          if (!needAgree) requestClassAccess();
+      if (!ok && Platform.OS === 'android') {
+        void AsyncStorage.getItem('class-perm-auto-v2').then((asked) => {
+          if (!asked) {
+            void AsyncStorage.setItem('class-perm-auto-v2', '1');
+            void shouldShowAgreement().then((needAgree) => {
+              if (!needAgree) requestClassAccess();
+            });
+          }
         });
       }
     });
@@ -54,6 +61,11 @@ export default function RootLayout() {
       // 协议已同意的老用户: 未看过交互式引导则触发
       if (await shouldShowTour()) startCoachTour();
     })();
+    // 从系统授权页返回前台时重测权限: 授权立即生效, 无需重启 App
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') void resetAccessAndEnsureDirs().then((ok) => ok && void writeCacheSnapshot());
+    });
+    return () => sub.remove();
   }, []);
 
   return (
@@ -78,6 +90,7 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="settings" />
+        <Stack.Screen name="sponsor" />
         <Stack.Screen name="temp-query" />
         <Stack.Screen name="portal-page" />
         <Stack.Screen name="todos" />
