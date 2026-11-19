@@ -5,9 +5,8 @@
  * - 导出/导入: JSON 写入 /Class/主题预设 (含背景图文件), 可跨设备分享
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system/legacy';
 
-import { DIR_BG, DIR_PRESET, hasClassAccess, listNames, readText, writeText } from '@/lib/class-folder';
+import { DIR_BG, DIR_PRESET, classCopy, classDelete, hasClassAccess, listNames, readText, writeText } from '@/lib/class-folder';
 import { getBackground, setBgSetting, type BgSetting } from '@/lib/background';
 import { getThemeMode, saveThemeMode, type ThemeMode } from '@/lib/theme';
 import { getUiMode, saveUiMode, type UiMode } from '@/lib/ui-mode';
@@ -266,7 +265,7 @@ export async function exportTheme(name: string): Promise<{ ok: boolean; path?: s
     if (/^(jpg|jpeg|png|webp)$/.test(ext)) {
       const bgName = `${clean}.bg.${ext}`;
       try {
-        await FileSystem.copyAsync({ from: bg.uri, to: `${DIR_PRESET}${bgName}` });
+        await classCopy(bg.uri, `${DIR_PRESET}${bgName}`);
         exp.bgFile = bgName;
       } catch {
         // 背景图复制失败则不带图导出
@@ -308,7 +307,7 @@ export async function applyThemeFile(item: PresetFile): Promise<void> {
     const ext = exp.bgFile.split('.').pop()?.toLowerCase() || 'jpg';
     const dest = `${DIR_BG}imported-bg.${ext}`;
     try {
-      await FileSystem.copyAsync({ from: src, to: dest });
+      await classCopy(src, dest);
       bg = { ...bg, uri: dest };
     } catch {
       // 找不到背景图文件则无图
@@ -320,8 +319,8 @@ export async function applyThemeFile(item: PresetFile): Promise<void> {
 
 /** 删除 /Class/主题预设 下的主题文件(连同背景图) */
 export async function deleteThemeFile(item: PresetFile): Promise<void> {
-  await FileSystem.deleteAsync(`${DIR_PRESET}${item.file}`, { idempotent: true }).catch(() => {});
+  await classDelete(`${DIR_PRESET}${item.file}`);
   if (item.data.bgFile) {
-    await FileSystem.deleteAsync(`${DIR_PRESET}${item.data.bgFile}`, { idempotent: true }).catch(() => {});
+    await classDelete(`${DIR_PRESET}${item.data.bgFile}`);
   }
 }

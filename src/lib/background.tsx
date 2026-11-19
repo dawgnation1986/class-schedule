@@ -6,7 +6,7 @@ import { Image, StyleSheet, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { type Palette } from '@/constants/theme';
-import { DIR_BG, hasClassAccess } from '@/lib/class-folder';
+import { DIR_BG, classCopy, hasClassAccess, toDisplayUri } from '@/lib/class-folder';
 
 export type BgSetting = { uri: string | null; opacity: number; ctrl?: boolean };
 
@@ -39,7 +39,7 @@ export async function primeBackground(): Promise<void> {
     const ext = cache.uri.split('.').pop()?.toLowerCase() || 'jpg';
     const dest = `${DIR_BG}custom-bg.${ext}`;
     try {
-      await FileSystem.copyAsync({ from: cache.uri, to: dest });
+      await classCopy(cache.uri, dest);
       await persist({ ...cache, uri: dest });
     } catch {
       // 迁移失败保留原路径
@@ -69,11 +69,15 @@ export async function pickBackground(): Promise<void> {
   const asset = r.assets?.[0];
   if (!asset) return;
   const ext = asset.name?.split('.').pop()?.toLowerCase() || 'jpg';
-  let dest = `${FileSystem.documentDirectory}custom-bg.${ext}`;
+  let dest: string;
   if (await hasClassAccess()) {
+    // 存到 /Class/背景图(手机文件管理器可见); uri 为虚拟路径, 展示时经 toDisplayUri 解析
     dest = `${DIR_BG}custom-bg.${ext}`;
+    await classCopy(asset.uri, dest);
+  } else {
+    dest = `${FileSystem.documentDirectory}custom-bg.${ext}`;
+    await FileSystem.copyAsync({ from: asset.uri, to: dest });
   }
-  await FileSystem.copyAsync({ from: asset.uri, to: dest });
   await persist({ ...cache, uri: dest });
 }
 
@@ -109,22 +113,43 @@ export function usePageBackground(colors: Palette): string {
   return bg.uri ? 'transparent' : colors.background;
 }
 
+/** 背景持久化 uri(class:// 虚拟路径或 file://)→ Image 可展示的真实 uri */
+function useDisplayUri(rawUri: string | null): string | null {
+  const [uri, setUri] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    if (!rawUri) {
+      setUri(null);
+      return;
+    }
+    void toDisplayUri(rawUri).then((u) => {
+      if (alive) setUri(u);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [rawUri]);
+  return uri;
+}
+
 /** 全局背景图层(渲染在根布局最底层, 标签栏等透明区域可见) */
 export function BackgroundLayer() {
   const [bg, setBg] = useState<BgSetting>(() => cache);
   useEffect(() => subscribeBackground(() => setBg({ ...cache })), []);
-  if (!bg.uri) return null;
-  return <Image source={{ uri: bg.uri }} style={[StyleSheet.absoluteFill, { opacity: bg.opacity }]} resizeMode="cover" />;
+  const uri = useDisplayUri(bg.uri);
+  if (!uri) return null;
+  return <Image source={{ uri }} style={[StyleSheet.absoluteFill, { opacity: bg.opacity }]} resizeMode="cover" />;
 }
 
 /** 页面级背景图层(渲染在每页 SafeAreaView 内, 穿透导航容器的遮挡, 不拦截触摸) */
 export function PageBackdrop() {
   const [bg, setBg] = useState<BgSetting>(() => cache);
   useEffect(() => subscribeBackground(() => setBg({ ...cache })), []);
-  if (!bg.uri) return null;
+  const uri = useDisplayUri(bg.uri);
+  if (!uri) return null;
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <Image source={{ uri: bg.uri }} style={[StyleSheet.absoluteFill, { opacity: bg.opacity }]} resizeMode="cover" />
+      <Image source={{ uri }} style={[StyleSheet.absoluteFill, { opacity: bg.opacity }]} resizeMode="cover" />
     </View>
   );
 }

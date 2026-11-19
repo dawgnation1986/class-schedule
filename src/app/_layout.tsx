@@ -44,7 +44,7 @@ export default function RootLayout() {
           if (!asked) {
             void AsyncStorage.setItem('class-perm-auto-v2', '1');
             void shouldShowAgreement().then((needAgree) => {
-              if (!needAgree) requestClassAccess();
+              if (!needAgree) void requestClassAccess();
             });
           }
         });
@@ -91,6 +91,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="settings" />
         <Stack.Screen name="sponsor" />
+        <Stack.Screen name="notices" />
         <Stack.Screen name="temp-query" />
         <Stack.Screen name="portal-page" />
         <Stack.Screen name="todos" />

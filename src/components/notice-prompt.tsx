@@ -1,28 +1,36 @@
-﻿/** 启动公告检查: 官网后台下发的未读公告弹窗展示（延迟避开启动动画与更新弹窗） */
+/**
+ * 启动公告检查: 官网后台下发的未读公告弹窗展示（延迟避开启动动画与更新弹窗）
+ * 弹最新一条未读公告, 弹窗内可跳转「全部公告」页查看历史
+ */
 import { useEffect, useState, type ElementType } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 
 import { useTheme } from '@/hooks/use-theme';
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { NightCard, NightPrimaryButton } from '@/components/night-kit';
-import { fetchNotice, getNoticeReadId, markNoticeRead, type NoticeInfo } from '@/lib/notice';
+import { fetchNoticeList, getNoticeReadIds, markNoticeRead, type NoticeInfo } from '@/lib/notice';
 
 export function NoticePrompt() {
   const colors = useTheme();
   const uiMode = useUiMode();
   const night = uiMode === 'night';
   const BoxWrap: ElementType = night ? NightCard : View;
+  const router = useRouter();
   const [info, setInfo] = useState<NoticeInfo | null>(null);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     let alive = true;
     // 稍等启动流程稳定再检查（更新检查在 2s, 公告错开到 4s）
     const t = setTimeout(() => {
       void (async () => {
-        const n = await fetchNotice();
-        if (!alive || !n) return;
-        const read = await getNoticeReadId();
-        if (read !== n.id) setInfo(n);
+        const list = await fetchNoticeList();
+        if (!alive || list.length === 0) return;
+        setTotal(list.length);
+        const read = new Set(await getNoticeReadIds());
+        const unread = list.find((n) => !read.has(n.id));
+        if (unread) setInfo(unread);
       })();
     }, 4000);
     return () => {
@@ -34,6 +42,12 @@ export function NoticePrompt() {
   const dismiss = () => {
     if (info) void markNoticeRead(info.id);
     setInfo(null);
+  };
+
+  const openAll = () => {
+    if (info) void markNoticeRead(info.id);
+    setInfo(null);
+    router.push('/notices');
   };
 
   if (!info) return null;
@@ -53,6 +67,11 @@ export function NoticePrompt() {
             <Text style={[styles.content, { color: colors.text }]}>{info.content}</Text>
           </ScrollView>
           <View style={styles.btnRow}>
+            <Pressable onPress={openAll} style={[styles.btnGhost, { borderColor: colors.primary }]}>
+              <Text style={{ color: colors.primary, fontSize: 14, fontWeight: '700' }}>
+                {total > 1 ? `全部公告(${total})` : '全部公告'}
+              </Text>
+            </Pressable>
             {night ? (
               <NightPrimaryButton title="我知道了" onPress={dismiss} style={{ flex: 1 }} />
             ) : (
@@ -76,4 +95,12 @@ const styles = StyleSheet.create({
   content: { fontSize: 14, lineHeight: 21 },
   btnRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
   btn: { flex: 1, borderRadius: 12, alignItems: 'center', paddingVertical: 12 },
+  btnGhost: {
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1.5,
+  },
 });

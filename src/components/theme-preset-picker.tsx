@@ -74,6 +74,11 @@ export function ThemePresetPicker() {
     }
   };
 
+  /** 弹出系统"选择文件夹"授权, 结束后刷新权限状态 */
+  const askAccess = () => {
+    void requestClassAccess().then((ok) => setAccess(ok));
+  };
+
   /** 导出前实时重测权限(从授权页回来立即生效, 不用重启) */
   const tryExport = async () => {
     setBusy(true);
@@ -82,9 +87,9 @@ export function ThemePresetPicker() {
       setAccess(ok);
       if (ok) await doExport();
       else
-        Alert.alert('需要权限', '请先授权"所有文件访问"', [
+        Alert.alert('需要授权', '请先授权访问手机 Class 文件夹（在弹出的窗口中选中 Class 文件夹）', [
           { text: '取消', style: 'cancel' },
-          { text: '去授权', onPress: requestClassAccess },
+          { text: '去授权', onPress: askAccess },
         ]);
     } finally {
       setBusy(false);
@@ -100,11 +105,11 @@ export function ThemePresetPicker() {
 
   const grantRow = access === false && (
     <Pressable
-      onPress={requestClassAccess}
+      onPress={askAccess}
       style={({ pressed }) => [styles.grantRow, pressed && { opacity: 0.6 }]}>
       <Ionicons name="folder-open-outline" size={16} color="#f59e0b" />
       <Text style={styles.grantText}>
-        授权"所有文件访问"后, 主题与背景可存到手机 /Class 文件夹
+        授权访问手机 Class 文件夹后, 主题与背景可存到 /Class（点按后在弹窗中选中 Class 文件夹）
         {lastAccessError ? `\n检测失败: ${lastAccessError}` : ''}
       </Text>
       <Ionicons name="chevron-forward" size={15} color={colors.textSecondary} />

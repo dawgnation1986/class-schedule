@@ -34,11 +34,11 @@ export async function exportBackup(): Promise<string> {
 
 /** 导出备份并保存到手机 /Class/备份 文件夹 */
 export async function saveBackupToClass(): Promise<{ ok: boolean; path?: string; error?: string }> {
-  if (!(await hasClassAccess())) return { ok: false, error: '需要"所有文件访问"权限才能保存到 /Class' };
+  if (!(await hasClassAccess())) return { ok: false, error: '需要授权访问手机 Class 文件夹才能保存备份' };
   const json = await exportBackup();
   const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  const path = `${DIR_BACKUP}backup-${ts}.json`;
-  return (await writeText(path, json)) ? { ok: true, path } : { ok: false, error: '写入文件失败' };
+  const fname = `backup-${ts}.json`;
+  return (await writeText(`${DIR_BACKUP}${fname}`, json)) ? { ok: true, path: `/Class/备份/${fname}` } : { ok: false, error: '写入文件失败' };
 }
 
 export async function importBackup(text: string): Promise<{ ok: boolean; error?: string }> {

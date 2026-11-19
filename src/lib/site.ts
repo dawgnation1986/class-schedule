@@ -49,6 +49,13 @@ export type SiteConfig = {
     title?: string;
     content?: string;
     updated?: string | null;
+    /** 多条公告（新结构, 最新在前, 仅含启用中的） */
+    items?: Array<{
+      id?: string;
+      title?: string;
+      content?: string;
+      updated?: string | null;
+    }>;
   };
 };
 

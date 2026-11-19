@@ -285,6 +285,7 @@ export default function ProfileScreen() {
     { title: '天气城市 (跟随定位/手动设置)', kw: '天气 城市 定位 温度 手动', hint: '校园数据', icon: 'cloud-outline' as const, go: () => setWxOpen(true) },
     { title: '倒计时 (四六级/期末考试)', kw: '倒计时 四六级 期末 考试 日期', hint: '本页', icon: 'hourglass-outline' as const, go: goBottom },
     { title: '备份导出 / 导入 / 保存到手机', kw: '备份 导出 导入 保存 手机 换机 迁移 JSON', hint: '数据与备份', icon: 'save-outline' as const, go: goBottom },
+    { title: '公告 (全部公告/历史发布)', kw: '公告 通知 消息 历史 发布', hint: '独立页面', icon: 'megaphone-outline' as const, go: () => router.push('/notices' as never) },
     { title: '支持开发者 (赞助/收款码)', kw: '赞助 支持 开发者 收款码 微信 支付宝 奶茶', hint: '独立页面', icon: 'heart-outline' as const, go: () => router.push('/sponsor' as never) },
     { title: '官网接口地址 (公告/收款码下发)', kw: '官网 接口 地址 下发 公告 服务器', hint: '通用', icon: 'globe-outline' as const, go: () => setSiteOpen(true) },
     { title: '新手引导 (方块高亮指引)', kw: '新手 引导 指引 教程 高亮', hint: '通用', icon: 'compass-outline' as const, go: () => startCoachTour() },
@@ -766,13 +767,13 @@ export default function ProfileScreen() {
           <Pressable
             onPress={() =>
               void resetAccessAndEnsureDirs()
-                .then((ok) => (ok ? saveBackupToClass() : ({ ok: false, error: '需要"所有文件访问"权限才能保存到 /Class' } as const)))
+                .then((ok) => (ok ? saveBackupToClass() : ({ ok: false, error: '需要授权访问手机 Class 文件夹才能保存备份' } as const)))
                 .then((r) => {
                 if (r.ok) Alert.alert('已保存', `备份文件已存到 ${r.path}`);
                 else
-                  Alert.alert('保存失败', `${r.error ?? '未知错误'}\n点"去授权"后返回重试`, [
+                  Alert.alert('保存失败', `${r.error ?? '未知错误'}\n点"去授权"后在弹窗中选中 Class 文件夹`, [
                     { text: '取消', style: 'cancel' },
-                    { text: '去授权', onPress: () => requestClassAccess() },
+                    { text: '去授权', onPress: () => void requestClassAccess() },
                   ]);
               })
             }
@@ -785,7 +786,18 @@ export default function ProfileScreen() {
         <CardWrap style={cardStyle(styles.section)}>
           <Text style={[styles.secTitle, { color: colors.text }]}>通用</Text>
 
-          <Pressable onPress={() => router.push('/sponsor' as never)} style={styles.rowBtn}>
+          <Pressable onPress={() => router.push('/notices' as never)} style={styles.rowBtn}>
+            <Ionicons name="megaphone-outline" size={17} color={colors.primary} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>公告</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 11 }}>查看全部公告与历史发布</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push('/sponsor' as never)}
+            style={[styles.rowBtn, styles.hairline, { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' }]}>
             <Ionicons name="heart" size={17} color="#ef4444" />
             <View style={{ flex: 1 }}>
               <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>支持开发者</Text>
