@@ -1,4 +1,4 @@
-/** 自定义应用背景: 选图(复制到 documentDirectory, 清缓存不丢) + 透明度, AsyncStorage 持久化 */
+/** 自定义应用背景: 选图(优先存到 /Class/背景图, 无权限时退回 documentDirectory) + 透明度, AsyncStorage 持久化 */
 import { useEffect, useState } from 'react';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -6,6 +6,7 @@ import { Image, StyleSheet, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { type Palette } from '@/constants/theme';
+import { DIR_BG, hasClassAccess } from '@/lib/class-folder';
 
 export type BgSetting = { uri: string | null; opacity: number; ctrl?: boolean };
 
@@ -29,9 +30,21 @@ async function load(): Promise<void> {
   notify();
 }
 
-/** 启动预热(_layout 调用) */
+/** 启动预热(_layout 调用): 读取设置并把旧私有目录里的背景图迁移到 /Class/背景图 */
 export async function primeBackground(): Promise<void> {
   await load();
+  const ok = await hasClassAccess();
+  if (!ok) return;
+  if (cache.uri && cache.uri.startsWith(FileSystem.documentDirectory ?? '')) {
+    const ext = cache.uri.split('.').pop()?.toLowerCase() || 'jpg';
+    const dest = `${DIR_BG}custom-bg.${ext}`;
+    try {
+      await FileSystem.copyAsync({ from: cache.uri, to: dest });
+      await persist({ ...cache, uri: dest });
+    } catch {
+      // 迁移失败保留原路径
+    }
+  }
 }
 
 export function getBackground(): BgSetting {
@@ -49,16 +62,24 @@ async function persist(next: BgSetting): Promise<void> {
   notify();
 }
 
-/** 选择图片并复制到 documentDirectory(清缓存不丢), 替换旧背景文件 */
+/** 选择图片并复制到 /Class/背景图(无权限时退回 documentDirectory), 替换旧背景文件 */
 export async function pickBackground(): Promise<void> {
   const r = await DocumentPicker.getDocumentAsync({ type: 'image/*', copyToCacheDirectory: true });
   if (r.canceled) return;
   const asset = r.assets?.[0];
   if (!asset) return;
   const ext = asset.name?.split('.').pop()?.toLowerCase() || 'jpg';
-  const dest = `${FileSystem.documentDirectory}custom-bg.${ext}`;
+  let dest = `${FileSystem.documentDirectory}custom-bg.${ext}`;
+  if (await hasClassAccess()) {
+    dest = `${DIR_BG}custom-bg.${ext}`;
+  }
   await FileSystem.copyAsync({ from: asset.uri, to: dest });
   await persist({ ...cache, uri: dest });
+}
+
+/** 整体写入背景设置(预设应用/导入主题用) */
+export async function setBgSetting(next: BgSetting): Promise<void> {
+  await persist(next);
 }
 
 export async function clearBackground(): Promise<void> {

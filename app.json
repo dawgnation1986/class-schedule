@@ -2,7 +2,7 @@
     "expo":  {
                  "name":  "学生综合管理平台",
                  "slug":  "class-schedule",
-                 "version": "1.12.1",
+                 "version": "1.13.0",
                  "orientation":  "portrait",
                  "icon":  "./assets/images/student-icon.png",
                  "scheme":  "classschedule",
@@ -16,7 +16,8 @@
                                                      "REQUEST_INSTALL_PACKAGES",
                                                      "SCHEDULE_EXACT_ALARM",
                                                      "USE_EXACT_ALARM",
-                                                     "POST_NOTIFICATIONS"
+                                                     "POST_NOTIFICATIONS",
+                                                     "MANAGE_EXTERNAL_STORAGE"
                                                  ],
                                  "adaptiveIcon":  {
                                                       "backgroundColor":  "#1E88E5",

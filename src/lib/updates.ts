@@ -12,6 +12,7 @@ import { Linking, Platform } from 'react-native';
 import { getMirrors, testAllMirrors, type Mirror } from './gh-mirrors';
 
 const REPO = 'dawgnation1986/class-schedule';
+export { REPO };
 // 注意: /releases/latest 不含预发布版本, 想提示 pre 版必须拉列表
 const RELEASES_URL = `https://api.github.com/repos/${REPO}/releases?per_page=10`;
 const RELEASES_PAGE = `https://github.com/${REPO}/releases`;

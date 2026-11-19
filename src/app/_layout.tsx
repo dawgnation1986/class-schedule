@@ -13,6 +13,9 @@ import { BackgroundLayer, primeBackground } from '@/lib/background';
 import { primeScheduleTimes } from '@/lib/schedule-times';
 import { primeThemeMode } from '@/lib/theme';
 import { primeUiMode } from '@/lib/ui-mode';
+import { primeThemePreset } from '@/lib/theme-preset';
+import { resetAccessAndEnsureDirs } from '@/lib/class-folder';
+import { writeCacheSnapshot } from '@/lib/cache-snapshot';
 import { initNotifications } from '@/lib/notifications';
 
 SplashScreen.preventAutoHideAsync();
@@ -27,8 +30,11 @@ export default function RootLayout() {
     void primeScheduleTimes();
     void primeThemeMode();
     void primeUiMode();
+    void primeThemePreset();
     void primeBackground();
     void initNotifications();
+    // /Class 公共目录: 建齐子目录并写课表缓存快照(未授权时静默跳过)
+    void resetAccessAndEnsureDirs().then(() => writeCacheSnapshot());
     // 首次启动: 图文教程 → 用户协议(拒绝则退出) → 新手引导
     (async () => {
       // 协议未同意: 先图文(未看过才弹)再协议

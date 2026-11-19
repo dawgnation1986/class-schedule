@@ -47,6 +47,24 @@ export const NightColors: Palette = {
   textSecondary: '#8A94AC',
 };
 
+/** 护眼米黄预设: 暖米色纸感底色, 低刺激适合长时间阅读 */
+export const SepiaColors: Palette = {
+  text: '#3E3423',
+  background: '#F7F1E3',
+  backgroundElement: '#EFE7D3',
+  backgroundSelected: '#E3D9BF',
+  textSecondary: '#857A61',
+};
+
+/** 淡雅蓝预设: 浅蓝清爽底色, 蓝色点缀 */
+export const AzureColors: Palette = {
+  text: '#1B3A5C',
+  background: '#F3F8FD',
+  backgroundElement: '#E4EEF8',
+  backgroundSelected: '#CFE0F0',
+  textSecondary: '#5B7B9E',
+};
+
 export const Fonts = Platform.select({
   ios: {
     /** iOS `UIFontDescriptorSystemDesignDefault` */

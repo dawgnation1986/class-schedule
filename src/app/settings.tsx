@@ -30,6 +30,7 @@ import { PageBackdrop, usePageBackground, useBgSetting } from '@/lib/background'
 import { NightGlowBackground, NightCard, NightPrimaryButton, NightSectionHeader } from '@/components/night-kit';
 import { PickerField } from '@/components/picker-field';
 import { UiModePicker } from '@/components/ui-mode-picker';
+import { ThemePresetPicker } from '@/components/theme-preset-picker';
 import { ApkDownload } from '@/components/download-view';
 import { AboutGithub } from '@/components/about-github';
 import { OnboardingModal } from '@/components/onboarding';
@@ -260,7 +261,10 @@ export default function SettingsScreen() {
           </Pressable>
         )}
 
-        {/* 界面设置: 原版界面 / 液态玻璃界面(水滴动效切换, 立即生效) */}
+        {/* 主题预设: 自定义/纯白/纯黑/墨夜/护眼米黄/淡雅蓝 (含主题导出/导入) */}
+        <ThemePresetPicker />
+
+        {/* 界面设置: 原版界面 / 墨夜主题(水滴动效切换, 立即生效) — "自定义"档微调用 */}
         <UiModePicker />
 
         {/* 教程设置(常驻): 交互式新手引导 + 图文教程 */}

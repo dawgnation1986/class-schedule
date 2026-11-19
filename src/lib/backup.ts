@@ -1,12 +1,17 @@
 /** 数据备份与恢复: 关键设置 AsyncStorage 键值 → JSON 文本(可粘贴/分享/导入) */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-/** 覆盖: 班级设置/作息/待办/主题/背景参数/天气城市/倒计时/镜像/账号 */
+import { DIR_BACKUP, hasClassAccess, writeText } from '@/lib/class-folder';
+
+/** 覆盖: 班级设置/作息/待办/主题模式/界面模式/主题预设/背景参数/天气城市/倒计时/镜像/账号 */
 const KEYS = [
   'settings.timetable.v1',
   'schedule-times.v1',
   'todos.v1',
   'theme-mode-v1',
+  'ui-mode-v1',
+  'theme-preset-v1',
+  'theme-appearance-snap-v1',
   'app-background-v1',
   'weather-city-v1',
   'countdowns.v1',
@@ -25,6 +30,15 @@ export async function exportBackup(): Promise<string> {
     kv: Object.fromEntries(entries),
   };
   return JSON.stringify(data, null, 2);
+}
+
+/** 导出备份并保存到手机 /Class/备份 文件夹 */
+export async function saveBackupToClass(): Promise<{ ok: boolean; path?: string; error?: string }> {
+  if (!(await hasClassAccess())) return { ok: false, error: '需要"所有文件访问"权限才能保存到 /Class' };
+  const json = await exportBackup();
+  const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const path = `${DIR_BACKUP}backup-${ts}.json`;
+  return (await writeText(path, json)) ? { ok: true, path } : { ok: false, error: '写入文件失败' };
 }
 
 export async function importBackup(text: string): Promise<{ ok: boolean; error?: string }> {

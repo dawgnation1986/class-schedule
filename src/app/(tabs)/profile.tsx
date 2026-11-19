@@ -25,7 +25,7 @@ import { NightGlowBackground, NightCard } from '@/components/night-kit';
 import { getThemeMode, saveThemeMode, subscribeTheme, themeModeLabel, type ThemeMode } from '@/lib/theme';
 import { getWeatherCity, setWeatherCity } from '@/lib/weather';
 import { addCountdown, loadCountdowns, removeCountdown, subscribeCountdowns, type Countdown } from '@/lib/countdowns';
-import { exportBackup, importBackup } from '@/lib/backup';
+import { exportBackup, importBackup, saveBackupToClass } from '@/lib/backup';
 import {
   clearBackground,
   getBackground,
@@ -50,6 +50,7 @@ import {
   type PeriodTimes,
 } from '@/lib/schedule-times';
 import { UpdateCard } from '@/components/update-card';
+import { SponsorModal } from '@/components/sponsor-modal';
 import { TourTarget, registerTourScroller } from '@/components/tour';
 import { AgreementModal } from '@/components/agreement';
 
@@ -256,6 +257,7 @@ export default function ProfileScreen() {
   const [bkInOpen, setBkInOpen] = useState(false);
   const [bkText, setBkText] = useState('');
   const [agreementOpen, setAgreementOpen] = useState(false);
+  const [sponsorOpen, setSponsorOpen] = useState(false);
   // 登记滚动容器: 新手引导可自动滚动到屏幕外的目标
   const scrollRef = useRef<ScrollView>(null);
   useEffect(() => {
@@ -637,13 +639,24 @@ export default function ProfileScreen() {
           </View>
         </CardWrap>
 
+        {/* 支持开发者(赞助收款码) */}
+        <Pressable
+          onPress={() => setSponsorOpen(true)}
+          style={[styles.timesBtn, glassBorder(), { marginTop: Spacing.three, backgroundColor: glass ? 'transparent' : colors.backgroundSelected, justifyContent: 'center', minHeight: 44 }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <Ionicons name="heart" size={16} color="#ef4444" />
+            <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>支持开发者</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 11 }}>(请喝杯奶茶)</Text>
+          </View>
+        </Pressable>
+
         {/* 数据备份 */}
         <CardWrap style={cardStyle(styles.section)}>
           <Text style={{ color: colors.text, fontWeight: '700' }}>数据备份</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
             备份班级设置、作息、待办、倒计时、主题、镜像与账号。导出的 JSON 可发送到微信/QQ 收藏，换机或重装后粘贴导入。
           </Text>
-          <View style={[styles.timesBtnRow, { marginTop: 10, marginBottom: 0 }]}>
+          <View style={[styles.timesBtnRow, { marginTop: 10 }]}>
             <Pressable
               onPress={() =>
                 void exportBackup().then((j) => {
@@ -663,6 +676,16 @@ export default function ProfileScreen() {
               <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>导入备份</Text>
             </Pressable>
           </View>
+          <Pressable
+            onPress={() =>
+              void saveBackupToClass().then((r) => {
+                if (r.ok) Alert.alert('已保存', `备份文件已存到 ${r.path}`);
+                else Alert.alert('保存失败', r.error ?? '未知错误');
+              })
+            }
+            style={[styles.timesBtn, glassBorder(), { marginTop: 8, backgroundColor: glass ? 'transparent' : colors.backgroundSelected, justifyContent: 'center', minHeight: 40 }]}>
+            <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>保存到手机 /Class/备份 文件夹</Text>
+          </Pressable>
         </CardWrap>
 
         {/* 开发者选项入口 */}
@@ -693,6 +716,8 @@ export default function ProfileScreen() {
       <JsonImportModal visible={jsonOpen} onClose={() => setJsonOpen(false)} colors={colors} />
       {/* 用户协议(查看模式) */}
       <AgreementModal visible={agreementOpen} mode="view" onClose={() => setAgreementOpen(false)} />
+      {/* 赞助开发者(收款码) */}
+      <SponsorModal visible={sponsorOpen} onClose={() => setSponsorOpen(false)} colors={colors} />
       {/* 导出备份: 展示 JSON + 系统分享 */}
       <Modal visible={bkOutOpen} transparent animationType="fade" onRequestClose={() => setBkOutOpen(false)}>
         <Pressable style={styles.modalMask} onPress={() => setBkOutOpen(false)}>
