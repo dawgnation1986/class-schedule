@@ -113,8 +113,21 @@ export async function applyPreset(id: PresetId): Promise<void> {
   if (cache.presetId === 'custom') await snapshotCustom();
   await saveUiMode(def.uiMode);
   await saveThemeMode(def.scheme);
-  // 保留背景图不清除: 用户可在"自定义背景"里手动恢复默认, 避免切档位丢背景
+  // 内置档位不使用背景图: 清除(自定义档的背景已在快照中, 切回"自定义"时自动还原)
+  await setBgSetting({ ...getBackground(), uri: null });
   await setPresetId(id);
+}
+
+/** 选背景图后调用: 非自定义档自动归入"自定义"档(背景图只属于自定义档) */
+export async function adoptCustomForBackground(): Promise<void> {
+  if (cache.presetId !== 'custom') await setPresetId('custom');
+}
+
+/** 非自定义档下修改配色类设置时, 保持背景清除(背景图只属于自定义档) */
+async function clearBgIfNotCustom(): Promise<void> {
+  if (cache.presetId !== 'custom' && getBackground().uri) {
+    await setBgSetting({ ...getBackground(), uri: null });
+  }
 }
 
 /** 是否处于自定义调色板预设(护眼米黄/淡雅蓝) */
@@ -154,6 +167,7 @@ export function getCustomPaletteId(): CustomPaletteId {
 export async function setCustomPaletteId(id: CustomPaletteId): Promise<void> {
   cache.customPalette = id;
   await AsyncStorage.setItem(CPALETTE_KEY, id).catch(() => {});
+  await clearBgIfNotCustom();
   notify();
 }
 
@@ -186,6 +200,7 @@ export function getAccentColor(): string {
 export async function setAccentColor(hex: string): Promise<void> {
   cache.accent = hex;
   await AsyncStorage.setItem(ACCENT_KEY, hex).catch(() => {});
+  await clearBgIfNotCustom();
   notify();
 }
 
@@ -208,6 +223,7 @@ export function getCustomHex(): CustomHex {
 export async function setCustomHex(hex: CustomHex): Promise<void> {
   cache.customHex = { ...(cache.customHex ?? {}), ...hex };
   await AsyncStorage.setItem(CHEX_KEY, JSON.stringify(cache.customHex)).catch(() => {});
+  await clearBgIfNotCustom();
   notify();
 }
 

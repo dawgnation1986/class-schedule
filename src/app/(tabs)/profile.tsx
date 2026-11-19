@@ -51,6 +51,7 @@ import {
 } from '@/lib/schedule-times';
 import { UpdateCard } from '@/components/update-card';
 import { ThemePresetPicker } from '@/components/theme-preset-picker';
+import { adoptCustomForBackground } from '@/lib/theme-preset';
 import { UiModePicker } from '@/components/ui-mode-picker';
 import { AboutGithub } from '@/components/about-github';
 import { OnboardingModal } from '@/components/onboarding';
@@ -526,7 +527,12 @@ export default function ProfileScreen() {
             </Text>
             <View style={[styles.timesBtnRow, { marginTop: 10 }]}>
               <Pressable
-                onPress={() => void pickBackground()}
+                onPress={() =>
+                  void pickBackground().then(() => {
+                    // 背景图只属于自定义档: 在内置档位选图后自动切到"自定义"
+                    void adoptCustomForBackground();
+                  })
+                }
                 style={[styles.timesBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected, flex: 1 }]}>
                 <Text style={{ color: colors.text, fontSize: 12 }}>{bg.uri ? '更换图片' : '选择图片'}</Text>
               </Pressable>
