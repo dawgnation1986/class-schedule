@@ -5,9 +5,9 @@ import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Alert, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { beijingNow, type Timetable } from './timetable';
+import { beijingNow, fetchTimetable, type Timetable } from './timetable';
 import { getPeriodTimes, primeScheduleTimes } from './schedule-times';
-import { loadSettings, loadTimetableCache, weekKeyOf } from './settings';
+import { loadSettings, loadTimetableCache, saveTimetableCache, weekKeyOf } from './settings';
 
 type NotificationsModule = typeof import('expo-notifications');
 
@@ -255,6 +255,31 @@ export async function scheduleTestNotification(
     return { ok: true, id };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+let silentRefreshAt = 0;
+let silentRefreshing = false;
+
+/** App 从后台回到前台时静默拉一次最新课表并重排提醒(临时调课/换教室能及时生效)
+ *  60 秒内多次切换只刷一次; 失败静默, 不打扰用户 */
+export async function refreshTimetableAndRemind(): Promise<void> {
+  if (silentRefreshing) return;
+  if (Date.now() - silentRefreshAt < 60_000) return;
+  silentRefreshAt = Date.now();
+  silentRefreshing = true;
+  try {
+    const s = await loadSettings();
+    if (!s) return;
+    const now = beijingNow();
+    const tt = await fetchTimetable(s.xb, s.zy, s.bj, s.queryType, now);
+    if (!tt.rows.length) return;
+    await saveTimetableCache(tt, weekKeyOf(now));
+    await scheduleClassReminders(tt);
+  } catch {
+    // 静默刷新失败不影响后续使用
+  } finally {
+    silentRefreshing = false;
   }
 }
 

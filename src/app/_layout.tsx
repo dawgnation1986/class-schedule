@@ -19,7 +19,7 @@ import { primeUiMode } from '@/lib/ui-mode';
 import { primeThemePreset } from '@/lib/theme-preset';
 import { requestClassAccess, resetAccessAndEnsureDirs } from '@/lib/class-folder';
 import { writeCacheSnapshot } from '@/lib/cache-snapshot';
-import { initNotifications, primeReminders } from '@/lib/notifications';
+import { initNotifications, primeReminders, refreshTimetableAndRemind } from '@/lib/notifications';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -27,6 +27,18 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   // 首次启动三步流程: 图文教程 → 用户协议 → 交互式新手引导
   const [flow, setFlow] = useState<'onboarding' | 'agreement' | null>(null);
+
+  // 从后台回到前台: 静默拉一次最新课表并重排提醒(临时调课/换教室能及时生效)
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    let prev = AppState.currentState;
+    const sub = AppState.addEventListener('change', (next) => {
+      const cameBack = prev === 'background' && next === 'active';
+      prev = next;
+      if (cameBack) void refreshTimetableAndRemind();
+    });
+    return () => sub.remove();
+  }, []);
 
   // 启动时预热作息时间表/外观模式/自定义背景, 并自动创建/修复通知渠道 + 请求通知权限
   useEffect(() => {
