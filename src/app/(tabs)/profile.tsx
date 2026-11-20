@@ -678,7 +678,7 @@ export default function ProfileScreen() {
           <View style={[styles.subBlock, styles.hairline, { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' }]}>
             <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>上课提醒</Text>
             <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
-              提前 0-30 分钟提醒，0 为准点提醒；修改后打开课表页自动重排
+              提前 0-30 分钟提醒，0 为准点提醒；修改后自动重排未来 7 天提醒
             </Text>
             {([
               ['start', '上课提前'] as const,

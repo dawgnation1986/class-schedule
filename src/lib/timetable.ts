@@ -10,6 +10,7 @@
  */
 
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const BASE_URL = 'https://jwtk.cshbxy.com/jxgl/kb_bj_cs.aspx';
 
@@ -302,4 +303,73 @@ export async function queryTimetable(
   }
   const html = await httpPost(form);
   return parseTimetable(html);
+}
+
+// ---------- 查询快速通道 ----------
+//
+// 学校页面是 ASP.NET WebForms 状态链, 完整查询要 4 次串行请求
+// (GET → 选系部 → 选专业 → 查询)。实测第 3 步页面的隐藏字段(VIEWSTATE 等)
+// 在同班级后续查询中依然有效, 因此把上次成功查询的隐藏字段存下来:
+// 打开 App/刷新时直接发第 4 步请求, 4 次串行降到 1 次;
+// 一旦字段过期(服务器重启/站点改版)自动回退完整链路并重新保存。
+
+const QUERY_STATE_KEY = 'timetable.querystate.v1';
+
+type SavedQueryState = {
+  xb: string;
+  zy: string;
+  bj: string;
+  hidden: HiddenFields;
+};
+
+async function loadQueryState(): Promise<SavedQueryState | null> {
+  try {
+    const raw = await AsyncStorage.getItem(QUERY_STATE_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw) as Partial<SavedQueryState>;
+    if (!s?.xb || !s.zy || !s.bj || !s.hidden || typeof s.hidden !== 'object') return null;
+    if (!s.hidden.__VIEWSTATE) return null;
+    return { xb: s.xb, zy: s.zy, bj: s.bj, hidden: s.hidden };
+  } catch {
+    return null;
+  }
+}
+
+async function saveQueryState(s: SavedQueryState): Promise<void> {
+  try {
+    await AsyncStorage.setItem(QUERY_STATE_KEY, JSON.stringify(s));
+  } catch {
+    // 加速用状态, 写失败不影响查询
+  }
+}
+
+/** 查询课表(自动走快速通道, 失败回退完整链路) */
+export async function fetchTimetable(
+  xb: string,
+  zy: string,
+  bj: string,
+  type: QueryType,
+  date: Date = beijingNow(),
+): Promise<Timetable> {
+  const saved = await loadQueryState();
+  if (saved && saved.xb === xb && saved.zy === zy && saved.bj === bj) {
+    try {
+      const tt = await queryTimetable(
+        { hidden: saved.hidden, departments: [], majors: [], classes: [] },
+        xb,
+        zy,
+        bj,
+        type,
+        date,
+      );
+      if (tt.rows.length > 0 && !tt.loading) return tt;
+    } catch {
+      // 隐藏字段过期或网络抖动 → 走完整链路
+    }
+  }
+  const initial = await loadInitial();
+  const withMajors = await selectDepartment(initial, xb);
+  const withClasses = await selectMajor(withMajors, xb, zy);
+  void saveQueryState({ xb, zy, bj, hidden: withClasses.hidden });
+  return queryTimetable(withClasses, xb, zy, bj, type, date);
 }

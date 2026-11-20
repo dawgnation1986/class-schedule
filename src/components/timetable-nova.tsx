@@ -1,4 +1,4 @@
-﻿/** 新版课表界面(Nova): 日程时间轴视图
+﻿﻿/** 新版课表界面(Nova): 日程时间轴视图
  *  与经典网格界面完全独立; 默认显示今天(可点日期条选任意一天),
  *  课程卡片按名称着色, 标注上课中/下一节/已结束。 */
 import { useCallback, useEffect, useState } from 'react';
@@ -12,14 +12,12 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { usePageBackground, useBgSetting } from '@/lib/background';
 import {
   beijingNow,
-  loadInitial,
-  queryTimetable,
-  selectDepartment,
-  selectMajor,
+  fetchTimetable,
   type Timetable,
 } from '@/lib/timetable';
 import { loadSettings, loadTimetableCache, saveTimetableCache, saveTimetableUI, weekKeyOf, type TimetableUI } from '@/lib/settings';
 import { getPeriodTimes, subscribeTimes } from '@/lib/schedule-times';
+import { scheduleClassReminders } from '@/lib/notifications';
 
 const WEEK_NAMES = ['日', '一', '二', '三', '四', '五', '六'];
 const PERIOD_ORDER = ['1-2', '3-4', '中午', '5-6', '7-8', '9-10'];
@@ -94,14 +92,14 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
             return;
           }
           if (alive) setClassName(s.bjLabel);
-          const initial = await loadInitial();
-          const withMajors = await selectDepartment(initial, s.xb);
-          const withClasses = await selectMajor(withMajors, s.xb, s.zy);
-          const tt = await queryTimetable(withClasses, s.xb, s.zy, s.bj, 'realtime', selected);
+          const tt = await fetchTimetable(s.xb, s.zy, s.bj, 'realtime', selected);
           if (alive) {
             setTimetable(tt);
-            // 仅本周视图写入缓存, 避免翻看其他周污染缓存
-            if (weekKeyOf(selected) === weekKeyOf(beijingNow())) void saveTimetableCache(tt, weekKeyOf(selected));
+            // 仅本周视图写入缓存/重排提醒, 避免翻看其他周时覆盖真实提醒
+            if (weekKeyOf(selected) === weekKeyOf(beijingNow())) {
+              void saveTimetableCache(tt, weekKeyOf(selected));
+              void scheduleClassReminders(tt);
+            }
           }
         } catch (e) {
           if (alive) setError(e instanceof Error ? e.message : '查询失败，请重试');

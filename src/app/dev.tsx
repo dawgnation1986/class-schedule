@@ -13,7 +13,7 @@ import { PageBackdrop, usePageBackground, useBgSetting } from '@/lib/background'
 import { PORTAL_SITE, clearSession, loadLoginPage, type LoginState } from '@/lib/portal';
 import { loadSettings } from '@/lib/settings';
 import { setTempOverride } from '@/lib/tempOverride';
-import { END_CHANNEL_ID, ensureReminderChannel, START_CHANNEL_ID } from '@/lib/notifications';
+import { END_CHANNEL_ID, ensureReminderChannel, requestIgnoreBatteryOptimizations, scheduleTestNotification, START_CHANNEL_ID } from '@/lib/notifications';
 
 type LogLine = { ok: boolean | null; text: string };
 
@@ -271,31 +271,16 @@ export default function DevScreen() {
 
   const sendTestNotification = useCallback(
     async (immediate: boolean) => {
-      const Notifications = require('expo-notifications');
-      const p = await Notifications.getPermissionsAsync();
-      if (!p.granted) {
-        const r = await Notifications.requestPermissionsAsync();
-        if (!r.granted) {
-          Alert.alert('无通知权限', '系统未授予通知权限(可能之前拒绝过)。请点「打开系统通知设置」手动打开');
-          return;
-        }
-      }
-      // 测试前确保渠道存在且 MAX, 否则通知可能不弹横幅
-      await ensureReminderChannel();
-      const body = `开发者调试通知 · ${new Date().toLocaleTimeString('zh-CN')}`;
-      if (immediate) {
-        // 关键: 必须带 channelId 走「上课提醒」渠道; trigger:null 会进系统默认渠道, 用户开了渠道权限也没用
-        const id = await Notifications.scheduleNotificationAsync({
-          content: { title: '测试通知', body },
-          trigger: { seconds: 1, channelId: START_CHANNEL_ID } as never,
-        });
-        Alert.alert('已发送(1秒后弹出)', `通知 ID: ${id}\n本次走「上课提醒」渠道。若仍未弹出, 点「打开系统通知设置」检查 通知/悬浮通知 开关`);
+      const r = await scheduleTestNotification(immediate ? 1 : 5);
+      if (!r.ok) {
+        Alert.alert('发送失败', r.error);
+      } else if (immediate) {
+        Alert.alert(
+          '已发送(1秒后弹出)',
+          `通知 ID: ${r.id}\n本次走「上课提醒」渠道。若仍未弹出, 点「打开系统通知设置」检查 通知/悬浮通知 开关`,
+        );
       } else {
-        await Notifications.scheduleNotificationAsync({
-          content: { title: '测试通知(5秒)', body },
-          trigger: { seconds: 5, channelId: START_CHANNEL_ID } as never,
-        });
-        Alert.alert('已排期', '5 秒后弹出, 注意横幅与状态栏');
+        Alert.alert('已排期', '5 秒后弹出, 注意横幅与状态栏(可先切到桌面看状态栏)');
       }
       void checkPerm();
     },
@@ -322,7 +307,7 @@ export default function DevScreen() {
     L.push('');
     L.push(`[通知]`);
     L.push(`权限: ${perm}`);
-    L.push(`渠道 class-remind-v2: ${channelInfo}`);
+    L.push(`渠道: ${channelInfo}`);
     L.push('');
     L.push(`[存储] 共 ${keys?.length ?? 0} 个键`);
     for (const k of keys ?? []) L.push(`- ${k}`);
@@ -486,6 +471,20 @@ export default function DevScreen() {
             <Btn label="发一条测试通知(1秒后)" onPress={() => void sendTestNotification(true)} colors={colors} glass={glass} glassLine={glassLine} />
             <Btn label="5 秒后发一条测试通知" onPress={() => void sendTestNotification(false)} colors={colors} glass={glass} glassLine={glassLine} />
             <Btn label="打开系统通知设置(重点检查!)" onPress={() => Linking.openSettings()} colors={colors} tone="primary" glass={glass} glassLine={glassLine} />
+            <Btn
+              label="关闭电池优化(秒开自启动替代)"
+              onPress={() =>
+                void requestIgnoreBatteryOptimizations().then((ok) =>
+                  Alert.alert(
+                    ok ? '已打开系统设置' : '打开失败',
+                    ok ? '请选择「允许」, 之后通常无需再手动打开自启动。' : '无法调用系统页面, 请手动到 设置 → 应用 → 电池 中允许后台运行。',
+                  ),
+                )
+              }
+              colors={colors}
+              glass={glass}
+              glassLine={glassLine}
+            />
           </View>
           <Text style={{ color: colors.textSecondary, fontSize: 11, lineHeight: 17, marginTop: 8 }}>
             小米/华为等系统: App 授权了也必须在系统设置里单独开「通知」和「悬浮通知」权限, 否则横幅不弹。

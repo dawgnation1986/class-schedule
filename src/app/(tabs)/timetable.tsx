@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useRef, useState, type ElementType } from 'react';
+﻿﻿import { useCallback, useEffect, useRef, useState, type ElementType } from 'react';
 import {
   Alert,
   Modal,
@@ -28,10 +28,7 @@ import { usePageBackground, useBgSetting } from '@/lib/background';
 import { NightGlowBackground, NightCard } from '@/components/night-kit';
 import {
   beijingNow,
-  loadInitial,
-  queryTimetable,
-  selectDepartment,
-  selectMajor,
+  fetchTimetable,
   type QueryType,
   type Timetable,
   type TimetableRow,
@@ -440,12 +437,8 @@ function ClassicScreen() {
     setError(null);
     const t = type ?? queryTypeRef.current;
     try {
-      // 每次查询都从首页重新建立会话(接口是状态链, 最稳妥)
-      const initial = await loadInitial();
-      const withMajors = await selectDepartment(initial, target.xb);
-      const withClasses = await selectMajor(withMajors, target.xb, target.zy);
-      const tt = await queryTimetable(
-        withClasses,
+      // 优先走快速通道: 上次查询状态有效时只发 1 次请求(失效自动回退完整链路)
+      const tt = await fetchTimetable(
         target.xb,
         target.zy,
         target.bj,
@@ -453,10 +446,12 @@ function ClassicScreen() {
         date ?? selectedDateRef.current,
       );
       setTimetable(tt);
+      const targetDate = date ?? selectedDateRef.current;
+      const isCurrentWeek = weekKeyOf(targetDate) === weekKeyOf(beijingNow());
       // 仅默认视图写入缓存: 本周 + 非临时班级 + 未指定其他日期, 避免污染
-      if (!usingTempRef.current && !date) void saveTimetableCache(tt, weekKeyOf(date ?? selectedDateRef.current));
-      // 按最新课表重排未来 7 天的提醒(上课/下课提前 N 分钟, 静默失败)
-      scheduleClassReminders(tt);
+      if (!usingTempRef.current && !date) void saveTimetableCache(tt, weekKeyOf(targetDate));
+      // 仅在"本周 + 非临时班级"时重排提醒, 避免查看其他周/其他班级时覆盖真实提醒
+      if (!usingTempRef.current && isCurrentWeek) scheduleClassReminders(tt);
     } catch (e) {
       setError(e instanceof Error ? e.message : '查询失败，请重试');
     } finally {

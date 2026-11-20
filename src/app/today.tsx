@@ -11,14 +11,12 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { PageBackdrop, usePageBackground } from '@/lib/background';
 import {
   beijingNow,
-  loadInitial,
-  queryTimetable,
-  selectDepartment,
-  selectMajor,
+  fetchTimetable,
   type Timetable,
 } from '@/lib/timetable';
 import { loadSettings } from '@/lib/settings';
 import { getPeriodTimes, subscribeTimes } from '@/lib/schedule-times';
+import { scheduleClassReminders } from '@/lib/notifications';
 
 const WEEK_NAMES = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
 
@@ -62,11 +60,10 @@ export default function TodayScreen() {
             if (alive) setError('还没有配置班级，请先到「我的」里设置班级');
             return;
           }
-          const initial = await loadInitial();
-          const withMajors = await selectDepartment(initial, s.xb);
-          const withClasses = await selectMajor(withMajors, s.xb, s.zy);
-          const tt = await queryTimetable(withClasses, s.xb, s.zy, s.bj, 'realtime', beijingNow());
+          const tt = await fetchTimetable(s.xb, s.zy, s.bj, 'realtime', beijingNow());
           if (alive) setTimetable(tt);
+          // 今日课程页也负责补排提醒, 保证任何入口打开过 App 都能收到通知
+          void scheduleClassReminders(tt);
         } catch (e) {
           if (alive) setError(e instanceof Error ? e.message : '查询失败，请重试');
         } finally {

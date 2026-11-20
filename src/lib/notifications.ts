@@ -2,11 +2,12 @@
  *  注意: Expo Go (Android, SDK 53+) 已移除 expo-notifications, import 时即抛错;
  *  因此先用 expo-constants 识别 Expo Go 再惰性 require, 保证主功能不受影响。 */
 import Constants, { ExecutionEnvironment } from 'expo-constants';
-import { Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import type { Timetable } from './timetable';
-import { getPeriodTimes } from './schedule-times';
+import { beijingNow, type Timetable } from './timetable';
+import { getPeriodTimes, primeScheduleTimes } from './schedule-times';
+import { loadSettings, loadTimetableCache, weekKeyOf } from './settings';
 
 type NotificationsModule = typeof import('expo-notifications');
 
@@ -18,6 +19,10 @@ export const DEFAULT_REMINDER_MINUTES: ReminderMinutes = { start: 5, end: 1 };
 
 let remindCache: ReminderMinutes | null = null;
 const remindSubs = new Set<() => void>();
+
+/** 最近一次课表(内存): 修改提前分钟数后立即重排, 不用等下次打开课表 */
+let lastTimetable: Timetable | null = null;
+let rescheduleTimer: ReturnType<typeof setTimeout> | null = null;
 
 function clampMin(v: unknown): number {
   const n = Math.round(Number(v));
@@ -51,16 +56,41 @@ export async function setReminderMinutes(v: ReminderMinutes): Promise<ReminderMi
   remindCache = { start: clampMin(v.start), end: clampMin(v.end) };
   await AsyncStorage.setItem(REMIND_KEY, JSON.stringify(remindCache)).catch(() => {});
   remindSubs.forEach((f) => f());
+  // 边点边排会重复取消/排期, 合并成一次(800ms 内只排一次)
+  if (rescheduleTimer) clearTimeout(rescheduleTimer);
+  rescheduleTimer = setTimeout(() => {
+    rescheduleTimer = null;
+    if (lastTimetable) void scheduleClassReminders(lastTimetable);
+  }, 800);
   return remindCache;
 }
 
 /** Expo Go Android 下 import expo-notifications 会直接抛错, 直接跳过 */
+let handlerReady = false;
+
+/** 前台收到通知时的展示策略: 不注册这个 handler, 前台通知会被系统静默丢弃
+ *  (开发者选项里的"测试通知"就是因此看不到) */
+function ensureForegroundHandler(Notifications: NotificationsModule): void {
+  if (handlerReady || Platform.OS === 'web') return;
+  handlerReady = true;
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+}
+
 function loadNotifications(): NotificationsModule | null {
   const inExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
   if (inExpoGo && Platform.OS === 'android') return null;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return require('expo-notifications') as NotificationsModule;
+    const mod = require('expo-notifications') as NotificationsModule;
+    ensureForegroundHandler(mod);
+    return mod;
   } catch {
     return null;
   }
@@ -122,16 +152,109 @@ export async function ensureReminderChannel(): Promise<ReminderChannelStatus> {
   }
 }
 
+const BATTERY_ASKED_KEY = 'notif.battery-asked.v1';
+
+/** 打开系统「忽略电池优化」授权页: 国产系统不开自启动也能按时收到提醒 */
+export async function requestIgnoreBatteryOptimizations(): Promise<boolean> {
+  if (Platform.OS !== 'android') return false;
+  try {
+    const pkg = Constants.expoConfig?.android?.package;
+    if (!pkg) return false;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const IntentLauncher = require('expo-intent-launcher') as typeof import('expo-intent-launcher');
+    await IntentLauncher.startActivityAsync('android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS', {
+      data: `package:${pkg}`,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** App 启动时调用: 自动创建/修复渠道 + 权限未授权时请求一次(不弹则需用户去系统设置开) */
 export async function initNotifications(): Promise<void> {
   const Notifications = loadNotifications();
   if (!Notifications) return;
   await ensureReminderChannel();
   try {
-    const p = await Notifications.getPermissionsAsync();
-    if (!p.granted) await Notifications.requestPermissionsAsync();
+    let p = await Notifications.getPermissionsAsync();
+    if (!p.granted) p = await Notifications.requestPermissionsAsync();
+    if (!p.granted) return;
   } catch {
-    // 权限请求失败不影响启动
+    return; // 权限请求失败不影响启动
+  }
+  // 首次拿到通知权限后询问一次: 是否关闭电池优化(替代手动开自启动)
+  try {
+    if (await AsyncStorage.getItem(BATTERY_ASKED_KEY)) return;
+    if (!(await loadSettings())) return; // 还没设置班级, 先不打扰
+    await AsyncStorage.setItem(BATTERY_ASKED_KEY, '1');
+    setTimeout(() => {
+      Alert.alert(
+        '让提醒准时弹出',
+        '小米/华为/荣耀等手机会在锁屏后限制后台, 导致上下课提醒延迟或不弹。\n\n允许本应用忽略电池优化后, 通常无需再手动打开「自启动」。',
+        [
+          { text: '暂不', style: 'cancel' },
+          { text: '去设置', onPress: () => void requestIgnoreBatteryOptimizations() },
+        ],
+      );
+    }, 1200);
+  } catch {
+    // 询问失败不影响启动
+  }
+}
+
+/** App 启动时用上次课表补排提醒(用户没进课表页也能收到通知) */
+export async function primeReminders(): Promise<void> {
+  const Notifications = loadNotifications();
+  if (!Notifications) return;
+  try {
+    // 启动时权限由 initNotifications 负责申请, 这里只补排, 避免重复弹权限框
+    if (!(await Notifications.getPermissionsAsync()).granted) return;
+  } catch {
+    return;
+  }
+  if (lastTimetable) {
+    await scheduleClassReminders(lastTimetable);
+    return;
+  }
+  try {
+    await primeScheduleTimes();
+    if (!(await loadSettings())) return;
+    const cached = await loadTimetableCache();
+    // 跨周的旧课表不排, 避免按上周课程发错误提醒
+    if (!cached || cached.weekKey !== weekKeyOf(beijingNow())) return;
+    await scheduleClassReminders(cached.tt);
+  } catch {
+    // 提醒是增强功能, 失败静默
+  }
+}
+
+/** 开发者选项: 发一条测试通知(seconds 秒后), 返回结果供界面提示 */
+export async function scheduleTestNotification(
+  seconds = 1,
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const Notifications = loadNotifications();
+  if (!Notifications) return { ok: false, error: '当前环境不支持本地通知(Expo Go)' };
+  try {
+    let p = await Notifications.getPermissionsAsync();
+    if (!p.granted) p = await Notifications.requestPermissionsAsync();
+    if (!p.granted) return { ok: false, error: '系统未授予通知权限, 请到系统设置打开' };
+    await ensureReminderChannel();
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '测试通知',
+        body: `开发者调试通知 · ${new Date().toLocaleTimeString('zh-CN')}`,
+        sound: 'default',
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds,
+        channelId: Platform.OS === 'android' ? START_CHANNEL_ID : undefined,
+      },
+    });
+    return { ok: true, id };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
 }
 
@@ -139,6 +262,7 @@ export async function initNotifications(): Promise<void> {
 export async function scheduleClassReminders(timetable: Timetable) {
   try {
     if (!timetable?.rows?.length) return;
+    lastTimetable = timetable;
     const Notifications = loadNotifications();
     if (!Notifications) return; // Expo Go Android: 通知不可用, 静默跳过
 

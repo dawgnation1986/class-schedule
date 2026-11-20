@@ -19,7 +19,7 @@ import { primeUiMode } from '@/lib/ui-mode';
 import { primeThemePreset } from '@/lib/theme-preset';
 import { requestClassAccess, resetAccessAndEnsureDirs } from '@/lib/class-folder';
 import { writeCacheSnapshot } from '@/lib/cache-snapshot';
-import { initNotifications } from '@/lib/notifications';
+import { initNotifications, primeReminders } from '@/lib/notifications';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -35,7 +35,7 @@ export default function RootLayout() {
     void primeUiMode();
     void primeThemePreset();
     void primeBackground();
-    void initNotifications();
+    void initNotifications().then(() => primeReminders());
     // /Class 公共目录: 建齐子目录并写课表缓存快照; 未授权时仅首次自动跳系统授权页
     void resetAccessAndEnsureDirs().then((ok) => {
       void writeCacheSnapshot();
