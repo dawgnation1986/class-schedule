@@ -146,7 +146,12 @@ export async function pinWidget(): Promise<PinWidgetResult> {
   const lib = loadLib();
   if (!lib) return 'unavailable';
   try {
-    return (await lib.requestPinWidget({ widgetName: WIDGET_NAME })) ? 'ok' : 'unsupported';
+    // 部分国产桌面收到请求后既不弹确认框也不回调, 最多等 4 秒按"不支持"处理
+    const res = await Promise.race<boolean | null>([
+      lib.requestPinWidget({ widgetName: WIDGET_NAME }),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
+    ]);
+    return res ? 'ok' : 'unsupported';
   } catch {
     return 'unsupported';
   }

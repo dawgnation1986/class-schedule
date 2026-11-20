@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  ToastAndroid,
   View,
   type StyleProp,
   type ViewStyle,
@@ -278,14 +279,18 @@ export default function ProfileScreen() {
   // 桌面小组件: 桌面支持一键添加时弹系统确认框, 否则说明手动添加步骤
   const addWidget = async () => {
     const r = await pinWidget();
-    if (r === 'ok') return;
+    if (r === 'ok') {
+      // 系统确认框由桌面自己弹, 这里只给轻提示, 避免遮挡
+      ToastAndroid.show('已向桌面发送添加请求，若桌面没弹提示请长按桌面手动添加', ToastAndroid.LONG);
+      return;
+    }
     if (r === 'unavailable') {
       Alert.alert('暂不支持', '当前运行环境没有桌面小组件模块，请安装最新正式版 APK 后再试。');
       return;
     }
     Alert.alert(
       '手动添加小组件',
-      '当前桌面不支持一键添加，请手动操作：\n\n1. 长按桌面空白处\n2. 选择「小组件」或「桌面插件」\n3. 找到「学生综合管理平台」\n4. 把「今日课程」拖到桌面',
+      '当前桌面不支持一键添加，请手动操作：\n\n1. 长按桌面空白处\n2. 选择「小部件 / 小组件 / 服务卡片 / 添加工具」\n3. 找到「学生综合管理平台」\n4. 选「今日课程」拖到桌面\n\n如果列表里找不到本应用，重启手机后再看一次。',
     );
   };
   // 登记滚动容器: 新手引导可自动滚动到屏幕外的目标
