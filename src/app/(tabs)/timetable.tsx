@@ -1,5 +1,6 @@
 ﻿﻿import { useCallback, useEffect, useRef, useState, type ElementType } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Modal,
   Platform,
@@ -392,6 +393,8 @@ function ClassicScreen() {
   useEffect(() => subscribeTimes(() => setPeriodTimes(getPeriodTimes())), []);
   const [selectedDate, setSelectedDate] = useState(() => beijingNow());
   const [weather, setWeather] = useState<Weather | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState(true);
+  const weatherRef = useRef<Weather | null>(null);
   const [wxOpen, setWxOpen] = useState(false);
   const [wxFull, setWxFull] = useState<WeatherFull | null>(null);
   const [wxLoading, setWxLoading] = useState(false);
@@ -477,14 +480,20 @@ function ClassicScreen() {
   );
 
   // 天气: 按 IP 定位查询(30 分钟缓存), 切到本页时顺带刷新
+  // 首次没有数据时让胶囊显示「查询中…」, 查询结束(成功/失败)后再收起 loading
   useFocusEffect(
     useCallback(() => {
       let alive = true;
+      if (!weatherRef.current) setWeatherLoading(true);
       fetchWeather()
         .then((w) => {
+          weatherRef.current = w;
           if (alive) setWeather(w);
         })
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => {
+          if (alive) setWeatherLoading(false);
+        });
       return () => {
         alive = false;
       };
@@ -629,30 +638,53 @@ function ClassicScreen() {
         <Pressable style={{ flex: 1 }} onPress={() => setDatePickerOpen(true)}>
           <View style={styles.titleRow}>
             <Text style={[styles.classTitle, { color: colors.text, flexShrink: 1 }]}>{settings.bjLabel}</Text>
-            {weather && (
-              <Pressable
-                onPress={() => {
-                  setWxOpen(true);
-                  if (!wxFull && !wxLoading) {
-                    setWxLoading(true);
-                    fetchWeatherFull()
-                      .then(setWxFull)
-                      .catch(() => {})
-                      .finally(() => setWxLoading(false));
-                  }
-                }}>
-                <View style={[styles.weatherChip, glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }]}>
-                  <Ionicons
-                    name={weather.icon as React.ComponentProps<typeof Ionicons>['name']}
-                    size={15}
-                    color={weather.tint}
-                  />
-                  <Text style={[styles.weatherText, { color: colors.text }]}>
-                    {weather.city} {weather.temp}° {weather.desc}
-                  </Text>
-                </View>
-              </Pressable>
-            )}
+            <Pressable
+              onPress={() => {
+                setWxOpen(true);
+                if (!wxFull && !wxLoading) {
+                  setWxLoading(true);
+                  fetchWeatherFull()
+                    .then(setWxFull)
+                    .catch(() => {})
+                    .finally(() => setWxLoading(false));
+                }
+                // 之前查询失败(没有数据)时, 点胶囊重试一次
+                if (!weather && !weatherLoading) {
+                  setWeatherLoading(true);
+                  fetchWeather()
+                    .then((w) => {
+                      weatherRef.current = w;
+                      setWeather(w);
+                    })
+                    .catch(() => {})
+                    .finally(() => setWeatherLoading(false));
+                }
+              }}>
+              <View style={[styles.weatherChip, glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }]}>
+                {weather ? (
+                  <>
+                    <Ionicons
+                      name={weather.icon as React.ComponentProps<typeof Ionicons>['name']}
+                      size={15}
+                      color={weather.tint}
+                    />
+                    <Text style={[styles.weatherText, { color: colors.text }]}>
+                      {weather.city} {weather.temp}° {weather.desc}
+                    </Text>
+                  </>
+                ) : weatherLoading ? (
+                  <>
+                    <ActivityIndicator size={12} color={colors.textSecondary} />
+                    <Text style={[styles.weatherText, { color: colors.textSecondary }]}>查询中…</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="cloud-offline-outline" size={15} color={colors.textSecondary} />
+                    <Text style={[styles.weatherText, { color: colors.textSecondary }]}>天气暂不可用</Text>
+                  </>
+                )}
+              </View>
+            </Pressable>
           </View>
           <Text style={[styles.dateText, { color: colors.textSecondary }]}>
             {isToday ? '今天' : '查询日'}：{fmtDate(selectedDate)} {WEEK_NAMES[bjDay]}（点击可选日期）
