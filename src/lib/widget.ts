@@ -11,7 +11,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { beijingNow, fetchTimetable, type Timetable } from './timetable';
 import { loadSettings, loadTimetableCache, saveTimetableCache, weekKeyOf } from './settings';
 import { getPeriodTimes, primeScheduleTimes, subscribeTimes } from './schedule-times';
-import { buildWidgetView, dayLabels, type WidgetView } from './widget-data';
+import { getCachedExams } from './school-data';
+import { getCachedWeather } from './weather';
+import { buildWidgetView, dayLabels, nearestExam, type WidgetExtras, type WidgetView } from './widget-data';
 
 export const WIDGET_NAME = 'ClassScheduleWidget';
 
@@ -59,7 +61,15 @@ async function loadView(): Promise<{ view: WidgetView; currentWeek: boolean }> {
   }
   const cached = await loadTimetableCache();
   if (cached && cached.weekKey === weekKeyOf(now)) {
-    return { view: buildWidgetView(cached.tt, getPeriodTimes(), now), currentWeek: true };
+    const [exams, wx] = await Promise.all([
+      getCachedExams().catch(() => []),
+      getCachedWeather().catch(() => null),
+    ]);
+    const extras: WidgetExtras = {
+      exam: nearestExam(exams, now),
+      weather: wx ? { city: wx.city, temp: wx.temp, desc: wx.desc } : null,
+    };
+    return { view: buildWidgetView(cached.tt, getPeriodTimes(), now, extras), currentWeek: true };
   }
   return { view: { kind: 'stale', ...labels }, currentWeek: false };
 }
@@ -112,7 +122,15 @@ export function registerClassScheduleWidget(): void {
     if (view.kind === 'unconfigured') return;
     const tt = await fetchFresh(currentWeek);
     if (!tt) return;
-    const fresh = buildWidgetView(tt, getPeriodTimes(), beijingNow());
+    const now = beijingNow();
+    const [exams, wx] = await Promise.all([
+      getCachedExams().catch(() => []),
+      getCachedWeather().catch(() => null),
+    ]);
+    const fresh = buildWidgetView(tt, getPeriodTimes(), now, {
+      exam: nearestExam(exams, now),
+      weather: wx ? { city: wx.city, temp: wx.temp, desc: wx.desc } : null,
+    });
     renderWidget(ui.buildClassScheduleWidgets(fresh, widgetInfo.height));
   });
 }

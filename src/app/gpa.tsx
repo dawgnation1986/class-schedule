@@ -8,7 +8,16 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { PageBackdrop, usePageBackground } from '@/lib/background';
-import { getGradesStat, scoreToGpa, type GradesStat } from '@/lib/school-data';
+import { getGradesStat, scoreToGpa, type GradeCourse, type GradesStat } from '@/lib/school-data';
+
+/** 等级成绩折算(与成绩页一致) */
+const LEVEL_SCORE: Record<string, number> = { 优秀: 95, 良好: 85, 中等: 75, 及格: 65, 不及格: 0, 不合格: 0 };
+
+function scoreOf(c: GradeCourse): number {
+  const n = parseFloat(c.total);
+  if (!Number.isNaN(n)) return n;
+  return LEVEL_SCORE[c.level.trim()] ?? 0;
+}
 
 export default function GpaScreen() {
   const scheme = useColorScheme();
@@ -37,6 +46,16 @@ export default function GpaScreen() {
   }, [load]);
 
   const maxAvg = stat ? Math.max(80, ...stat.terms.map((t) => t.avg)) : 100;
+
+  // 挂科预警: 总评低于 60(含等级制"不及格/不合格")
+  const failing = stat
+    ? stat.terms.flatMap((t) =>
+        t.courses
+          .filter((c) => (c.total || c.level) && scoreOf(c) < 60)
+          .map((c) => ({ term: t.term, course: c.course, score: scoreOf(c), level: c.level })),
+      )
+    : [];
+  const danger = scheme === 'dark' ? '#f87171' : '#dc2626';
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
@@ -79,6 +98,42 @@ export default function GpaScreen() {
               <Text style={[styles.overLabel, { color: colors.textSecondary }]}>课程数</Text>
               <Text style={[styles.overValue, { color: colors.text }]}>{stat.count}</Text>
             </View>
+          </View>
+
+          {/* 挂科预警 */}
+          <View
+            style={[
+              styles.warnCard,
+              {
+                backgroundColor: failing.length ? 'rgba(239,68,68,0.10)' : colors.backgroundElement,
+                borderColor: failing.length ? 'rgba(239,68,68,0.35)' : 'transparent',
+              },
+            ]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons
+                name={failing.length ? 'alert-circle' : 'checkmark-circle'}
+                size={16}
+                color={failing.length ? danger : '#16a34a'}
+              />
+              <Text style={{ color: failing.length ? danger : '#16a34a', fontWeight: '800', fontSize: 14 }}>
+                {failing.length ? `挂科预警 · ${failing.length} 门` : '暂无不及格课程'}
+              </Text>
+            </View>
+            {failing.map((f, i) => (
+              <View key={`${f.term}-${f.course}-${i}`} style={[styles.warnRow, { borderTopColor: 'rgba(239,68,68,0.20)' }]}>
+                <Text style={{ color: colors.text, fontSize: 13, flex: 1 }} numberOfLines={1}>
+                  {f.course}
+                </Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 11 }}>
+                  {f.term} · {f.level || f.score}
+                </Text>
+              </View>
+            ))}
+            {failing.length > 0 && (
+              <Text style={[styles.warnTip, { color: colors.textSecondary }]}>
+                低于 60 分一般需要补考或重修，尽快联系任课老师确认
+              </Text>
+            )}
           </View>
 
           {/* 学期趋势(条形) */}
@@ -163,6 +218,9 @@ const styles = StyleSheet.create({
   overCard: { flex: 1, borderRadius: 14, alignItems: 'center', paddingVertical: 14 },
   overLabel: { fontSize: 12 },
   overValue: { fontSize: 26, fontWeight: '800', marginTop: 4 },
+  warnCard: { borderRadius: 14, padding: 12, borderWidth: 1 },
+  warnRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, paddingTop: 7, marginTop: 7 },
+  warnTip: { fontSize: 11, marginTop: 8 },
   trend: { borderRadius: 14, padding: 14 },
   sectionTitle: { fontWeight: '800', fontSize: 15, marginBottom: 10 },
   barRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },

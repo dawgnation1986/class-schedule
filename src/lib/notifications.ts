@@ -6,6 +6,8 @@ import { Alert, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { beijingNow, fetchTimetable, type Timetable } from './timetable';
+import { getCachedExams, getGradesStat, type ExamInfo } from './school-data';
+import { getCachedWeather } from './weather';
 import { getPeriodTimes, primeScheduleTimes } from './schedule-times';
 import { loadSettings, loadTimetableCache, saveTimetableCache, weekKeyOf } from './settings';
 import { refreshWidgets } from './widget';
@@ -109,9 +111,12 @@ function hmToMin(s: string): number {
   return h * 60 + m;
 }
 
-/** 通知渠道: 上课 / 下课分开注册, 系统通知设置里可分别查看与管理 */
+/** 通知渠道: 上课 / 下课 / 考试分开注册, 系统通知设置里可分别查看与管理 */
 export const START_CHANNEL_ID = 'class-start-v3';
 export const END_CHANNEL_ID = 'class-end-v1';
+export const EXAM_CHANNEL_ID = 'exam-remind-v1';
+export const DAILY_CHANNEL_ID = 'daily-report-v1';
+export const GRADE_CHANNEL_ID = 'grade-update-v1';
 /** 旧版合并渠道(上课下课共用, 名字只叫"上课提醒"), 已废弃, 启动时自动清理 */
 const LEGACY_CHANNEL_ID = 'class-remind-v2';
 
@@ -130,6 +135,9 @@ export async function ensureReminderChannel(): Promise<ReminderChannelStatus> {
     const defs: Array<[string, string]> = [
       [START_CHANNEL_ID, '上课提醒'],
       [END_CHANNEL_ID, '下课提醒'],
+      [EXAM_CHANNEL_ID, '考试提醒'],
+      [DAILY_CHANNEL_ID, '每日早报'],
+      [GRADE_CHANNEL_ID, '成绩更新'],
     ];
     let worst: ReminderChannelStatus = 'ok';
     for (const [id, name] of defs) {
@@ -214,6 +222,14 @@ export async function primeReminders(): Promise<void> {
   } catch {
     return;
   }
+  // 考试提醒独立于课表缓存, 有缓存就先补排
+  try {
+    const exams = lastExams.length ? lastExams : await getCachedExams();
+    if (exams.length) await scheduleExamReminders(exams);
+    await scheduleDailyReport();
+  } catch {
+    // 补排失败不影响启动
+  }
   if (lastTimetable) {
     await scheduleClassReminders(lastTimetable);
     return;
@@ -256,6 +272,289 @@ export async function scheduleTestNotification(
     return { ok: true, id };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+// ---------- 考试提醒: 考前 1 天 20:00 / 考试当天 07:30(设置页可开关) ----------
+
+const EXAM_ENABLED_KEY = 'exam.remind.enabled.v1';
+const EXAM_PREFIX = 'exam:';
+let examEnabledCache: boolean | null = null;
+const examSubs = new Set<() => void>();
+/** 最近一次拿到的考试列表, 用于开关切换后立即重排 */
+let lastExams: ExamInfo[] = [];
+
+export function subscribeExamReminders(fn: () => void): () => void {
+  examSubs.add(fn);
+  return () => examSubs.delete(fn);
+}
+
+/** 考试提醒是否开启(默认开启) */
+export async function getExamRemindersEnabled(): Promise<boolean> {
+  if (examEnabledCache !== null) return examEnabledCache;
+  try {
+    const raw = await AsyncStorage.getItem(EXAM_ENABLED_KEY);
+    examEnabledCache = raw !== '0';
+  } catch {
+    examEnabledCache = true;
+  }
+  return examEnabledCache;
+}
+
+export async function setExamRemindersEnabled(on: boolean): Promise<void> {
+  examEnabledCache = on;
+  await AsyncStorage.setItem(EXAM_ENABLED_KEY, on ? '1' : '0').catch(() => {});
+  examSubs.forEach((f) => f());
+  if (!on) {
+    await cancelExamReminders();
+    return;
+  }
+  const exams = lastExams.length ? lastExams : await getCachedExams();
+  await scheduleExamReminders(exams);
+}
+
+/** 只取消考试提醒(identifier 前缀区分), 不影响上下课提醒 */
+async function cancelExamReminders(): Promise<void> {
+  const Notifications = loadNotifications();
+  if (!Notifications) return;
+  try {
+    const all = await Notifications.getAllScheduledNotificationsAsync();
+    await Promise.all(
+      all
+        .filter((n) => n.identifier.startsWith(EXAM_PREFIX))
+        .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)),
+    );
+  } catch {
+    // 取消失败不影响主流程
+  }
+}
+
+/** 按考试列表重排提醒: 考前 1 天 20:00、考试当天 07:30, 只排未来时间 */
+export async function scheduleExamReminders(exams: ExamInfo[]): Promise<void> {
+  lastExams = exams ?? [];
+  const Notifications = loadNotifications();
+  if (!Notifications) return;
+  try {
+    if (!(await getExamRemindersEnabled())) {
+      await cancelExamReminders();
+      return;
+    }
+    const perm = await Notifications.getPermissionsAsync();
+    if (!perm.granted) return; // 权限由 initNotifications 负责申请
+    await ensureReminderChannel();
+    await cancelExamReminders();
+    const now = Date.now();
+    for (const e of lastExams) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(e.date ?? '');
+      if (!m) continue;
+      const day = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+      const label = e.course || e.name || '考试';
+      const place = e.room ? `考场：${e.room}` : '';
+      const slots: Array<[string, Date, string, string]> = [
+        [
+          'pre',
+          new Date(day.getFullYear(), day.getMonth(), day.getDate() - 1, 20, 0, 0, 0),
+          `明天考试：${label}`,
+          [place, '记得带好证件和文具，早点休息'].filter(Boolean).join('\n'),
+        ],
+        [
+          'day',
+          new Date(day.getFullYear(), day.getMonth(), day.getDate(), 7, 30, 0, 0),
+          `今天考试：${label}`,
+          [place, '出门前确认考场，加油'].filter(Boolean).join('\n'),
+        ],
+      ];
+      for (const [key, at, title, body] of slots) {
+        if (at.getTime() <= now) continue;
+        await Notifications.scheduleNotificationAsync({
+          identifier: `${EXAM_PREFIX}${e.date}:${key}`,
+          content: { title, body, sound: 'default' },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: at,
+            channelId: Platform.OS === 'android' ? EXAM_CHANNEL_ID : undefined,
+          },
+        });
+      }
+    }
+  } catch {
+    // 提醒是增强功能, 失败静默
+  }
+}
+
+// ---------- 每日早报: 每天 07:00 一条(天气 + 第一节 + 当天考试) ----------
+
+const DAILY_ENABLED_KEY = 'daily.report.enabled.v1';
+const DAILY_PREFIX = 'daily:';
+const DAILY_PERIODS = ['1-2', '3-4', '5-6', '7-8', '9-10'];
+const WEEK_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+let dailyEnabledCache: boolean | null = null;
+const dailySubs = new Set<() => void>();
+
+export function subscribeDailyReport(fn: () => void): () => void {
+  dailySubs.add(fn);
+  return () => dailySubs.delete(fn);
+}
+
+/** 每日早报是否开启(默认开启) */
+export async function getDailyReportEnabled(): Promise<boolean> {
+  if (dailyEnabledCache !== null) return dailyEnabledCache;
+  try {
+    const raw = await AsyncStorage.getItem(DAILY_ENABLED_KEY);
+    dailyEnabledCache = raw !== '0';
+  } catch {
+    dailyEnabledCache = true;
+  }
+  return dailyEnabledCache;
+}
+
+export async function setDailyReportEnabled(on: boolean): Promise<void> {
+  dailyEnabledCache = on;
+  await AsyncStorage.setItem(DAILY_ENABLED_KEY, on ? '1' : '0').catch(() => {});
+  dailySubs.forEach((f) => f());
+  if (on) await scheduleDailyReport();
+  else await cancelDailyReport();
+}
+
+async function cancelDailyReport(): Promise<void> {
+  const Notifications = loadNotifications();
+  if (!Notifications) return;
+  try {
+    const all = await Notifications.getAllScheduledNotificationsAsync();
+    await Promise.all(
+      all
+        .filter((n) => n.identifier.startsWith(DAILY_PREFIX))
+        .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)),
+    );
+  } catch {
+    // 取消失败不影响主流程
+  }
+}
+
+function ymdOf(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** 某天第一节课(按节次顺序找第一个有课的) */
+function firstCourseOf(
+  tt: Timetable,
+  times: Record<string, [string, string]>,
+  col: number,
+): { period: string; start: string; name: string; location: string } | null {
+  for (const period of DAILY_PERIODS) {
+    const t = times[period];
+    const row = tt.rows.find((r) => r.period === period);
+    const course = row?.days[col]?.find((c) => !!c.name);
+    if (!t || !course) continue;
+    return { period, start: t[0], name: course.name, location: course.location };
+  }
+  return null;
+}
+
+/** 重排未来 7 天的早报: 每天 07:00, 内容基于本地缓存(课表/考试/当天天气) */
+export async function scheduleDailyReport(): Promise<void> {
+  const Notifications = loadNotifications();
+  if (!Notifications) return;
+  try {
+    if (!(await getDailyReportEnabled())) {
+      await cancelDailyReport();
+      return;
+    }
+    if (!(await Notifications.getPermissionsAsync()).granted) return;
+    if (!(await loadSettings())) return;
+    await ensureReminderChannel();
+    await cancelDailyReport();
+    await primeScheduleTimes();
+
+    const times = getPeriodTimes();
+    const cached = await loadTimetableCache();
+    const exams = lastExams.length ? lastExams : await getCachedExams();
+    const wx = await getCachedWeather();
+    const now = beijingNow();
+    const todayKey = ymdOf(now);
+
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(now);
+      day.setDate(now.getDate() + i);
+      const at = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 7, 0, 0, 0);
+      if (at.getTime() <= now.getTime()) continue; // 今天 7 点已过就跳过
+
+      const key = ymdOf(day);
+      const col = (day.getDay() + 6) % 7;
+      const currentWeek = !!cached && cached.weekKey === weekKeyOf(day);
+      const first = cached && currentWeek ? firstCourseOf(cached.tt, times, col) : null;
+      const exam = exams.find((e) => e.date === key);
+
+      const lines: string[] = [];
+      if (wx && key === todayKey) lines.push(`${wx.city} ${wx.temp}° ${wx.desc}`);
+      if (first) {
+        lines.push(
+          `第 ${first.period} 节 ${first.start} ${first.name}${first.location ? ` · ${first.location}` : ''}`,
+        );
+      } else if (currentWeek) {
+        lines.push('今天没有课，好好休息');
+      }
+      if (exam) {
+        lines.push(`今天有考试：${exam.course || exam.name}${exam.room ? ` · ${exam.room}` : ''}`);
+      }
+      if (!lines.length) continue;
+
+      await Notifications.scheduleNotificationAsync({
+        identifier: `${DAILY_PREFIX}${key}`,
+        content: {
+          title: `今日早报 · ${day.getMonth() + 1}月${day.getDate()}日 ${WEEK_NAMES[day.getDay()]}`,
+          body: lines.join('\n'),
+          sound: 'default',
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: at,
+          channelId: Platform.OS === 'android' ? DAILY_CHANNEL_ID : undefined,
+        },
+      });
+    }
+  } catch {
+    // 早报是增强功能, 失败静默
+  }
+}
+
+// ---------- 成绩更新提醒: 检测到新增成绩时通知一次 ----------
+
+const GRADES_SEEN_KEY = 'grades.seen-count.v1';
+let gradeCheckAt = 0;
+
+export async function checkGradeUpdates(): Promise<void> {
+  if (Date.now() - gradeCheckAt < 10 * 60_000) return; // 10 分钟内只查一次
+  gradeCheckAt = Date.now();
+  const Notifications = loadNotifications();
+  if (!Notifications) return;
+  try {
+    if (!(await Notifications.getPermissionsAsync()).granted) return;
+    const { stat } = await getGradesStat();
+    if (!stat) return;
+    const raw = await AsyncStorage.getItem(GRADES_SEEN_KEY);
+    const seen = Number(raw);
+    if (raw !== null && Number.isFinite(seen) && stat.count > seen) {
+      const n = stat.count - seen;
+      const latest = stat.terms[stat.terms.length - 1];
+      await ensureReminderChannel();
+      await Notifications.scheduleNotificationAsync({
+        identifier: `grade:${Date.now()}`,
+        content: {
+          title: `新增 ${n} 门成绩`,
+          body: latest ? `最新学期：${latest.term}\n点开查看成绩与绩点` : '点开查看最新成绩与绩点',
+          sound: 'default',
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: new Date(Date.now() + 1000),
+          channelId: Platform.OS === 'android' ? GRADE_CHANNEL_ID : undefined,
+        },
+      });
+    }
+    await AsyncStorage.setItem(GRADES_SEEN_KEY, String(stat.count));
+  } catch {
+    // 成绩提醒是增强功能, 失败静默
   }
 }
 
@@ -357,6 +656,15 @@ export async function scheduleClassReminders(timetable: Timetable) {
           });
         }
       }
+    }
+
+    // 上面 cancelAll 会连考试提醒/早报一起清掉, 这里重新补排
+    try {
+      const exams = lastExams.length ? lastExams : await getCachedExams();
+      if (exams.length) await scheduleExamReminders(exams);
+      await scheduleDailyReport();
+    } catch {
+      // 补排失败不影响上下课提醒
     }
   } catch {
     // 通知是增强功能, 失败静默(如 Expo Go 新版不支持)

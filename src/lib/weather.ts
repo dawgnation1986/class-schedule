@@ -251,6 +251,25 @@ async function fetchDomesticFull(): Promise<WeatherFull> {
 
 const LAST_WEATHER_KEY = 'weather-last-v1';
 
+/** 读取当天成功获取的天气(不发请求): 小组件/早报用, 非当天视为过期 */
+export async function getCachedWeather(): Promise<Weather | null> {
+  try {
+    const raw = await AsyncStorage.getItem(LAST_WEATHER_KEY);
+    if (!raw) return null;
+    const c = JSON.parse(raw) as { at?: number; data?: Weather } | Weather;
+    if (!('at' in c) || !c.at || !c.data) return null; // 旧格式没有时间戳, 可能已过期
+    const at = new Date(c.at);
+    const now = new Date();
+    const sameDay =
+      at.getFullYear() === now.getFullYear() &&
+      at.getMonth() === now.getMonth() &&
+      at.getDate() === now.getDate();
+    return sameDay ? c.data : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchWeather(): Promise<Weather> {
   if (chipCache && Date.now() - chipCache.at < TTL) return chipCache.data;
 
@@ -278,7 +297,7 @@ export async function fetchWeather(): Promise<Weather> {
   if (data) {
     chipCache = { at: Date.now(), data };
     // 持久化最近一次成功结果: 网络失败时兜底展示
-    await AsyncStorage.setItem(LAST_WEATHER_KEY, JSON.stringify(data)).catch(() => {});
+    await AsyncStorage.setItem(LAST_WEATHER_KEY, JSON.stringify({ at: Date.now(), data })).catch(() => {});
     return data;
   }
 
@@ -286,7 +305,8 @@ export async function fetchWeather(): Promise<Weather> {
   const stale = await AsyncStorage.getItem(LAST_WEATHER_KEY).catch(() => null);
   if (stale) {
     try {
-      const cached = JSON.parse(stale) as Weather;
+      const parsed = JSON.parse(stale) as { data?: Weather } | Weather;
+      const cached = 'data' in parsed && parsed.data ? parsed.data : (parsed as Weather);
       chipCache = { at: Date.now(), data: cached };
       return cached;
     } catch {

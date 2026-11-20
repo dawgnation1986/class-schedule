@@ -51,7 +51,19 @@ import {
   type PeriodTimes,
 } from '@/lib/schedule-times';
 import { UpdateCard } from '@/components/update-card';
-import { DEFAULT_REMINDER_MINUTES, getReminderMinutes, setReminderMinutes, subscribeReminderMinutes, type ReminderMinutes } from '@/lib/notifications';
+import {
+  DEFAULT_REMINDER_MINUTES,
+  getDailyReportEnabled,
+  getExamRemindersEnabled,
+  getReminderMinutes,
+  setDailyReportEnabled,
+  setExamRemindersEnabled,
+  setReminderMinutes,
+  subscribeDailyReport,
+  subscribeExamReminders,
+  subscribeReminderMinutes,
+  type ReminderMinutes,
+} from '@/lib/notifications';
 import { ThemePresetPicker } from '@/components/theme-preset-picker';
 import { adoptCustomForBackground } from '@/lib/theme-preset';
 import { UiModePicker } from '@/components/ui-mode-picker';
@@ -273,6 +285,10 @@ export default function ProfileScreen() {
   const [siteInput, setSiteInput] = useState('');
   // 上课/下课提醒提前分钟数(0-30)
   const [remind, setRemind] = useState<ReminderMinutes>(DEFAULT_REMINDER_MINUTES);
+  // 考试提醒开关(默认开启)
+  const [examRemind, setExamRemind] = useState(true);
+  // 每日早报开关(默认开启)
+  const [dailyReport, setDailyReport] = useState(true);
   const changeRemind = (k: 'start' | 'end', d: number) => {
     void setReminderMinutes({ ...remind, [k]: Math.min(30, Math.max(0, remind[k] + d)) }).then(setRemind);
   };
@@ -309,6 +325,8 @@ export default function ProfileScreen() {
     { title: '班级课表设置 (系部/专业/班级)', kw: '班级 课表 系部 专业 设置 校园 数据', hint: '校园数据', icon: 'school-outline' as const, go: () => router.push('/settings' as never) },
     { title: '作息时间表 (冬季/夏季/手动编辑/JSON导入)', kw: '作息 时间 表 冬季 夏季 上课 下课 时间点', hint: '校园数据', icon: 'time-outline' as const, go: () => setShowTimes(true) },
     { title: '上课提醒 (上课/下课提前分钟数)', kw: '提醒 通知 上课 下课 提前 分钟 消息', hint: '校园数据', icon: 'notifications-outline' as const, go: goBottom },
+    { title: '考试提醒 (考前一天/当天自动提醒)', kw: '考试 提醒 通知 考场 考前', hint: '校园数据', icon: 'pencil-outline' as const, go: goBottom },
+    { title: '每日早报 (7点天气/第一节课/考试)', kw: '早报 每日 天气 第一节课 通知 早上', hint: '校园数据', icon: 'sunny-outline' as const, go: goBottom },
     { title: '天气城市 (跟随定位/手动设置)', kw: '天气 城市 定位 温度 手动', hint: '校园数据', icon: 'cloud-outline' as const, go: () => setWxOpen(true) },
     { title: '倒计时 (四六级/期末考试)', kw: '倒计时 四六级 期末 考试 日期', hint: '本页', icon: 'hourglass-outline' as const, go: goBottom },
     { title: '备份导出 / 导入 / 保存到手机', kw: '备份 导出 导入 保存 手机 换机 迁移 JSON', hint: '数据与备份', icon: 'save-outline' as const, go: goBottom },
@@ -334,6 +352,16 @@ export default function ProfileScreen() {
   useEffect(() => {
     void getReminderMinutes().then(setRemind);
     return subscribeReminderMinutes(() => void getReminderMinutes().then(setRemind));
+  }, []);
+
+  useEffect(() => {
+    void getExamRemindersEnabled().then(setExamRemind);
+    return subscribeExamReminders(() => void getExamRemindersEnabled().then(setExamRemind));
+  }, []);
+
+  useEffect(() => {
+    void getDailyReportEnabled().then(setDailyReport);
+    return subscribeDailyReport(() => void getDailyReportEnabled().then(setDailyReport));
   }, []);
 
   useEffect(() => {
@@ -732,6 +760,76 @@ export default function ProfileScreen() {
                 </Pressable>
               </View>
             ))}
+          </View>
+
+          <View style={[styles.subBlock, styles.hairline, { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>每日早报</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
+                  每天 07:00 一条：天气、第一节课程和当天考试
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => {
+                  const next = !dailyReport;
+                  setDailyReport(next);
+                  void setDailyReportEnabled(next);
+                }}
+                style={[
+                  styles.timesBtn,
+                  glassBorder(!dailyReport),
+                  {
+                    paddingHorizontal: 14,
+                    backgroundColor: glass
+                      ? dailyReport
+                        ? 'rgba(37,99,235,0.15)'
+                        : 'transparent'
+                      : dailyReport
+                        ? colors.primary
+                        : colors.backgroundSelected,
+                  },
+                ]}>
+                <Text style={{ color: dailyReport && !glass ? '#fff' : colors.text, fontSize: 12, fontWeight: '700' }}>
+                  {dailyReport ? '已开启' : '已关闭'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+
+          <View style={[styles.subBlock, styles.hairline, { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>考试提醒</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
+                  考前 1 天 20:00 和考试当天 07:30 各提醒一次
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => {
+                  const next = !examRemind;
+                  setExamRemind(next);
+                  void setExamRemindersEnabled(next);
+                }}
+                style={[
+                  styles.timesBtn,
+                  glassBorder(!examRemind),
+                  {
+                    paddingHorizontal: 14,
+                    backgroundColor: glass
+                      ? examRemind
+                        ? 'rgba(37,99,235,0.15)'
+                        : 'transparent'
+                      : examRemind
+                        ? colors.primary
+                        : colors.backgroundSelected,
+                  },
+                ]}>
+                <Text style={{ color: examRemind && !glass ? '#fff' : colors.text, fontSize: 12, fontWeight: '700' }}>
+                  {examRemind ? '已开启' : '已关闭'}
+                </Text>
+              </Pressable>
+            </View>
           </View>
 
           <View style={[styles.subBlock, styles.hairline, { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' }]}>

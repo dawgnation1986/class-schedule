@@ -19,6 +19,16 @@ export type WidgetCourse = {
   location: string;
 };
 
+export type WidgetExam = { name: string; daysLeft: number; date: string };
+export type WidgetWeather = { city: string; temp: number; desc: string };
+
+export type WidgetExtras = {
+  /** 最近的未过期考试 */
+  exam?: WidgetExam | null;
+  /** 最近一次成功获取的天气(可能不是今天的, 由调用方决定是否传) */
+  weather?: WidgetWeather | null;
+};
+
 export type WidgetView =
   | {
       kind: 'ok';
@@ -28,6 +38,8 @@ export type WidgetView =
       current: WidgetCourse | null;
       next: WidgetCourse | null;
       nowMin: number;
+      exam: WidgetExam | null;
+      weather: WidgetWeather | null;
     }
   /** 本周还没拉到课表(缓存过期或从未查询) */
   | { kind: 'stale'; weekday: string; dateText: string }
@@ -57,7 +69,12 @@ export function countdownText(minutes: number): string {
   return m ? `还有 ${h} 小时 ${m} 分` : `还有 ${h} 小时`;
 }
 
-export function buildWidgetView(tt: Timetable, times: PeriodTimes, now: Date): WidgetView {
+export function buildWidgetView(
+  tt: Timetable,
+  times: PeriodTimes,
+  now: Date,
+  extras: WidgetExtras = {},
+): WidgetView {
   const { weekday, dateText } = dayLabels(now);
   if (!tt?.rows?.length) return { kind: 'stale', weekday, dateText };
 
@@ -89,5 +106,34 @@ export function buildWidgetView(tt: Timetable, times: PeriodTimes, now: Date): W
   const current = courses.find((c) => nowMin >= c.startMin && nowMin < c.endMin) ?? null;
   const next = courses.find((c) => c.startMin > nowMin) ?? null;
 
-  return { kind: 'ok', weekday, dateText, courses, current, next, nowMin };
+  return {
+    kind: 'ok',
+    weekday,
+    dateText,
+    courses,
+    current,
+    next,
+    nowMin,
+    exam: extras.exam ?? null,
+    weather: extras.weather ?? null,
+  };
+}
+
+/** 按日期(YYYY-MM-DD)从考试列表里取最近的未过期考试 */
+export function nearestExam(
+  exams: Array<{ name: string; course: string; date: string }>,
+  now: Date,
+): WidgetExam | null {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const list = exams
+    .map((e) => {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(e.date ?? '');
+      if (!m) return null;
+      const at = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getTime();
+      const daysLeft = Math.round((at - today) / 86400000);
+      return daysLeft >= 0 ? { name: e.course || e.name || '考试', date: e.date, daysLeft } : null;
+    })
+    .filter((e): e is WidgetExam => !!e)
+    .sort((a, b) => a.daysLeft - b.daysLeft);
+  return list[0] ?? null;
 }

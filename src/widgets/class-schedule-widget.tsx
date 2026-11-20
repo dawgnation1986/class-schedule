@@ -96,6 +96,15 @@ function mainBlock(view: OkView, p: Palette, nameSize: number) {
           style={{ fontSize: 11, fontWeight: '600', color: p.green, marginTop: 2 }}
           allowFontScaling={false}
         />
+        {!!view.next && (
+          <TextWidget
+            text={`下一节 ${view.next.start} ${view.next.name}${view.next.location ? ` · ${view.next.location}` : ''}`}
+            maxLines={1}
+            truncate="END"
+            style={{ fontSize: 10, color: p.sub, marginTop: 3 }}
+            allowFontScaling={false}
+          />
+        )}
       </FlexWidget>
     );
   }
@@ -237,7 +246,8 @@ type CardProps = { view: WidgetView; height: number; p: Palette };
 
 function Card({ view, height, p }: CardProps) {
   const nameSize = height < 140 ? 17 : 20;
-  const listCount = Math.max(0, Math.min(4, Math.floor((height - 128) / 22)));
+  const examRows = view.kind === 'ok' && view.exam ? 18 : 0;
+  const listCount = Math.max(0, Math.min(4, Math.floor((height - 128 - examRows) / 22)));
   return (
     <FlexWidget
       clickAction="OPEN_APP"
@@ -268,12 +278,45 @@ function Card({ view, height, p }: CardProps) {
             allowFontScaling={false}
           />
         </FlexWidget>
-        <TextWidget
-          text={`${view.weekday} ${view.dateText}`}
-          style={{ fontSize: 11, color: p.sub }}
-          allowFontScaling={false}
-        />
+        <FlexWidget style={{ flexDirection: 'column', alignItems: 'flex-end' }}>
+          <TextWidget
+            text={`${view.weekday} ${view.dateText}`}
+            style={{ fontSize: 11, color: p.sub }}
+            allowFontScaling={false}
+          />
+          {view.kind === 'ok' && !!view.weather && (
+            <TextWidget
+              text={`${view.weather.city} ${view.weather.temp}° ${view.weather.desc}`}
+              style={{ fontSize: 10, color: p.sub, marginTop: 1 }}
+              allowFontScaling={false}
+            />
+          )}
+        </FlexWidget>
       </FlexWidget>
+      {view.kind === 'ok' && !!view.exam && (
+        <FlexWidget
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            marginTop: 6,
+            backgroundColor: p.greenSoft,
+            borderRadius: 6,
+            paddingHorizontal: 6,
+            paddingVertical: 2,
+          }}>
+          <TextWidget
+            text={
+              view.exam.daysLeft === 0
+                ? `今天考试：${view.exam.name}`
+                : `距 ${view.exam.name} 考试 ${view.exam.daysLeft} 天`
+            }
+            maxLines={1}
+            truncate="END"
+            style={{ fontSize: 10, fontWeight: '700', color: p.green }}
+            allowFontScaling={false}
+          />
+        </FlexWidget>
+      )}
       {view.kind === 'ok' ? mainBlock(view, p, nameSize) : placeholderBlock(view.kind, p)}
       {view.kind === 'ok' ? restRows(view, p, listCount) : []}
     </FlexWidget>

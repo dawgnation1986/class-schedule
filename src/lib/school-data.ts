@@ -197,6 +197,16 @@ function parseExams(html: string): ExamInfo[] {
   return exams;
 }
 
+/** 只读本地缓存(不发请求): 启动时补排考试提醒用 */
+export async function getCachedExams(): Promise<ExamInfo[]> {
+  try {
+    const raw = await AsyncStorage.getItem(EXAM_CACHE);
+    return raw ? (JSON.parse(raw) as { exams: ExamInfo[] }).exams : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function getExams(force = false): Promise<ExamInfo[]> {
   try {
     if (!force) {

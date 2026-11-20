@@ -38,7 +38,7 @@ import { DEFAULT_QUERY_TYPE, loadSettings, loadTimetableCache, loadTimetableUI, 
 import { getTempOverride, setTempOverride } from '@/lib/tempOverride';
 import { fetchWeather, fetchWeatherFull, setWeatherCity, type Weather, type WeatherFull } from '@/lib/weather';
 import { WeatherModal } from '@/components/weather-modal';
-import { scheduleClassReminders } from '@/lib/notifications';
+import { scheduleClassReminders, scheduleExamReminders } from '@/lib/notifications';
 import { refreshWidgets } from '@/lib/widget';
 import { TourTarget } from '@/components/tour';
 import { getPeriodTimes, subscribeTimes } from '@/lib/schedule-times';
@@ -576,6 +576,19 @@ function ClassicScreen() {
   useEffect(() => {
     void loadCountdowns().then(setCds);
     return subscribeCountdowns(() => void loadCountdowns().then(setCds));
+  }, []);
+
+  // 考试数据: 拉到后同步顶部考试条, 并按考试日期重排考前提醒
+  useEffect(() => {
+    let alive = true;
+    void getExams().then((list) => {
+      if (!alive) return;
+      setExams(list);
+      void scheduleExamReminders(list);
+    });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   /** 课表长图分享: 截取离屏完整课表视图 */
