@@ -59,6 +59,7 @@ import { OnboardingModal } from '@/components/onboarding';
 import { TourTarget, registerTourScroller, startCoachTour } from '@/components/tour';
 import { AgreementModal } from '@/components/agreement';
 import { requestClassAccess, resetAccessAndEnsureDirs } from '@/lib/class-folder';
+import { pinWidget } from '@/lib/widget';
 import { DEFAULT_SITE_URL, getSiteUrl, setSiteUrl, subscribeSiteUrl } from '@/lib/site';
 
 const PERIOD_ORDER = ['1-2', '3-4', '中午', '5-6', '7-8', '9-10'];
@@ -273,6 +274,19 @@ export default function ProfileScreen() {
   const [remind, setRemind] = useState<ReminderMinutes>(DEFAULT_REMINDER_MINUTES);
   const changeRemind = (k: 'start' | 'end', d: number) => {
     void setReminderMinutes({ ...remind, [k]: Math.min(30, Math.max(0, remind[k] + d)) }).then(setRemind);
+  };
+  // 桌面小组件: 桌面支持一键添加时弹系统确认框, 否则说明手动添加步骤
+  const addWidget = async () => {
+    const r = await pinWidget();
+    if (r === 'ok') return;
+    if (r === 'unavailable') {
+      Alert.alert('暂不支持', '当前运行环境没有桌面小组件模块，请安装最新正式版 APK 后再试。');
+      return;
+    }
+    Alert.alert(
+      '手动添加小组件',
+      '当前桌面不支持一键添加，请手动操作：\n\n1. 长按桌面空白处\n2. 选择「小组件」或「桌面插件」\n3. 找到「学生综合管理平台」\n4. 把「今日课程」拖到桌面',
+    );
   };
   // 登记滚动容器: 新手引导可自动滚动到屏幕外的目标
   const scrollRef = useRef<ScrollView>(null);
@@ -628,6 +642,18 @@ export default function ProfileScreen() {
               onPress={() => router.push('/settings')}
               style={[styles.linkBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected }]}>
               <Text style={{ color: colors.text, fontSize: 13 }}>去设置系部 / 专业 / 班级</Text>
+            </Pressable>
+          </View>
+
+          <View style={[styles.subBlock, styles.hairline, { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' }]}>
+            <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>桌面小组件</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 4 }}>
+              在桌面查看今日课程、下一节课和倒计时
+            </Text>
+            <Pressable
+              onPress={() => void addWidget()}
+              style={[styles.linkBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected }]}>
+              <Text style={{ color: colors.text, fontSize: 13 }}>添加「今日课程」到桌面</Text>
             </Pressable>
           </View>
 

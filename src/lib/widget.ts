@@ -133,3 +133,21 @@ export async function refreshWidgets(): Promise<void> {
     // 小组件是增强功能, 失败静默
   }
 }
+
+export type PinWidgetResult = 'ok' | 'unsupported' | 'unavailable';
+
+/**
+ * App 内「添加到桌面」入口: 系统/桌面支持时弹原生添加确认。
+ * ok = 已弹出确认框; unsupported = 桌面不支持一键添加, 需手动长按桌面添加;
+ * unavailable = 当前环境没有小组件原生模块(如 Expo Go)。
+ */
+export async function pinWidget(): Promise<PinWidgetResult> {
+  if (Platform.OS !== 'android') return 'unavailable';
+  const lib = loadLib();
+  if (!lib) return 'unavailable';
+  try {
+    return (await lib.requestPinWidget({ widgetName: WIDGET_NAME })) ? 'ok' : 'unsupported';
+  } catch {
+    return 'unsupported';
+  }
+}
