@@ -38,6 +38,7 @@ import { getTempOverride, setTempOverride } from '@/lib/tempOverride';
 import { fetchWeather, fetchWeatherFull, setWeatherCity, type Weather, type WeatherFull } from '@/lib/weather';
 import { WeatherModal } from '@/components/weather-modal';
 import { scheduleClassReminders } from '@/lib/notifications';
+import { refreshWidgets } from '@/lib/widget';
 import { TourTarget } from '@/components/tour';
 import { getPeriodTimes, subscribeTimes } from '@/lib/schedule-times';
 import { NovaTimetable } from '@/components/timetable-nova';
@@ -450,6 +451,7 @@ function ClassicScreen() {
       const isCurrentWeek = weekKeyOf(targetDate) === weekKeyOf(beijingNow());
       // 仅默认视图写入缓存: 本周 + 非临时班级 + 未指定其他日期, 避免污染
       if (!usingTempRef.current && !date) void saveTimetableCache(tt, weekKeyOf(targetDate));
+      if (!usingTempRef.current && !date) void refreshWidgets();
       // 仅在"本周 + 非临时班级"时重排提醒, 避免查看其他周/其他班级时覆盖真实提醒
       if (!usingTempRef.current && isCurrentWeek) scheduleClassReminders(tt);
     } catch (e) {

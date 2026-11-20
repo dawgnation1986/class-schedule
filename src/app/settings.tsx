@@ -23,6 +23,7 @@ import {
   type QueryType,
 } from '@/lib/timetable';
 import { DEFAULT_QUERY_TYPE, loadSettings, saveSettings, type Settings } from '@/lib/settings';
+import { refreshWidgets } from '@/lib/widget';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 import { useUiMode } from '@/hooks/use-ui-mode';
@@ -151,6 +152,7 @@ export default function SettingsScreen() {
       queryType,
     };
     await saveSettings(s);
+    void refreshWidgets();
     setSavedTip(true);
     setTimeout(() => setSavedTip(false), 1500);
   }, [state, sel, queryType]);

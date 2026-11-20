@@ -16,6 +16,7 @@ import {
   type Timetable,
 } from '@/lib/timetable';
 import { loadSettings, loadTimetableCache, saveTimetableCache, saveTimetableUI, weekKeyOf, type TimetableUI } from '@/lib/settings';
+import { refreshWidgets } from '@/lib/widget';
 import { getPeriodTimes, subscribeTimes } from '@/lib/schedule-times';
 import { scheduleClassReminders } from '@/lib/notifications';
 
@@ -99,6 +100,7 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
             if (weekKeyOf(selected) === weekKeyOf(beijingNow())) {
               void saveTimetableCache(tt, weekKeyOf(selected));
               void scheduleClassReminders(tt);
+              void refreshWidgets();
             }
           }
         } catch (e) {

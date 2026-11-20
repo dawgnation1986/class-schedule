@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { beijingNow, fetchTimetable, type Timetable } from './timetable';
 import { getPeriodTimes, primeScheduleTimes } from './schedule-times';
 import { loadSettings, loadTimetableCache, saveTimetableCache, weekKeyOf } from './settings';
+import { refreshWidgets } from './widget';
 
 type NotificationsModule = typeof import('expo-notifications');
 
@@ -276,6 +277,7 @@ export async function refreshTimetableAndRemind(): Promise<void> {
     if (!tt.rows.length) return;
     await saveTimetableCache(tt, weekKeyOf(now));
     await scheduleClassReminders(tt);
+    void refreshWidgets();
   } catch {
     // 静默刷新失败不影响后续使用
   } finally {

@@ -2,7 +2,7 @@
     "expo":  {
                  "name":  "学生综合管理平台",
                  "slug":  "class-schedule",
-                 "version": "1.14.12",
+                 "version": "1.15.0",
                  "orientation":  "portrait",
                  "icon":  "./assets/images/student-icon.png",
                  "scheme":  "classschedule",
@@ -48,6 +48,25 @@
                                  "expo-image",
                                  "expo-web-browser",
                                  "react-native-bottom-tabs",
+                                 [
+                                     "react-native-android-widget",
+                                     {
+                                         "widgets": [
+                                             {
+                                                 "name": "ClassScheduleWidget",
+                                                 "label": "今日课程",
+                                                 "description": "今天剩余课程与下一节课倒计时",
+                                                 "minWidth": "250dp",
+                                                 "minHeight": "110dp",
+                                                 "targetCellWidth": 4,
+                                                 "targetCellHeight": 2,
+                                                 "resizeMode": "horizontal|vertical",
+                                                 "updatePeriodMillis": 1800000,
+                                                 "widgetCategory": "home_screen"
+                                             }
+                                         ]
+                                     }
+                                 ],
                                  [
                                      "expo-build-properties",
                                      {
