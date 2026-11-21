@@ -38,8 +38,9 @@ import {
 } from '@/lib/background';
 import { loadAccount, saveAccount, type StartPage } from '@/lib/account';
 import { getCaptchaAutoEnabled, setCaptchaAutoEnabled } from '@/lib/captcha-ocr';
-import { loadSettings } from '@/lib/settings';
+import { loadSettings, loadTimetableCache } from '@/lib/settings';
 import { loadTimetableUI, saveTimetableUI, type TimetableUI } from '@/lib/settings';
+import { confirmTimetableExport } from '@/lib/calendar-export';
 import {
   activeSourceLabel,
   clearCustomTimes,
@@ -1048,6 +1049,20 @@ export default function ProfileScreen() {
             }
             style={[styles.timesBtn, glassBorder(), { marginTop: 8, backgroundColor: glass ? 'transparent' : colors.backgroundSelected, justifyContent: 'center', minHeight: 40 }]}>
             <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>保存到手机 /Class/备份 文件夹</Text>
+          </Pressable>
+          <Pressable
+            onPress={() =>
+              void loadTimetableCache().then((c) => {
+                if (!c) {
+                  Alert.alert('提示', '还没有缓存课表，先去课表页刷新一次再导出');
+                  return;
+                }
+                confirmTimetableExport(c.tt, () => {});
+              })
+            }
+            style={[styles.timesBtn, glassBorder(), { marginTop: 8, backgroundColor: glass ? 'transparent' : colors.backgroundSelected, justifyContent: 'center', minHeight: 40 }]}>
+            <Ionicons name="calendar-outline" size={14} color={glass ? colors.text : '#fff'} />
+            <Text style={{ color: glass ? colors.text : '#fff', fontSize: 12, fontWeight: '700' }}>导出课表到系统日历（.ics）</Text>
           </Pressable>
         </CardWrap>
 

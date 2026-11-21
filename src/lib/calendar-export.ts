@@ -6,7 +6,7 @@
  */
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
-import { Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
 
 import type { Timetable } from './timetable';
 import { getPeriodTimes, type PeriodTimes } from './schedule-times';
@@ -166,4 +166,32 @@ export async function exportTimetableToCalendar(timetable: Timetable): Promise<C
   } catch {
     return { ok: false, error: '导出失败，请重试' };
   }
+}
+
+/** 二次确认后导出(经典/新版课表共用): 导出中回调 busy=true */
+export function confirmTimetableExport(
+  timetable: Timetable | null,
+  onBusy: (busy: boolean) => void,
+): void {
+  if (!timetable || timetable.rows.length === 0) {
+    Alert.alert('提示', '课表还没有数据，先刷新一下再导出');
+    return;
+  }
+  Alert.alert(
+    '导出到系统日历',
+    `把当前课表写成日历文件，从今天起 ${CALENDAR_WEEKS} 周每周重复，导入后可在日历里随时删除。`,
+    [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '导出',
+        onPress: () => {
+          onBusy(true);
+          void exportTimetableToCalendar(timetable).then((r) => {
+            onBusy(false);
+            if (!r.ok) Alert.alert('导出失败', r.error);
+          });
+        },
+      },
+    ],
+  );
 }

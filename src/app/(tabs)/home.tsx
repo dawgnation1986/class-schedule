@@ -28,10 +28,11 @@ import { PORTAL_SITE, clearSession, loadLoginPage, submitLogin, tryRestoreSessio
 import { loadAccount, saveAccount } from '@/lib/account';
 import {
   getCaptchaAutoEnabled,
-  getCaptchaOcrKey,
+  getOcrConfig,
   recognizeCaptcha,
+  saveOcrConfig,
   setCaptchaAutoEnabled,
-  setCaptchaOcrKey,
+  type OcrConfig,
 } from '@/lib/captcha-ocr';
 
 export default function PortalScreen() {
@@ -67,7 +68,12 @@ export default function PortalScreen() {
   const [ocrBusy, setOcrBusy] = useState(false);
   const [ocrMsg, setOcrMsg] = useState<string | null>(null);
   const [ocrKeyOpen, setOcrKeyOpen] = useState(false);
-  const [ocrKeyDraft, setOcrKeyDraft] = useState('');
+  const [ocrDraft, setOcrDraft] = useState<OcrConfig>({
+    ocrSpaceKey: '',
+    baiduAk: '',
+    baiduSk: '',
+    customUrl: '',
+  });
   const autoTries = useRef(0);
   const autoDoneFor = useRef<LoginState | null>(null);
 
@@ -199,6 +205,28 @@ export default function PortalScreen() {
     [router],
   );
 
+  /** OCR 配置输入框(4 个 Key/URL 共用样式) */
+  const ocrField = (key: keyof OcrConfig, placeholder: string, secure = false) => (
+    <TextInput
+      value={ocrDraft[key]}
+      onChangeText={(v) => setOcrDraft((d) => ({ ...d, [key]: v }))}
+      placeholder={placeholder}
+      placeholderTextColor={colors.textSecondary}
+      autoCapitalize="none"
+      autoCorrect={false}
+      secureTextEntry={secure}
+      style={[
+        styles.input,
+        {
+          marginTop: 6,
+          backgroundColor: glass ? 'transparent' : colors.backgroundElement,
+          color: colors.text,
+          borderColor: glass ? glassLine : colors.backgroundElement,
+        },
+      ]}
+    />
+  );
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
       {/* 墨夜背景: 深空渐变 + 顶部辉光(绝对定位铺满, 原版模式不渲染) */}
@@ -275,8 +303,8 @@ export default function PortalScreen() {
                 <Pressable
                   hitSlop={8}
                   onPress={() => {
-                    void getCaptchaOcrKey().then((k) => {
-                      setOcrKeyDraft(k);
+                    void getOcrConfig().then((c) => {
+                      setOcrDraft(c);
                       setOcrKeyOpen(true);
                     });
                   }}>
@@ -392,34 +420,37 @@ export default function PortalScreen() {
         <AboutGithub colors={colors} />
       </ScrollView>
 
-      {/* OCR 服务 Key(可选): 内置公共 Key 有频率限制, 可填自己的免费 Key */}
+      {/* OCR 服务设置(可选): 自定义接口 → 百度 OCR → ocr.space 依次尝试 */}
       <Modal visible={ocrKeyOpen} transparent animationType="fade" onRequestClose={() => setOcrKeyOpen(false)}>
-        <Pressable style={styles.modalMask} onPress={() => setOcrKeyOpen(false)}>
-          <Pressable style={[styles.modalBox, { backgroundColor: colors.background }]} onPress={() => {}}>
-            <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800' }}>识别服务 Key（可选）</Text>
-            <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 6, lineHeight: 18 }}>
-              默认使用 ocr.space 的公共测试 Key，配额有限（可能提示识别失败）。可免费注册后填入自己的 Key，留空恢复默认。
-            </Text>
-            <Pressable onPress={() => Linking.openURL('https://ocr.space/ocrapi/freekey').catch(() => {})}>
-              <Text style={{ color: colors.primary, fontSize: 12, marginTop: 8 }}>去 ocr.space 免费申请 →</Text>
-            </Pressable>
-            <TextInput
-              value={ocrKeyDraft}
-              onChangeText={setOcrKeyDraft}
-              placeholder="粘贴 API Key，留空用默认"
-              placeholderTextColor={colors.textSecondary}
-              autoCapitalize="none"
-              autoCorrect={false}
-              style={[
-                styles.input,
-                {
-                  marginTop: 10,
-                  backgroundColor: glass ? 'transparent' : colors.backgroundElement,
-                  color: colors.text,
-                  borderColor: glass ? glassLine : colors.backgroundElement,
-                },
-              ]}
-            />
+        <View style={styles.modalMask}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setOcrKeyOpen(false)} />
+          <View style={[styles.modalBox, { backgroundColor: colors.background }]}>
+            <ScrollView style={{ maxHeight: 430 }} keyboardShouldPersistTaps="handled">
+              <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800' }}>识别服务设置（可选）</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 6, lineHeight: 18 }}>
+                识别时按“自定义接口 → 百度 OCR → ocr.space”依次尝试。全部留空也能用内置公共 Key，但配额有限、国内访问可能不稳定。
+              </Text>
+
+              <Text style={[styles.label, { color: colors.text, marginTop: 12 }]}>ocr.space Key</Text>
+              {ocrField('ocrSpaceKey', '留空用内置公共 Key')}
+              <Pressable onPress={() => Linking.openURL('https://ocr.space/ocrapi/freekey').catch(() => {})}>
+                <Text style={{ color: colors.primary, fontSize: 11.5, marginTop: 4 }}>免费申请 ocr.space Key →</Text>
+              </Pressable>
+
+              <Text style={[styles.label, { color: colors.text, marginTop: 12 }]}>百度智能云 API Key</Text>
+              {ocrField('baiduAk', '填了 AK/SK 才会启用百度 OCR')}
+              <Text style={[styles.label, { color: colors.text, marginTop: 8 }]}>百度智能云 Secret Key</Text>
+              {ocrField('baiduSk', 'Secret Key', true)}
+              <Pressable onPress={() => Linking.openURL('https://console.bce.baidu.com/ai/#/ai/ocr/overview/index').catch(() => {})}>
+                <Text style={{ color: colors.primary, fontSize: 11.5, marginTop: 4 }}>去百度智能云开通（有免费额度，国内速度更快）→</Text>
+              </Pressable>
+
+              <Text style={[styles.label, { color: colors.text, marginTop: 12 }]}>自定义 OCR 接口</Text>
+              {ocrField('customUrl', 'https://…（可选）')}
+              <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 4, lineHeight: 16 }}>
+                兼容 ocr.space 格式：POST 表单 base64Image，返回 ParsedResults[0].ParsedText 或 text 字段。
+              </Text>
+            </ScrollView>
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
               <Pressable
                 onPress={() => setOcrKeyOpen(false)}
@@ -428,19 +459,19 @@ export default function PortalScreen() {
               </Pressable>
               <Pressable
                 onPress={() => {
-                  void setCaptchaOcrKey(ocrKeyDraft).then(() => {
+                  void saveOcrConfig(ocrDraft).then(() => {
                     setOcrKeyOpen(false);
                     autoTries.current = 0;
                     autoDoneFor.current = null;
-                    setOcrMsg('Key 已保存，下次识别生效');
+                    setOcrMsg('识别服务已保存，下次识别生效');
                   });
                 }}
                 style={{ flex: 1, paddingVertical: 11, borderRadius: 10, alignItems: 'center', backgroundColor: colors.primary }}>
                 <Text style={{ color: '#fff', fontWeight: '700' }}>保存</Text>
               </Pressable>
             </View>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );

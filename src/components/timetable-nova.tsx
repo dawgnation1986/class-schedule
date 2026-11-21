@@ -19,6 +19,7 @@ import { loadSettings, loadTimetableCache, saveTimetableCache, saveTimetableUI, 
 import { refreshWidgets } from '@/lib/widget';
 import { getPeriodTimes, subscribeTimes } from '@/lib/schedule-times';
 import { scheduleClassReminders } from '@/lib/notifications';
+import { confirmTimetableExport } from '@/lib/calendar-export';
 
 const WEEK_NAMES = ['日', '一', '二', '三', '四', '五', '六'];
 const PERIOD_ORDER = ['1-2', '3-4', '中午', '5-6', '7-8', '9-10'];
@@ -66,6 +67,7 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
   const [now, setNow] = useState(() => beijingNow());
   const [selected, setSelected] = useState(() => beijingNow());
   const [periodTimes, setPeriodTimes] = useState(getPeriodTimes());
+  const [calBusy, setCalBusy] = useState(false);
 
   useEffect(() => subscribeTimes(() => setPeriodTimes(getPeriodTimes())), []);
 
@@ -185,6 +187,13 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
             {sameDay(selected, now) ? ' · 今天' : ''}
           </Text>
         </View>
+        <Pressable
+          disabled={calBusy}
+          onPress={() => confirmTimetableExport(timetable, setCalBusy)}
+          style={[styles.headerBtn, glass ? { backgroundColor: 'transparent', borderWidth: 1, borderColor: glassLine } : null, { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
+          <Ionicons name="calendar-outline" size={14} color={colors.text} />
+          <Text style={{ color: colors.text, fontSize: 12 }}>{calBusy ? '导出中…' : '日历'}</Text>
+        </Pressable>
         <Pressable
           onPress={() => void switchUI('classic')}
           style={[styles.headerBtn, glass ? { backgroundColor: 'transparent', borderWidth: 1, borderColor: glassLine } : null, { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>

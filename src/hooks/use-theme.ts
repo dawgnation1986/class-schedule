@@ -16,6 +16,12 @@ function useCustomPaletteId() {
   return id;
 }
 
+/** 订阅配色变更(主色/自定义 hex): 值变化时强制刷新, 避免 setState 相同值被 React 跳过 */
+function useThemeTick() {
+  const [, setTick] = useState(0);
+  useEffect(() => subscribeCustomPalette(() => setTick((v) => v + 1)), []);
+}
+
 /** 控件主色 + 自定义 hex 配色合并结果 */
 export function useTheme() {
   const scheme = useColorScheme();
@@ -26,6 +32,7 @@ export function useTheme() {
   const presetId = usePresetId();
   // 自定义档下的自定义配色 + 控件主色
   const cpId = useCustomPaletteId();
+  useThemeTick();
 
   if (mode === 'night') return NightColors;
   if (presetId === 'sepia') return SepiaColors;

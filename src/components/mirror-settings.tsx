@@ -84,16 +84,20 @@ export function MirrorSettings({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.mask} onPress={onClose}>
-        <Pressable
-          style={[styles.box, { backgroundColor: colors.background }]}
-          onPress={() => {}}>
+      <View style={styles.mask}>
+        {/* 背景遮罩单独一层: 不用 Pressable 包住内容, 否则会抢走列表的拖动手势 */}
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={[styles.box, { backgroundColor: colors.background }]}>
           <Text style={[styles.title, { color: colors.text }]}>下载镜像设置</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
             下载时自动测速，从快到慢依次尝试
           </Text>
 
-          <ScrollView style={styles.list} nestedScrollEnabled>
+          <ScrollView
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+            nestedScrollEnabled
+            showsVerticalScrollIndicator>
             {customs.map((prefix, i) =>
               row(`c-${i}`, prefix, true, () => void removeCustomMirror(i).then(refresh)),
             )}
@@ -135,8 +139,8 @@ export function MirrorSettings({
               <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>完成</Text>
             </Pressable>
           </View>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }
@@ -145,7 +149,8 @@ const styles = StyleSheet.create({
   mask: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 24 },
   box: { width: '100%', maxWidth: 400, borderRadius: 16, padding: 18 },
   title: { fontSize: 17, fontWeight: '800', marginBottom: 4 },
-  list: { maxHeight: 300, marginTop: 10, gap: 6 },
+  list: { maxHeight: 300, marginTop: 10 },
+  listContent: { gap: 6, paddingBottom: 2 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, padding: 10, marginBottom: 6 },
   chip: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(128,128,128,0.15)' },
   addRow: { flexDirection: 'row', gap: 8, marginTop: 8 },

@@ -51,6 +51,12 @@ export function ApkDownload({
     cancelled.current.current = false;
     downloadApk(info, onEvent, cancelled.current)
       .then((uri) => {
+        if (cancelled.current.current) {
+          // 下载收尾时用户已取消: 不装, 回到初始状态
+          setPhase('idle');
+          push('已取消下载');
+          return;
+        }
         setFileUri(uri);
         setPhase('done');
         push('正在拉起安装程序…');
@@ -128,6 +134,9 @@ export function ApkDownload({
       <Pressable
         onPress={() => {
           cancelled.current.current = true;
+          // 立刻回到初始状态, 后台的传输会在下一个进度回调里被中止
+          setPhase('idle');
+          push('已取消下载');
         }}
         style={{ borderRadius: 10, alignItems: 'center', paddingVertical: 9, backgroundColor: colors.backgroundElement }}>
         <Text style={{ color: '#ef4444', fontWeight: '600' }}>取消下载</Text>

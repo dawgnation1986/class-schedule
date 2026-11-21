@@ -143,6 +143,7 @@ export async function downloadApk(
     onEvent({ type: 'log', line: `[${i + 1}/${list.length}] 通过 ${m.name} 下载…` });
     try {
       const uri = await tryDownload(m.prefix + apkUrl, onEvent, cancelled, m.name);
+      if (cancelled.current) throw new Error('已取消');
       onEvent({ type: 'log', line: `下载完成，APK 已就绪` });
       return uri;
     } catch (e) {
@@ -170,6 +171,11 @@ async function tryDownload(
     APK_PATH,
     {},
     (p) => {
+      // 用户点了"取消下载": 立即中断当前传输, 不再继续写文件
+      if (cancelled.current) {
+        resumable.cancelAsync().catch(() => {});
+        return;
+      }
       const nowT = Date.now();
       if (!slowKicked && nowT - start > 6000) {
         slowKicked = true;
@@ -194,6 +200,10 @@ async function tryDownload(
   );
   try {
     const r = await resumable.downloadAsync();
+    if (cancelled.current) {
+      await FileSystem.deleteAsync(APK_PATH, { idempotent: true }).catch(() => {});
+      throw new Error('已取消');
+    }
     if (!r || r.status !== 200) throw new Error(`HTTP ${r?.status ?? '?'}`);
     return r.uri;
   } catch (e) {
