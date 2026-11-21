@@ -14,6 +14,8 @@ export const BACKUP_SECTIONS: { key: string; label: string }[] = [
   { key: 'schedule-times.v1', label: '作息时间' },
   { key: 'todos.v1', label: '待办' },
   { key: 'countdowns.v1', label: '倒计时' },
+  { key: 'school.credits.v1', label: '课程学分' },
+  { key: 'school.gpa-goal.v1', label: '目标绩点' },
   { key: 'theme-mode-v1', label: '外观模式' },
   { key: 'ui-mode-v1', label: '界面模式' },
   { key: 'theme-preset-v1', label: '主题预设' },

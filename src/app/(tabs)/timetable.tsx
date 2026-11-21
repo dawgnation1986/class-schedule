@@ -46,6 +46,7 @@ import { NovaTimetable } from '@/components/timetable-nova';
 import { getExams, type ExamInfo } from '@/lib/school-data';
 import { daysUntil, loadCountdowns, subscribeCountdowns, type Countdown } from '@/lib/countdowns';
 import { confirmTimetableExport } from '@/lib/calendar-export';
+import { clearImportedTimetable, loadImportedTimetable } from '@/lib/timetable-ocr';
 
 const WEEK_NAMES = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
 const WEEK_COLS = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
@@ -377,9 +378,15 @@ function ClassicScreen() {
 
   const [settings, setSettings] = useState<Settings | null>(null);
   const [usingTemp, setUsingTemp] = useState(false); // 是否正在临时查看其他班级
+  const [imported, setImported] = useState(false); // 当前是否展示截图导入的课表
   const [timetable, setTimetable] = useState<Timetable | null>(null);
-  // 打开页面先显示本周的缓存课表(秒开), 后台必定重新拉取最新数据
+  // 打开页面先显示本周的缓存课表(秒开), 后台必定重新拉取最新数据; 截图导入的课表优先
   useEffect(() => {
+    void loadImportedTimetable().then((imp) => {
+      if (!imp) return;
+      setImported(true);
+      setTimetable(imp.tt);
+    });
     void loadTimetableCache().then((c) => {
       if (c && c.weekKey === weekKeyOf(beijingNow())) setTimetable((cur) => cur ?? c.tt);
     });
@@ -425,13 +432,27 @@ function ClassicScreen() {
   const usingTempRef = useRef(usingTemp);
   usingTempRef.current = usingTemp;
 
-  const refresh = useCallback(async (s?: Settings, type?: QueryType, date?: Date) => {
+  const refresh = useCallback(async (s?: Settings, type?: QueryType, date?: Date, force = false) => {
     // 优先用传入的; 否则用临时覆盖(其他班级); 最后用保存的设置
     const ov = getTempOverride();
     const target = s ?? ov ?? (await loadSettings());
     setSettings(target);
     setUsingTemp(!s && !!ov);
     setNow(beijingNow());
+    // 截图导入的课表优先展示; 点"刷新"才回到联网课表
+    if (force) {
+      await clearImportedTimetable();
+      setImported(false);
+    } else {
+      const imp = await loadImportedTimetable();
+      if (imp) {
+        setImported(true);
+        setTimetable(imp.tt);
+        setError(null);
+        setLoading(false);
+        return;
+      }
+    }
     if (!target) return;
     // 主页的查询类型跟随设置(主页可临时切换查看, 重新进入页面后恢复为设置值)
     if (!type) {
@@ -534,6 +555,13 @@ function ClassicScreen() {
   const exitTemp = useCallback(() => {
     setTempOverride(null);
     refresh();
+  }, [refresh]);
+
+  /** 退出截图导入, 回到联网课表 */
+  const exitImported = useCallback(() => {
+    void clearImportedTimetable();
+    setImported(false);
+    refresh(undefined, undefined, undefined, true);
   }, [refresh]);
 
   const bjDay = selectedDate.getDay(); // 0=周日
@@ -723,7 +751,7 @@ function ClassicScreen() {
           </Text>
         </Pressable>
         <Pressable
-          onPress={() => refresh()}
+          onPress={() => refresh(undefined, undefined, undefined, true)}
           disabled={loading}
           style={[styles.refreshBtn, glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }]}>
           <Text style={{ color: colors.text }}>{loading ? '查询中…' : '刷新'}</Text>
@@ -792,6 +820,12 @@ function ClassicScreen() {
             <Text style={{ color: colors.text, fontSize: 13 }}>{calendarBusy ? '导出中…' : '导出日历'}</Text>
           </Pressable>
           <Pressable
+            onPress={() => router.push('/timetable-ocr' as never)}
+            style={[styles.dayBtn, glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }]}>
+            <Ionicons name="scan-outline" size={14} color={colors.text} />
+            <Text style={{ color: colors.text, fontSize: 13 }}>截图导入</Text>
+          </Pressable>
+          <Pressable
             onPress={() => setFullOpen(true)}
             style={[styles.dayBtn, glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }]}>
             <Ionicons name="expand-outline" size={14} color={colors.text} />
@@ -820,10 +854,18 @@ function ClassicScreen() {
       </ScrollView>
       </TourTarget>
 
-      {usingTemp && settings && (
+      {usingTemp && !imported && settings && (
         <Pressable onPress={exitTemp} style={[styles.tempBanner, { backgroundColor: 'rgba(37,99,235,0.12)' }]}>
           <Text style={{ color: colors.primary, fontSize: 12 }}>
             临时查看：{settings.bjLabel} · 点击返回我的班级
+          </Text>
+        </Pressable>
+      )}
+
+      {imported && (
+        <Pressable onPress={exitImported} style={[styles.tempBanner, { backgroundColor: 'rgba(245,158,11,0.15)' }]}>
+          <Text style={{ color: '#d97706', fontSize: 12 }}>
+            当前为截图导入课表 · 点击恢复联网课表
           </Text>
         </Pressable>
       )}

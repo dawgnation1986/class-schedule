@@ -98,6 +98,19 @@ export function scoreToGpa(score: number): number {
   return Math.min(5, Math.round(((score - 50) / 10) * 10) / 10);
 }
 
+/** 课程折算分(总评优先, 没有数字则按等级折算) */
+export function gradeScore(c: GradeCourse): number {
+  const raw = (c.total || c.level).trim();
+  const num = parseFloat(raw);
+  if (!Number.isNaN(num)) return num;
+  return LEVEL_SCORE[raw] ?? 0;
+}
+
+/** 目标绩点 → 大致需要的平均分(仅用于展示) */
+export function gpaToScore(gpa: number): number {
+  return gpa * 10 + 50;
+}
+
 function parseGrades(html: string): GradesStat | null {
   const rows = extractGridRows(html, 'DataGridDept');
   if (rows.length < 2) return null;
@@ -121,12 +134,7 @@ function parseGrades(html: string): GradesStat | null {
   if (!courses.length) return null;
 
   // 课程 → 折算分
-  const scoreOf = (c: GradeCourse): number => {
-    const raw = (c.total || c.level).trim();
-    const num = parseFloat(raw);
-    if (!Number.isNaN(num)) return num;
-    return LEVEL_SCORE[raw] ?? 0;
-  };
+  const scoreOf = (c: GradeCourse): number => gradeScore(c);
 
   // 分学期统计(保持页面出现顺序)
   const termOrder: string[] = [];
@@ -224,4 +232,128 @@ export async function getExams(force = false): Promise<ExamInfo[]> {
     const raw = await AsyncStorage.getItem(EXAM_CACHE);
     return raw ? (JSON.parse(raw) as { exams: ExamInfo[] }).exams : [];
   }
+}
+
+// ---------- 学分与目标 GPA(教务页面没有学分, 由用户自己填) ----------
+
+const CREDIT_KEY = 'school.credits.v1';
+const GOAL_KEY = 'school.gpa-goal.v1';
+
+/** 课程唯一键: 学期 + 课程名 */
+export function gradeKey(c: { term: string; course: string }): string {
+  return `${c.term}||${c.course}`;
+}
+
+const creditSubs = new Set<() => void>();
+const goalSubs = new Set<() => void>();
+
+export function subscribeCredits(fn: () => void): () => void {
+  creditSubs.add(fn);
+  return () => {
+    creditSubs.delete(fn);
+  };
+}
+
+export function subscribeGpaGoal(fn: () => void): () => void {
+  goalSubs.add(fn);
+  return () => {
+    goalSubs.delete(fn);
+  };
+}
+
+/** 读取全部课程学分(每次从本地存储读, 备份恢复后立即生效) */
+export async function loadCredits(): Promise<Record<string, number>> {
+  const out: Record<string, number> = {};
+  try {
+    const raw = await AsyncStorage.getItem(CREDIT_KEY);
+    const parsed = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+    for (const [k, v] of Object.entries(parsed ?? {})) {
+      const n = Number(v);
+      if (Number.isFinite(n) && n > 0) out[k] = n;
+    }
+  } catch {
+    // 读取失败按空处理
+  }
+  return out;
+}
+
+/** 设置某门课的学分; 传 null / 非正数表示清除 */
+export async function setCredit(key: string, credit: number | null): Promise<void> {
+  const map = { ...(await loadCredits()) };
+  if (credit == null || !Number.isFinite(credit) || credit <= 0) delete map[key];
+  else map[key] = Math.round(credit * 100) / 100;
+  await AsyncStorage.setItem(CREDIT_KEY, JSON.stringify(map)).catch(() => {});
+  creditSubs.forEach((f) => f());
+}
+
+export type GpaGoal = { target: number; remainCredits: number };
+
+export async function loadGpaGoal(): Promise<GpaGoal> {
+  try {
+    const raw = await AsyncStorage.getItem(GOAL_KEY);
+    const p = raw ? (JSON.parse(raw) as Partial<GpaGoal>) : {};
+    return {
+      target: Number.isFinite(Number(p.target)) ? Number(p.target) : 0,
+      remainCredits: Number.isFinite(Number(p.remainCredits)) ? Number(p.remainCredits) : 0,
+    };
+  } catch {
+    return { target: 0, remainCredits: 0 };
+  }
+}
+
+export async function saveGpaGoal(g: GpaGoal): Promise<void> {
+  const goal: GpaGoal = {
+    target: Number.isFinite(g.target) && g.target > 0 ? Math.round(g.target * 100) / 100 : 0,
+    remainCredits:
+      Number.isFinite(g.remainCredits) && g.remainCredits > 0
+        ? Math.round(g.remainCredits * 100) / 100
+        : 0,
+  };
+  await AsyncStorage.setItem(GOAL_KEY, JSON.stringify(goal)).catch(() => {});
+  goalSubs.forEach((f) => f());
+}
+
+export type WeightedGpa = {
+  /** 按学分加权的绩点(没填任何学分时为 0) */
+  gpa: number;
+  /** 已录入学分合计 */
+  credits: number;
+  /** 已填学分的课程数 */
+  credited: number;
+  /** 课程总数 */
+  total: number;
+};
+
+/** 学分加权绩点: 只统计填了学分的课程 */
+export function weightedGpa(courses: GradeCourse[], credits: Record<string, number>): WeightedGpa {
+  let sum = 0;
+  let cr = 0;
+  let credited = 0;
+  for (const c of courses) {
+    const credit = credits[gradeKey(c)];
+    if (!credit) continue;
+    sum += credit * scoreToGpa(gradeScore(c));
+    cr += credit;
+    credited++;
+  }
+  return {
+    gpa: cr ? Math.round((sum / cr) * 100) / 100 : 0,
+    credits: Math.round(cr * 100) / 100,
+    credited,
+    total: courses.length,
+  };
+}
+
+/**
+ * 目标 GPA 反推: 剩余课程需要达到的平均绩点。
+ * 剩余学分为 0 或参数无效时返回 null。
+ */
+export function requiredGpa(
+  target: number,
+  currentGpa: number,
+  doneCredits: number,
+  remainCredits: number,
+): number | null {
+  if (!(target > 0) || !(remainCredits > 0) || !(doneCredits >= 0)) return null;
+  return (target * (doneCredits + remainCredits) - currentGpa * doneCredits) / remainCredits;
 }

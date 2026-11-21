@@ -95,7 +95,7 @@ function extractHiddenFields(html: string): HiddenFields {
 }
 
 /** 解析"周次"描述, 如 1-18周 / 1-18双周 / 10-18周 */
-function parseWeeks(s: string): Pick<CourseEntry, 'startWeek' | 'endWeek' | 'parity'> {
+export function parseWeeks(s: string): Pick<CourseEntry, 'startWeek' | 'endWeek' | 'parity'> {
   const m = s.match(/(\d+)\s*-\s*(\d+)\s*(单|双)?周/);
   if (m) {
     return {

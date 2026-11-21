@@ -20,6 +20,7 @@ import { refreshWidgets } from '@/lib/widget';
 import { getPeriodTimes, subscribeTimes } from '@/lib/schedule-times';
 import { scheduleClassReminders } from '@/lib/notifications';
 import { confirmTimetableExport } from '@/lib/calendar-export';
+import { clearImportedTimetable, loadImportedTimetable } from '@/lib/timetable-ocr';
 
 const WEEK_NAMES = ['日', '一', '二', '三', '四', '五', '六'];
 const PERIOD_ORDER = ['1-2', '3-4', '中午', '5-6', '7-8', '9-10'];
@@ -68,11 +69,19 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
   const [selected, setSelected] = useState(() => beijingNow());
   const [periodTimes, setPeriodTimes] = useState(getPeriodTimes());
   const [calBusy, setCalBusy] = useState(false);
+  const [imported, setImported] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => subscribeTimes(() => setPeriodTimes(getPeriodTimes())), []);
 
-  // 打开页面先显示本周的缓存课表(秒开), 后台必定重新拉取最新数据
+  // 打开页面先显示本周的缓存课表(秒开), 后台必定重新拉取最新数据; 截图导入的课表优先
   useEffect(() => {
+    void loadImportedTimetable().then((imp) => {
+      if (!imp) return;
+      setImported(true);
+      setTimetable(imp.tt);
+      setLoading(false);
+    });
     void loadTimetableCache().then((c) => {
       if (c && c.weekKey === weekKeyOf(beijingNow())) {
         setTimetable((cur) => cur ?? c.tt);
@@ -89,6 +98,18 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
         setError(null);
         setNoSettings(false);
         try {
+          // 截图导入的课表优先展示, 点横幅恢复联网课表
+          const imp = await loadImportedTimetable();
+          if (imp) {
+            if (alive) {
+              setImported(true);
+              setTimetable(imp.tt);
+              const s0 = await loadSettings();
+              if (s0) setClassName(s0.bjLabel);
+            }
+            return;
+          }
+          if (alive) setImported(false);
           const s = await loadSettings();
           if (!s) {
             if (alive) setNoSettings(true);
@@ -116,8 +137,15 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
         alive = false;
         clearInterval(t);
       };
-    }, [selected]),
+    }, [selected, reloadKey]),
   );
+
+  /** 退出截图导入, 回到联网课表 */
+  const exitImported = useCallback(() => {
+    void clearImportedTimetable();
+    setImported(false);
+    setReloadKey((k) => k + 1);
+  }, []);
 
   const mins = now.getHours() * 60 + now.getMinutes();
 
@@ -195,6 +223,12 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
           <Text style={{ color: colors.text, fontSize: 12 }}>{calBusy ? '导出中…' : '日历'}</Text>
         </Pressable>
         <Pressable
+          onPress={() => router.push('/timetable-ocr' as never)}
+          style={[styles.headerBtn, glass ? { backgroundColor: 'transparent', borderWidth: 1, borderColor: glassLine } : null, { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
+          <Ionicons name="scan-outline" size={14} color={colors.text} />
+          <Text style={{ color: colors.text, fontSize: 12 }}>导入</Text>
+        </Pressable>
+        <Pressable
           onPress={() => void switchUI('classic')}
           style={[styles.headerBtn, glass ? { backgroundColor: 'transparent', borderWidth: 1, borderColor: glassLine } : null, { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
           <Ionicons name="grid-outline" size={14} color={colors.text} />
@@ -208,6 +242,21 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
           </Pressable>
         )}
       </View>
+
+      {imported && (
+        <Pressable
+          onPress={exitImported}
+          style={{
+            alignSelf: 'center',
+            marginTop: 8,
+            borderRadius: 8,
+            paddingHorizontal: 10,
+            paddingVertical: 5,
+            backgroundColor: 'rgba(245,158,11,0.15)',
+          }}>
+          <Text style={{ color: '#d97706', fontSize: 11.5 }}>当前为截图导入课表 · 点此恢复联网课表</Text>
+        </Pressable>
+      )}
 
       {/* 周日期条 */}
       <View

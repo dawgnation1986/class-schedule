@@ -345,6 +345,7 @@ export default function ProfileScreen() {
     { title: '通知设置 (悬浮/声音/振动/锁屏显示)', kw: '通知 设置 悬浮 横幅 声音 振动 锁屏 显示 渠道', hint: '校园数据', icon: 'notifications-circle-outline' as const, go: goBottom },
     { title: '天气城市 (跟随定位/手动设置)', kw: '天气 城市 定位 温度 手动', hint: '校园数据', icon: 'cloud-outline' as const, go: () => setWxOpen(true) },
     { title: '倒计时 (四六级/期末考试)', kw: '倒计时 四六级 期末 考试 日期', hint: '本页', icon: 'hourglass-outline' as const, go: goBottom },
+    { title: '课表截图导入 (图片识别课程)', kw: '课表 截图 导入 OCR 识别 图片 相册 扫描 拍照', hint: '独立页面', icon: 'scan-outline' as const, go: () => router.push('/timetable-ocr' as never) },
     { title: '备份导出 / 导入 / 保存到手机', kw: '备份 导出 导入 保存 手机 换机 迁移 JSON', hint: '数据与备份', icon: 'save-outline' as const, go: goBottom },
     { title: '自动识别验证码并登录 (开关)', kw: '验证码 自动 识别 登录 ocr 综合平台 开关', hint: '本页 · 主站账号', icon: 'scan-outline' as const, go: goTop },
     { title: '公告 (全部公告/历史发布)', kw: '公告 通知 消息 历史 发布', hint: '独立页面', icon: 'megaphone-outline' as const, go: () => router.push('/notices' as never) },

@@ -218,3 +218,158 @@ export async function recognizeCaptcha(dataUri: string): Promise<CaptchaOcrResul
   if (t) return { ok: true, text: t, via: 'ocr.space' };
   return { ok: false, error: '识别失败或服务不可用' };
 }
+
+// ---------- 通用图片 OCR(课表截图, 需要文字坐标) ----------
+
+/** 一段识别出的文字及其在图片中的位置(像素) */
+export type OcrLine = { text: string; x: number; y: number; w: number; h: number };
+
+export type ImageOcrResult = { ok: true; lines: OcrLine[]; via: string } | { ok: false; error: string };
+
+/** 自定义接口(通用文字, 不清洗结果) */
+async function recognizeCustomText(url: string, dataUri: string): Promise<string | null> {
+  try {
+    const body = new FormData();
+    body.append('base64Image', dataUri);
+    body.append('language', 'chs');
+    const r = await fetch(url, { method: 'POST', body });
+    if (!r.ok) return null;
+    const j = (await r.json()) as {
+      ParsedResults?: { ParsedText?: string }[];
+      text?: string;
+      result?: string;
+    };
+    const text = (j.ParsedResults?.[0]?.ParsedText ?? j.text ?? j.result ?? '').trim();
+    return text || null;
+  } catch {
+    return null;
+  }
+}
+
+/** 百度通用文字识别(带位置), 版面还原更可靠 */
+async function recognizeWithBaiduLayout(ak: string, sk: string, dataUri: string): Promise<OcrLine[] | null> {
+  try {
+    const token = await baiduTokenFor(ak, sk);
+    const body = new URLSearchParams();
+    body.append('image', dataUriBase64(dataUri));
+    body.append('language_type', 'CHN_ENG');
+    body.append('detect_direction', 'true');
+    body.append('paragraph', 'false');
+    const r = await fetch(
+      `https://aip.baidubce.com/rest/2.0/ocr/v1/general?access_token=${encodeURIComponent(token)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      },
+    );
+    if (!r.ok) return null;
+    const j = (await r.json()) as {
+      words_result?: {
+        words: string;
+        location?: { left?: number; top?: number; width?: number; height?: number };
+      }[];
+    };
+    const lines = (j.words_result ?? [])
+      .map((w) => ({
+        text: w.words ?? '',
+        x: w.location?.left ?? 0,
+        y: w.location?.top ?? 0,
+        w: w.location?.width ?? 0,
+        h: w.location?.height ?? 0,
+      }))
+      .filter((l) => l.text.trim());
+    return lines.length ? lines : null;
+  } catch {
+    baiduToken = null;
+    return null;
+  }
+}
+
+/** ocr.space 的 overlay 模式(返回每行文字的外框) */
+async function recognizeWithOcrSpaceLayout(dataUri: string, key: string): Promise<OcrLine[] | null> {
+  try {
+    const body = new FormData();
+    body.append('base64Image', dataUri);
+    body.append('language', 'chs');
+    body.append('OCREngine', '1');
+    body.append('isOverlayRequired', 'true');
+    body.append('scale', 'true');
+    const r = await fetch('https://api.ocr.space/parse/image', {
+      method: 'POST',
+      headers: { apikey: key },
+      body,
+    });
+    if (!r.ok) return null;
+    const j = (await r.json()) as {
+      ParsedResults?: {
+        TextOverlay?: {
+          Lines?: {
+            LineText?: string;
+            MaxHeight?: number;
+            Words?: { WordText?: string; Left?: number; Top?: number; Width?: number; Height?: number }[];
+          }[];
+        };
+      }[];
+    };
+    const lines = j.ParsedResults?.[0]?.TextOverlay?.Lines ?? [];
+    const out = lines
+      .map((l) => {
+        const words = l.Words ?? [];
+        if (!words.length) {
+          return { text: l.LineText ?? '', x: 0, y: 0, w: 0, h: l.MaxHeight ?? 0 };
+        }
+        const left = Math.min(...words.map((w) => w.Left ?? 0));
+        const top = Math.min(...words.map((w) => w.Top ?? 0));
+        const right = Math.max(...words.map((w) => (w.Left ?? 0) + (w.Width ?? 0)));
+        return {
+          text: l.LineText ?? words.map((w) => w.WordText ?? '').join(''),
+          x: left,
+          y: top,
+          w: right - left,
+          h: l.MaxHeight ?? Math.max(...words.map((w) => w.Height ?? 0)),
+        };
+      })
+      .filter((l) => l.text.trim());
+    return out.length ? out : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 识别一张普通图片(课表截图)并返回带坐标的文字行。
+ * 顺序: 百度(有 AK/SK) → 自定义接口 → ocr.space。
+ */
+export async function recognizeImageLayout(dataUri: string): Promise<ImageOcrResult> {
+  if (!dataUri.startsWith('data:image')) return { ok: false, error: '图片无效' };
+  const cfg = await getOcrConfig();
+
+  if (cfg.baiduAk && cfg.baiduSk) {
+    const lines = await recognizeWithBaiduLayout(cfg.baiduAk, cfg.baiduSk, dataUri);
+    if (lines) return { ok: true, lines, via: '百度 OCR' };
+  }
+
+  if (cfg.customUrl) {
+    const text = await recognizeCustomText(cfg.customUrl, dataUri);
+    if (text) {
+      const rows = text.split(/\r?\n/).map((t) => t.trim()).filter(Boolean);
+      if (rows.length) {
+        return {
+          ok: true,
+          lines: rows.map((t, i) => ({ text: t, x: 0, y: i * 20, w: 0, h: 18 })),
+          via: '自定义接口',
+        };
+      }
+    }
+  }
+
+  const key = cfg.ocrSpaceKey || DEFAULT_OCR_KEY;
+  const wait = 1200 - (Date.now() - lastRequestAt);
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  lastRequestAt = Date.now();
+  const lines = await recognizeWithOcrSpaceLayout(dataUri, key);
+  if (lines) return { ok: true, lines, via: 'ocr.space' };
+
+  return { ok: false, error: '识别失败：可换清晰截图，或在主站登录页的 OCR 设置里填百度 AK/SK' };
+}
