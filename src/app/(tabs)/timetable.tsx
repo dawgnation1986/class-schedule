@@ -46,6 +46,7 @@ import { NovaTimetable } from '@/components/timetable-nova';
 import { getExams, type ExamInfo } from '@/lib/school-data';
 import { daysUntil, loadCountdowns, subscribeCountdowns, type Countdown } from '@/lib/countdowns';
 import { confirmTimetableExport } from '@/lib/calendar-export';
+import { semesterWeekNo, weekRangeText } from '@/lib/week';
 import { clearImportedTimetable, loadImportedTimetable } from '@/lib/timetable-ocr';
 
 const WEEK_NAMES = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
@@ -400,6 +401,9 @@ function ClassicScreen() {
   // 跟随作息时间表变化(手动编辑/JSON 导入/切换季节后自动刷新)
   useEffect(() => subscribeTimes(() => setPeriodTimes(getPeriodTimes())), []);
   const [selectedDate, setSelectedDate] = useState(() => beijingNow());
+  // 底部周次条(跟随当前查询日期)
+  const weekNo = semesterWeekNo(selectedDate);
+  const weekRange = weekRangeText(selectedDate);
   const [weather, setWeather] = useState<Weather | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(true);
   const weatherRef = useRef<Weather | null>(null);
@@ -1083,6 +1087,41 @@ function ClassicScreen() {
         </PinchZoom>
         </TourTarget>
       )}
+      {/* 底部周次切换: 不用回到顶部翻周 */}
+      {timetable && timetable.rows.length > 0 && (
+        <CardWrap
+          style={[
+            styles.weekNavWrap,
+            night ? undefined : [glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }],
+          ]}>
+          <View style={styles.weekNav}>
+            <Pressable
+              onPress={() => shiftDate(-7)}
+              hitSlop={10}
+              accessibilityLabel="上一周"
+              style={styles.weekArrow}>
+              <Ionicons name="chevron-back" size={22} color={night ? '#e5e7eb' : colors.text} />
+            </Pressable>
+            <Pressable onPress={() => confirmDate(beijingNow())} style={styles.weekCenter}>
+              <Text style={[styles.weekNo, { color: night ? '#f3f4f6' : colors.text }]}>第 {weekNo} 周</Text>
+              <Text
+                style={[
+                  styles.weekRange,
+                  { color: night ? 'rgba(229,231,235,0.62)' : colors.textSecondary },
+                ]}>
+                {weekRange}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => shiftDate(7)}
+              hitSlop={10}
+              accessibilityLabel="下一周"
+              style={styles.weekArrow}>
+              <Ionicons name="chevron-forward" size={22} color={night ? '#e5e7eb' : colors.text} />
+            </Pressable>
+          </View>
+        </CardWrap>
+      )}
       {/* 全屏横屏整周视图(捏合缩放) */}
       {timetable && (
         <FullWeekView
@@ -1338,4 +1377,21 @@ const styles = StyleSheet.create({
   shareCourseMeta: { fontSize: 10, color: '#6b7280' },
   shareCourseWeeks: { fontSize: 10, color: '#2563eb' },
   shareFoot: { fontSize: 10, color: '#9ca3af', textAlign: 'center', marginTop: 8 },
+  // 底部周次切换条(跟随主题/透明控件/墨夜)
+  weekNavWrap: {
+    marginHorizontal: Spacing.three,
+    marginTop: 6,
+    marginBottom: 8,
+    borderRadius: 16,
+  },
+  weekNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+  weekArrow: { width: 48, height: 40, alignItems: 'center', justifyContent: 'center' },
+  weekCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  weekNo: { fontSize: 16, fontWeight: '800' },
+  weekRange: { fontSize: 11, marginTop: 2 },
 });

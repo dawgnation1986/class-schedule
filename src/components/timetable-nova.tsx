@@ -21,6 +21,7 @@ import { getPeriodTimes, subscribeTimes } from '@/lib/schedule-times';
 import { scheduleClassReminders } from '@/lib/notifications';
 import { confirmTimetableExport } from '@/lib/calendar-export';
 import { clearImportedTimetable, loadImportedTimetable } from '@/lib/timetable-ocr';
+import { semesterWeekNo, weekRangeText } from '@/lib/week';
 
 const WEEK_NAMES = ['日', '一', '二', '三', '四', '五', '六'];
 const PERIOD_ORDER = ['1-2', '3-4', '中午', '5-6', '7-8', '9-10'];
@@ -162,6 +163,14 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
     d.setDate(monday.getDate() + i);
     return d;
   });
+  // 底部周次条(跟随当前选择的日期)
+  const weekNo = semesterWeekNo(selected);
+  const weekRange = weekRangeText(selected);
+  const gotoWeek = (delta: number) => {
+    const d = new Date(selected);
+    d.setDate(d.getDate() + delta);
+    setSelected(d);
+  };
 
   const col = (selected.getDay() + 6) % 7;
   const items: Item[] = timetable
@@ -378,6 +387,28 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
           </Text>
         </ScrollView>
       )}
+
+      {/* 底部周次切换: 不用回到顶部翻周 */}
+      {!noSettings && (
+        <View
+          style={[
+            styles.weekNav,
+            glass
+              ? { backgroundColor: 'transparent', borderWidth: 1, borderColor: glassLine }
+              : { backgroundColor: colors.backgroundElement },
+          ]}>
+          <Pressable onPress={() => gotoWeek(-7)} hitSlop={10} accessibilityLabel="上一周" style={styles.weekArrow}>
+            <Ionicons name="chevron-back" size={22} color={colors.text} />
+          </Pressable>
+          <Pressable onPress={() => setSelected(beijingNow())} style={styles.weekCenter}>
+            <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800' }}>第 {weekNo} 周</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 2 }}>{weekRange}</Text>
+          </Pressable>
+          <Pressable onPress={() => gotoWeek(7)} hitSlop={10} accessibilityLabel="下一周" style={styles.weekArrow}>
+            <Ionicons name="chevron-forward" size={22} color={colors.text} />
+          </Pressable>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -396,4 +427,17 @@ const styles = StyleSheet.create({
   stateChip: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4 },
   goSetBtn: { backgroundColor: '#2563eb', borderRadius: 10, paddingHorizontal: 18, paddingVertical: 10, marginTop: 14 },
+  // 底部周次切换条(跟随主题/透明控件)
+  weekNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: Spacing.three,
+    marginTop: 6,
+    marginBottom: 8,
+    borderRadius: 14,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+  weekArrow: { width: 48, height: 40, alignItems: 'center', justifyContent: 'center' },
+  weekCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });
