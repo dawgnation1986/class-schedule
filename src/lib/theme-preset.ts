@@ -192,19 +192,37 @@ export const ACCENT_PRESETS: { label: string; hex: string }[] = [
 
 const ACCENT_KEY = 'theme-accent-v1';
 
+/** 校验 #RRGGBB, 支持缩写 #RGB */
+export function normalizeHex(v: string): string | null {
+  const s = v.trim();
+  const m = /^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.exec(s);
+  if (!m) return null;
+  const raw = m[1];
+  const full =
+    raw.length === 3
+      ? raw
+          .split('')
+          .map((c) => c + c)
+          .join('')
+      : raw;
+  return `#${full.toLowerCase()}`;
+}
+
 /** 当前控件主色(默认 #2563eb) */
 export function getAccentColor(): string {
   return cache.accent ?? '#2563eb';
 }
 
 export async function setAccentColor(hex: string): Promise<void> {
-  cache.accent = hex;
-  await AsyncStorage.setItem(ACCENT_KEY, hex).catch(() => {});
+  const clean = normalizeHex(hex);
+  if (!clean) return;
+  cache.accent = clean;
+  await AsyncStorage.setItem(ACCENT_KEY, clean).catch(() => {});
   await clearBgIfNotCustom();
   notify();
 }
 
-// ---------- 自定义十六进制配色(仅"自定义"档且自定义配色选"默认"时生效) ----------
+// ---------- 自定义颜色: 在"自定义"档下覆盖所选配色的任意一项 ----------
 
 export type CustomHex = Partial<{
   text: string;
@@ -221,8 +239,22 @@ export function getCustomHex(): CustomHex {
 }
 
 export async function setCustomHex(hex: CustomHex): Promise<void> {
-  cache.customHex = { ...(cache.customHex ?? {}), ...hex };
+  const next: CustomHex = { ...(cache.customHex ?? {}) };
+  for (const [k, v] of Object.entries(hex) as [keyof CustomHex, string | undefined][]) {
+    const clean = v ? normalizeHex(v) : null;
+    if (clean) next[k] = clean;
+    else delete next[k];
+  }
+  cache.customHex = next;
   await AsyncStorage.setItem(CHEX_KEY, JSON.stringify(cache.customHex)).catch(() => {});
+  await clearBgIfNotCustom();
+  notify();
+}
+
+/** 清空全部自定义颜色(真正删除覆盖, 回到所选配色的默认值) */
+export async function resetCustomHex(): Promise<void> {
+  cache.customHex = {};
+  await AsyncStorage.removeItem(CHEX_KEY).catch(() => {});
   await clearBgIfNotCustom();
   notify();
 }

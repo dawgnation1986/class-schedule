@@ -13,16 +13,37 @@ import { NightCard, NightTint } from '@/components/night-kit';
 import { usePresetId } from '@/hooks/use-preset-id';
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { useBgSetting } from '@/lib/background';
-import { applyPreset, applyThemeFile, ACCENT_PRESETS, CUSTOM_PALETTES, deleteThemeFile, exportTheme, getAccentColor, getCustomHex, getCustomPaletteId, listThemeFiles, PRESETS, setAccentColor, setCustomHex, setCustomPaletteId, subscribeCustomPalette, type CustomHex, type CustomPaletteId, type PresetFile } from '@/lib/theme-preset';
+import { applyPreset, applyThemeFile, ACCENT_PRESETS, CUSTOM_PALETTES, deleteThemeFile, exportTheme, getAccentColor, getCustomHex, getCustomPaletteId, listThemeFiles, normalizeHex, PRESETS, resetCustomHex, setAccentColor, setCustomHex, setCustomPaletteId, subscribeCustomPalette, type CustomHex, type CustomPaletteId, type PresetFile } from '@/lib/theme-preset';
 import { hasClassAccess, lastAccessError, requestClassAccess, resetAccessAndEnsureDirs } from '@/lib/class-folder';
 
-const ColorsHexPlaceholder: Record<keyof CustomHex, string> = {
-  background: '如 #FFFFFF',
-  backgroundElement: '如 #F0F0F3',
-  backgroundSelected: '如 #E0E1E6',
-  text: '如 #1F2937',
-  textSecondary: '如 #60646C',
-};
+/** 可单独覆盖的配色项 */
+const HEX_TOKENS: { key: keyof CustomHex; label: string; hint: string }[] = [
+  { key: 'background', label: '页面底色', hint: '整个页面的背景' },
+  { key: 'backgroundElement', label: '卡片底色', hint: '卡片 / 输入框 / 分区块' },
+  { key: 'backgroundSelected', label: '选中控件', hint: '选中项、按钮底色' },
+  { key: 'text', label: '主文字', hint: '标题与正文' },
+  { key: 'textSecondary', label: '次文字', hint: '说明与提示' },
+];
+
+function hslToHex(h: number, s: number, l: number): string {
+  const a = (s / 100) * Math.min(l / 100, 1 - l / 100);
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const v = l / 100 - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+    return Math.round(255 * v)
+      .toString(16)
+      .padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+/** 调色板: 1 行灰阶 + 6 行彩色(10 列, 由亮到暗) */
+const PALETTE_ROWS: string[][] = [
+  ['#ffffff', '#f6f7f9', '#eceef2', '#dfe2e7', '#c9ced6', '#a3abb8', '#767f8d', '#4b5563', '#2b313b', '#000000'],
+  ...[90, 76, 62, 48, 34, 22].map((l) =>
+    Array.from({ length: 10 }, (_, i) => hslToHex(i * 36, l > 85 ? 55 : 68, l)),
+  ),
+];
 
 export function ThemePresetPicker() {
   const colors = useTheme();
@@ -35,9 +56,21 @@ export function ThemePresetPicker() {
   const presetId = usePresetId();
   const [open, setOpen] = useState(false);
   const [paletteId, setPaletteId] = useState<CustomPaletteId>(() => getCustomPaletteId());
-  useEffect(() => subscribeCustomPalette(() => { setPaletteId(getCustomPaletteId()); setAccentState(getAccentColor()); }), []);
   const [accent, setAccentState] = useState(() => getAccentColor());
+  const [accentDraft, setAccentDraft] = useState(() => getAccentColor());
   const [hexDraft, setHexDraft] = useState<CustomHex>(() => getCustomHex());
+  const [token, setToken] = useState<keyof CustomHex>('background');
+  const [hexErr, setHexErr] = useState<string | null>(null);
+  useEffect(
+    () =>
+      subscribeCustomPalette(() => {
+        setPaletteId(getCustomPaletteId());
+        setAccentState(getAccentColor());
+        setAccentDraft(getAccentColor());
+        setHexDraft(getCustomHex());
+      }),
+    [],
+  );
   const [access, setAccess] = useState<boolean | null>(null);
   const [expOpen, setExpOpen] = useState(false);
   const [impOpen, setImpOpen] = useState(false);
@@ -136,6 +169,11 @@ export function ThemePresetPicker() {
           <View style={styles.grid}>
             {PRESETS.map((p) => {
               const active = presetId === p.id;
+              // 自定义档用当前实际配色预览, 而不是固定色块
+              const swatch: [string, string] =
+                p.id === 'custom' && presetId === 'custom'
+                  ? [colors.background, colors.backgroundElement]
+                  : p.swatch;
               return (
                 <Pressable
                   key={p.id}
@@ -151,8 +189,8 @@ export function ThemePresetPicker() {
                     },
                   ]}>
                   <View style={styles.swatchWrap}>
-                    <View style={[styles.swatchA, { backgroundColor: p.swatch[0] }, !night && { borderColor: 'rgba(100,116,139,0.3)' }]} />
-                    <View style={[styles.swatchB, { backgroundColor: p.swatch[1] }, !night && { borderColor: 'rgba(100,116,139,0.3)' }]} />
+                    <View style={[styles.swatchA, { backgroundColor: swatch[0] }, !night && { borderColor: 'rgba(100,116,139,0.3)' }]} />
+                    <View style={[styles.swatchB, { backgroundColor: swatch[1] }, !night && { borderColor: 'rgba(100,116,139,0.3)' }]} />
                     {active && (
                       <View style={[styles.check, night && { backgroundColor: 'rgba(91,140,255,0.9)' }]}>
                         <Ionicons name="checkmark" size={12} color="#fff" />
@@ -204,11 +242,7 @@ export function ThemePresetPicker() {
                 })}
               </View>
             </View>
-          ) : (
-            <Text style={{ color: colors.textSecondary, fontSize: 11.5, marginTop: 10 }}>
-              选"自定义"档位后，可在此自由搭配底色配色
-            </Text>
-          )}
+          ) : null}
 
           {/* 控件主色: 全局生效(按钮/链接/高亮) */}
           <View style={{ marginTop: 12 }}>
@@ -235,65 +269,180 @@ export function ThemePresetPicker() {
                 );
               })}
             </View>
+            {/* 自定义主色: 调色板之外的任意颜色 */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
+              <View style={[styles.chipDot, { backgroundColor: accent, width: 18, height: 18, borderRadius: 9 }]} />
+              <TextInput
+                value={accentDraft}
+                onChangeText={setAccentDraft}
+                placeholder="#2563eb"
+                placeholderTextColor={colors.textSecondary}
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={[styles.hexInput, { color: colors.text, borderColor: night || glass ? glassLine : 'rgba(100,116,139,0.4)', flex: 1 }]}
+              />
+              <Pressable
+                onPress={() => {
+                  const clean = normalizeHex(accentDraft);
+                  if (!clean) {
+                    Alert.alert('颜色格式不对', '请输入 #RGB 或 #RRGGBB，如 #2563eb');
+                    return;
+                  }
+                  void setAccentColor(clean);
+                }}
+                style={[styles.chip, { borderColor: accent, backgroundColor: night || glass ? 'rgba(37,99,235,0.16)' : colors.backgroundSelected }]}>
+                <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>应用主色</Text>
+              </Pressable>
+            </View>
           </View>
 
-          {/* 自定义 hex 配色: 仅"自定义"档 + "默认"配色时生效 */}
-          {presetId === 'custom' && paletteId === 'default' && (
-            <View style={{ marginTop: 12 }}>
-              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13.5 }}>自定义颜色 (十六进制)</Text>
-              <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 2 }}>
-                留空保持默认; 支持 #RRGGBB 格式, 如 #FFF8E7
+          {/* 自定义颜色调色板: 仅"自定义"档生效, 可覆盖上方所选配色的任意一项 */}
+          {presetId === 'custom' ? (
+            <View style={{ marginTop: 14 }}>
+              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13.5 }}>自定义颜色（调色板）</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 2, lineHeight: 17 }}>
+                先选要改的部位，再点色块即时生效；会覆盖上面的配色，可单独恢复。已自定义项显示小圆点。
               </Text>
-              {([
-                ['background', '页面底色'],
-                ['backgroundElement', '卡片底色'],
-                ['backgroundSelected', '选中/控件底'],
-                ['text', '主文字'],
-                ['textSecondary', '次文字'],
-              ] as const).map(([k, label]) => (
-                <View key={k} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                  <Text style={{ color: colors.text, fontSize: 12.5, width: 76 }}>{label}</Text>
-                  <TextInput
-                    value={hexDraft[k] ?? ''}
-                    onChangeText={(v) => setHexDraft((d) => ({ ...d, [k]: v }))}
-                    placeholder={ColorsHexPlaceholder[k]}
-                    placeholderTextColor={colors.textSecondary}
-                    autoCapitalize="none"
-                    style={{
-                      flex: 1,
-                      borderWidth: 1,
-                      borderColor: 'rgba(100,116,139,0.4)',
-                      borderRadius: 8,
-                      paddingHorizontal: 10,
-                      paddingVertical: 7,
-                      color: colors.text,
-                      fontSize: 13,
-                    }}
-                  />
-                </View>
-              ))}
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+
+              {/* 部位选择 */}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                {HEX_TOKENS.map((t) => {
+                  const active = token === t.key;
+                  return (
+                    <Pressable
+                      key={t.key}
+                      onPress={() => {
+                        setToken(t.key);
+                        setHexErr(null);
+                      }}
+                      style={({ pressed }) => [
+                        styles.chip,
+                        pressed && { opacity: 0.7 },
+                        {
+                          borderColor: active ? colors.primary : night ? NightTint.line : glass ? glassLine : 'rgba(100,116,139,0.3)',
+                          backgroundColor: active ? (night || glass ? 'rgba(37,99,235,0.18)' : colors.backgroundSelected) : 'transparent',
+                        },
+                      ]}>
+                      <View style={[styles.chipDot, { backgroundColor: colors[t.key] }]} />
+                      <Text style={{ color: active ? colors.primary : colors.text, fontSize: 12, fontWeight: active ? '700' : '500' }}>{t.label}</Text>
+                      {!!hexDraft[t.key] && <View style={styles.customDot} />}
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {/* 色板 */}
+              <View style={{ marginTop: 10, gap: 6 }}>
+                {PALETTE_ROWS.map((row, ri) => (
+                  <View key={ri} style={{ flexDirection: 'row', gap: 6 }}>
+                    {row.map((hex) => {
+                      const selected = (hexDraft[token] ?? '').toLowerCase() === hex.toLowerCase();
+                      return (
+                        <Pressable
+                          key={hex}
+                          onPress={() => {
+                            setHexDraft((d) => ({ ...d, [token]: hex }));
+                            setHexErr(null);
+                            void setCustomHex({ [token]: hex } as CustomHex);
+                          }}
+                          style={[
+                            styles.swatch,
+                            { backgroundColor: hex, borderColor: selected ? colors.primary : 'rgba(100,116,139,0.35)' },
+                            selected && { borderWidth: 3 },
+                          ]}
+                        />
+                      );
+                    })}
+                  </View>
+                ))}
+              </View>
+
+              {/* 当前部位: 颜色值输入 + 恢复 */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+                  {HEX_TOKENS.find((t) => t.key === token)?.label}
+                </Text>
+                <TextInput
+                  value={hexDraft[token] ?? ''}
+                  onChangeText={(v) => {
+                    setHexDraft((d) => ({ ...d, [token]: v }));
+                    setHexErr(null);
+                  }}
+                  placeholder={colors[token]}
+                  placeholderTextColor={colors.textSecondary}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  style={[styles.hexInput, { color: colors.text, borderColor: 'rgba(100,116,139,0.4)', flex: 1 }]}
+                />
                 <Pressable
                   onPress={() => {
-                    const clean: CustomHex = {};
-                    for (const [k, v] of Object.entries(hexDraft)) {
-                      if (typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v.trim())) clean[k as keyof CustomHex] = v.trim();
+                    const clean = normalizeHex(hexDraft[token] ?? '');
+                    if (!clean) {
+                      setHexErr('格式应为 #RGB 或 #RRGGBB');
+                      return;
                     }
-                    void setCustomHex(clean);
+                    setHexDraft((d) => ({ ...d, [token]: clean }));
+                    void setCustomHex({ [token]: clean } as CustomHex);
+                  }}
+                  style={[styles.chip, { borderColor: colors.primary, backgroundColor: night || glass ? 'rgba(37,99,235,0.16)' : colors.backgroundSelected }]}>
+                  <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>应用</Text>
+                </Pressable>
+              </View>
+              {!!hexErr && <Text style={{ color: '#ef4444', fontSize: 11.5, marginTop: 4 }}>{hexErr}</Text>}
+
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+                <Pressable
+                  onPress={() => {
+                    setHexDraft((d) => ({ ...d, [token]: '' }));
+                    void setCustomHex({ [token]: '' } as CustomHex);
                   }}
                   style={[styles.actionBtn, { backgroundColor: night ? 'rgba(91,140,255,0.14)' : colors.backgroundSelected, flex: 1 }]}>
-                  <Text style={{ color: colors.text, fontSize: 12.5, fontWeight: '700' }}>应用颜色</Text>
+                  <Text style={{ color: colors.text, fontSize: 12.5, fontWeight: '700' }}>恢复此项</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => {
                     setHexDraft({});
-                    void setCustomHex({});
+                    setHexErr(null);
+                    void resetCustomHex();
                   }}
                   style={[styles.actionBtn, { backgroundColor: night ? 'rgba(91,140,255,0.14)' : colors.backgroundSelected, flex: 1 }]}>
-                  <Text style={{ color: colors.text, fontSize: 12.5, fontWeight: '700' }}>恢复默认</Text>
+                  <Text style={{ color: colors.text, fontSize: 12.5, fontWeight: '700' }}>全部恢复默认</Text>
                 </Pressable>
               </View>
+
+              {/* 实时预览 */}
+              <View
+                style={{
+                  marginTop: 10,
+                  borderRadius: 12,
+                  padding: 12,
+                  backgroundColor: colors.background,
+                  borderWidth: 1,
+                  borderColor: colors.backgroundSelected,
+                }}>
+                <Text style={{ color: colors.text, fontWeight: '800', fontSize: 13 }}>预览 · 今日课程</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 11.5, marginTop: 2 }}>次文字说明 / 时间与地点</Text>
+                <View
+                  style={{
+                    marginTop: 8,
+                    padding: 10,
+                    borderRadius: 8,
+                    backgroundColor: colors.backgroundElement,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}>
+                  <Text style={{ color: colors.text, fontSize: 12 }}>高等数学 · 3-4 节</Text>
+                  <View style={{ backgroundColor: colors.primary, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 5 }}>
+                    <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>按钮</Text>
+                  </View>
+                </View>
+              </View>
             </View>
+          ) : (
+            <Text style={{ color: colors.textSecondary, fontSize: 11.5, marginTop: 10 }}>
+              选"自定义"档位后，可在此用调色板自由搭配底色配色
+            </Text>
           )}
 
           <View style={styles.btnRow}>
@@ -469,6 +618,15 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   chipDot: { width: 14, height: 14, borderRadius: 7, borderWidth: 1, borderColor: 'rgba(0,0,0,0.15)' },
+  customDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#f59e0b' },
+  swatch: { flex: 1, aspectRatio: 1, borderRadius: 7, borderWidth: 1 },
+  hexInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    fontSize: 13,
+  },
   grantText: { color: '#f59e0b', fontSize: 12, flex: 1, lineHeight: 17 },
   btnRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
   actionBtn: {

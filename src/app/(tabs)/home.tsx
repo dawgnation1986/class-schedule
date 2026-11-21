@@ -1,8 +1,9 @@
-﻿import { useCallback, useEffect, useMemo, useState, type ElementType } from 'react';
+﻿import { useCallback, useEffect, useMemo, useRef, useState, type ElementType } from 'react';
 import {
   ActivityIndicator,
   Image,
   Linking,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -25,6 +26,13 @@ import { NightGlowBackground, NightCard, NightPrimaryButton } from '@/components
 import { AboutGithub } from '@/components/about-github';
 import { PORTAL_SITE, clearSession, loadLoginPage, submitLogin, tryRestoreSession, type LoginState, type PortalApp } from '@/lib/portal';
 import { loadAccount, saveAccount } from '@/lib/account';
+import {
+  getCaptchaAutoEnabled,
+  getCaptchaOcrKey,
+  recognizeCaptcha,
+  setCaptchaAutoEnabled,
+  setCaptchaOcrKey,
+} from '@/lib/captcha-ocr';
 
 export default function PortalScreen() {
   const scheme = useColorScheme();
@@ -54,6 +62,14 @@ export default function PortalScreen() {
   const [name, setName] = useState<string | null>(null);
   const [apps, setApps] = useState<PortalApp[]>([]);
   const [keyword, setKeyword] = useState('');
+  // 自动识别验证码并登录(开关持久化)
+  const [autoCaptcha, setAutoCaptcha] = useState(false);
+  const [ocrBusy, setOcrBusy] = useState(false);
+  const [ocrMsg, setOcrMsg] = useState<string | null>(null);
+  const [ocrKeyOpen, setOcrKeyOpen] = useState(false);
+  const [ocrKeyDraft, setOcrKeyDraft] = useState('');
+  const autoTries = useRef(0);
+  const autoDoneFor = useRef<LoginState | null>(null);
 
   // 关键字匹配: 按应用标题模糊过滤(支持空格分隔多个关键字, 命中任一即保留)
   const shownApps = useMemo(() => {
@@ -88,6 +104,11 @@ export default function PortalScreen() {
           setUsername(acc.username);
           setPassword(acc.password);
         }
+        setAutoCaptcha(await getCaptchaAutoEnabled());
+        // 每次进入页面重置自动尝试次数, 由自动识别流程消费
+        autoTries.current = 0;
+        autoDoneFor.current = null;
+        setOcrMsg(null);
         // 已登录状态下不自动降级(避免误清), 只在未登录时尝试恢复
         if (name) return;
         setLoading(true);
@@ -106,27 +127,59 @@ export default function PortalScreen() {
     }, [refreshCaptcha, name]),
   );
 
-  const login = useCallback(async () => {
-    if (!state || !username || !password || !captcha) return;
-    setLoggingIn(true);
-    setError(null);
-    try {
-      const r = await submitLogin(state, username, password, captcha);
-      if (r.ok) {
-        setName(r.name);
-        setApps(r.apps);
-        await saveAccount({ username, password, startPage: (await loadAccount())?.startPage ?? 'home' });
-      } else {
-        setError(r.message);
-        await refreshCaptcha(); // 验证码已失效, 换一张
+  const login = useCallback(
+    async (captchaOverride?: string) => {
+      const code = (captchaOverride ?? captcha).trim();
+      if (!state || !username || !password || !code) return;
+      setLoggingIn(true);
+      setError(null);
+      try {
+        const r = await submitLogin(state, username, password, code);
+        if (r.ok) {
+          setName(r.name);
+          setApps(r.apps);
+          setOcrMsg(null);
+          await saveAccount({ username, password, startPage: (await loadAccount())?.startPage ?? 'home' });
+        } else {
+          setError(r.message);
+          await refreshCaptcha(); // 验证码已失效, 换一张
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '登录失败，请重试');
+        await refreshCaptcha();
+      } finally {
+        setLoggingIn(false);
       }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '登录失败，请重试');
-      await refreshCaptcha();
-    } finally {
-      setLoggingIn(false);
-    }
-  }, [state, username, password, captcha, refreshCaptcha]);
+    },
+    [state, username, password, captcha, refreshCaptcha],
+  );
+
+  // 自动识别验证码 → 填入 → 触发登录(每次打开/换验证码最多尝试 2 次, 失败回退手动)
+  useEffect(() => {
+    if (!autoCaptcha || !state || name || loggingIn || loading) return;
+    if (!username || !password) return;
+    if (autoDoneFor.current === state || autoTries.current >= 2) return;
+    autoDoneFor.current = state;
+    autoTries.current += 1;
+    let cancelled = false;
+    (async () => {
+      setOcrBusy(true);
+      setOcrMsg('正在自动识别验证码…');
+      const r = await recognizeCaptcha(state.captchaUri);
+      if (cancelled) return;
+      setOcrBusy(false);
+      if (!r.ok) {
+        setOcrMsg(`自动识别失败：${r.error}，请手动输入`);
+        return;
+      }
+      setCaptcha(r.text);
+      setOcrMsg(`已识别 ${r.text}，正在登录…`);
+      await login(r.text);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [autoCaptcha, state, name, loggingIn, loading, username, password, login]);
 
   const openApp = useCallback(
     (app: PortalApp) => {
@@ -195,17 +248,61 @@ export default function PortalScreen() {
                 )}
               </Pressable>
             </View>
+            {/* 自动识别验证码并登录 */}
+            <View style={{ marginTop: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Pressable
+                  hitSlop={6}
+                  onPress={() => {
+                    const next = !autoCaptcha;
+                    setAutoCaptcha(next);
+                    setOcrMsg(null);
+                    void setCaptchaAutoEnabled(next);
+                    if (next) {
+                      autoTries.current = 0;
+                      autoDoneFor.current = null;
+                    }
+                  }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 7, flex: 1 }}>
+                  <Ionicons
+                    name={autoCaptcha ? 'checkbox' : 'square-outline'}
+                    size={17}
+                    color={autoCaptcha ? colors.primary : colors.textSecondary}
+                  />
+                  <Text style={{ color: colors.text, fontSize: 12.5 }}>自动识别验证码并登录</Text>
+                </Pressable>
+                {ocrBusy && <ActivityIndicator size="small" />}
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => {
+                    void getCaptchaOcrKey().then((k) => {
+                      setOcrKeyDraft(k);
+                      setOcrKeyOpen(true);
+                    });
+                  }}>
+                  <Text style={{ color: colors.primary, fontSize: 11.5 }}>识别 Key</Text>
+                </Pressable>
+              </View>
+              {autoCaptcha && !ocrMsg && (
+                <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 4, lineHeight: 16 }}>
+                  打开 App 时自动识别并登录；验证码图片会上传到第三方 OCR 服务，失败会退回手动输入。
+                </Text>
+              )}
+              {!!ocrMsg && (
+                <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 4 }}>{ocrMsg}</Text>
+              )}
+            </View>
             {night ? (
               <NightPrimaryButton
                 title="登 录"
-                onPress={login}
+                onPress={() => void login()}
                 disabled={loggingIn || loading || !state || !username || !password || !captcha}
                 style={{ marginTop: Spacing.three }}
               />
             ) : (
               <Pressable
                 disabled={loggingIn || loading || !state || !username || !password || !captcha}
-                onPress={login}
+                onPress={() => void login()}
                 style={[
                   styles.loginBtn,
                   glassBorder(!!(username && password && captcha)),
@@ -294,6 +391,57 @@ export default function PortalScreen() {
 
         <AboutGithub colors={colors} />
       </ScrollView>
+
+      {/* OCR 服务 Key(可选): 内置公共 Key 有频率限制, 可填自己的免费 Key */}
+      <Modal visible={ocrKeyOpen} transparent animationType="fade" onRequestClose={() => setOcrKeyOpen(false)}>
+        <Pressable style={styles.modalMask} onPress={() => setOcrKeyOpen(false)}>
+          <Pressable style={[styles.modalBox, { backgroundColor: colors.background }]} onPress={() => {}}>
+            <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800' }}>识别服务 Key（可选）</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 6, lineHeight: 18 }}>
+              默认使用 ocr.space 的公共测试 Key，配额有限（可能提示识别失败）。可免费注册后填入自己的 Key，留空恢复默认。
+            </Text>
+            <Pressable onPress={() => Linking.openURL('https://ocr.space/ocrapi/freekey').catch(() => {})}>
+              <Text style={{ color: colors.primary, fontSize: 12, marginTop: 8 }}>去 ocr.space 免费申请 →</Text>
+            </Pressable>
+            <TextInput
+              value={ocrKeyDraft}
+              onChangeText={setOcrKeyDraft}
+              placeholder="粘贴 API Key，留空用默认"
+              placeholderTextColor={colors.textSecondary}
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={[
+                styles.input,
+                {
+                  marginTop: 10,
+                  backgroundColor: glass ? 'transparent' : colors.backgroundElement,
+                  color: colors.text,
+                  borderColor: glass ? glassLine : colors.backgroundElement,
+                },
+              ]}
+            />
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+              <Pressable
+                onPress={() => setOcrKeyOpen(false)}
+                style={{ flex: 1, paddingVertical: 11, borderRadius: 10, alignItems: 'center', backgroundColor: colors.backgroundElement }}>
+                <Text style={{ color: colors.text }}>取消</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  void setCaptchaOcrKey(ocrKeyDraft).then(() => {
+                    setOcrKeyOpen(false);
+                    autoTries.current = 0;
+                    autoDoneFor.current = null;
+                    setOcrMsg('Key 已保存，下次识别生效');
+                  });
+                }}
+                style={{ flex: 1, paddingVertical: 11, borderRadius: 10, alignItems: 'center', backgroundColor: colors.primary }}>
+                <Text style={{ color: '#fff', fontWeight: '700' }}>保存</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -307,6 +455,14 @@ const styles = StyleSheet.create({
   label: { fontSize: 13, marginBottom: 6, marginTop: Spacing.two },
   input: { borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, borderWidth: 1, fontSize: 15 },
   captchaRow: { flexDirection: 'row', gap: Spacing.two, alignItems: 'center' },
+  modalMask: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.three,
+  },
+  modalBox: { width: '100%', maxWidth: 420, borderRadius: 16, padding: Spacing.three },
   captchaInput: { flex: 1 },
   captchaImgWrap: { width: 110, height: 46, alignItems: 'center', justifyContent: 'center' },
   captchaImg: { width: 110, height: 46 },

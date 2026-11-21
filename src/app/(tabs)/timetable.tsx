@@ -45,6 +45,7 @@ import { getPeriodTimes, subscribeTimes } from '@/lib/schedule-times';
 import { NovaTimetable } from '@/components/timetable-nova';
 import { getExams, type ExamInfo } from '@/lib/school-data';
 import { daysUntil, loadCountdowns, subscribeCountdowns, type Countdown } from '@/lib/countdowns';
+import { CALENDAR_WEEKS, exportTimetableToCalendar } from '@/lib/calendar-export';
 
 const WEEK_NAMES = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
 const WEEK_COLS = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
@@ -613,6 +614,32 @@ function ClassicScreen() {
     }
   }, []);
 
+  /** 导出到系统日历: 生成 .ics 后交给系统分享面板 */
+  const [calendarBusy, setCalendarBusy] = useState(false);
+  const exportToCalendar = useCallback(() => {
+    if (!timetable || timetable.rows.length === 0) {
+      Alert.alert('提示', '课表还没有数据，先刷新一下再导出');
+      return;
+    }
+    Alert.alert(
+      '导出到系统日历',
+      `把当前课表写成日历文件，从今天起 ${CALENDAR_WEEKS} 周每周重复，导入后可在日历里随时删除。`,
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '导出',
+          onPress: () => {
+            setCalendarBusy(true);
+            void exportTimetableToCalendar(timetable).then((r) => {
+              setCalendarBusy(false);
+              if (!r.ok) Alert.alert('导出失败', r.error);
+            });
+          },
+        },
+      ],
+    );
+  }, [timetable]);
+
   useEffect(() => {
     if (loading || !timetable || timetable.rows.length === 0) return;
     const t = setTimeout(() => {
@@ -776,6 +803,13 @@ function ClassicScreen() {
           <Pressable onPress={shareSchedule} style={[styles.dayBtn, glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }]}>
             <Ionicons name="share-social-outline" size={14} color={colors.text} />
             <Text style={{ color: colors.text, fontSize: 13 }}>分享</Text>
+          </Pressable>
+          <Pressable
+            onPress={exportToCalendar}
+            disabled={calendarBusy}
+            style={[styles.dayBtn, glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement, opacity: calendarBusy ? 0.6 : 1 }]}>
+            <Ionicons name="calendar-outline" size={14} color={colors.text} />
+            <Text style={{ color: colors.text, fontSize: 13 }}>{calendarBusy ? '导出中…' : '导出日历'}</Text>
           </Pressable>
           <Pressable
             onPress={() => setFullOpen(true)}

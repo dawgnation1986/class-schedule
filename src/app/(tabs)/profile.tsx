@@ -14,7 +14,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { MaxContentWidth, Spacing, type Palette } from '@/constants/theme';
@@ -26,7 +26,7 @@ import { NightGlowBackground, NightCard } from '@/components/night-kit';
 import { getThemeMode, saveThemeMode, subscribeTheme, themeModeLabel, type ThemeMode } from '@/lib/theme';
 import { getWeatherCity, setWeatherCity } from '@/lib/weather';
 import { addCountdown, loadCountdowns, removeCountdown, subscribeCountdowns, type Countdown } from '@/lib/countdowns';
-import { exportBackup, importBackup, saveBackupToClass } from '@/lib/backup';
+import { exportBackup, importBackup, saveBackupToClass, summarizeBackup } from '@/lib/backup';
 import {
   clearBackground,
   getBackground,
@@ -37,6 +37,7 @@ import {
   type BgSetting,
 } from '@/lib/background';
 import { loadAccount, saveAccount, type StartPage } from '@/lib/account';
+import { getCaptchaAutoEnabled, setCaptchaAutoEnabled } from '@/lib/captcha-ocr';
 import { loadSettings } from '@/lib/settings';
 import { loadTimetableUI, saveTimetableUI, type TimetableUI } from '@/lib/settings';
 import {
@@ -53,15 +54,20 @@ import {
 import { UpdateCard } from '@/components/update-card';
 import {
   DEFAULT_REMINDER_MINUTES,
+  checkNotificationChannels,
+  ensureReminderChannel,
   getDailyReportEnabled,
   getExamRemindersEnabled,
   getReminderMinutes,
+  openChannelNotificationSettings,
+  openNotificationSettings,
   setDailyReportEnabled,
   setExamRemindersEnabled,
   setReminderMinutes,
   subscribeDailyReport,
   subscribeExamReminders,
   subscribeReminderMinutes,
+  type ChannelHealth,
   type ReminderMinutes,
 } from '@/lib/notifications';
 import { ThemePresetPicker } from '@/components/theme-preset-picker';
@@ -258,6 +264,7 @@ export default function ProfileScreen() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [startPage, setStartPage] = useState<StartPage>('home');
+  const [autoCaptcha, setAutoCaptcha] = useState(false);
   const [classLabel, setClassLabel] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [source, setSource] = useState<string>(activeSourceLabel());
@@ -275,6 +282,7 @@ export default function ProfileScreen() {
   const [cdDate, setCdDate] = useState('');
   const [bkOutOpen, setBkOutOpen] = useState(false);
   const [bkJson, setBkJson] = useState('');
+  const [bkRaw, setBkRaw] = useState(false);
   const [bkInOpen, setBkInOpen] = useState(false);
   const [bkText, setBkText] = useState('');
   const [agreementOpen, setAgreementOpen] = useState(false);
@@ -289,6 +297,12 @@ export default function ProfileScreen() {
   const [examRemind, setExamRemind] = useState(true);
   // 每日早报开关(默认开启)
   const [dailyReport, setDailyReport] = useState(true);
+  // 通知渠道体检结果(悬浮/声音/振动/锁屏)
+  const [channels, setChannels] = useState<ChannelHealth[] | null>(null);
+  const [fixingNotif, setFixingNotif] = useState(false);
+  const loadChannels = useCallback(() => {
+    void checkNotificationChannels().then(setChannels);
+  }, []);
   const changeRemind = (k: 'start' | 'end', d: number) => {
     void setReminderMinutes({ ...remind, [k]: Math.min(30, Math.max(0, remind[k] + d)) }).then(setRemind);
   };
@@ -317,7 +331,7 @@ export default function ProfileScreen() {
   const goTop = () => scrollRef.current?.scrollTo({ y: 0, animated: true });
   const SEARCH_ITEMS = [
     { title: '主题预设 (纯白/纯黑/墨夜/护眼米黄/淡雅蓝/自定义)', kw: '主题 预设 纯白 纯黑 墨夜 护眼 米黄 淡雅 蓝 皮肤 配色 导出 导入 主题文件', hint: '本页 · 外观', icon: 'color-palette-outline' as const, go: goTop },
-    { title: '自定义配色 / 自定义颜色 (十六进制)', kw: '自定义 配色 颜色 hex 底色 卡片 文字', hint: '本页 · 主题预设内', icon: 'options-outline' as const, go: goTop },
+    { title: '自定义配色 / 自定义颜色 (调色板)', kw: '自定义 配色 颜色 调色板 色卡 hex 底色 卡片 文字', hint: '本页 · 主题预设内', icon: 'options-outline' as const, go: goTop },
     { title: '控件主色 (按钮/链接颜色)', kw: '主色 控件 按钮 链接 颜色 accent', hint: '本页 · 主题预设内', icon: 'brush-outline' as const, go: goTop },
     { title: '界面设置 (原版界面/墨夜主题)', kw: '界面 设置 墨夜 原版 主题 模式 切换', hint: '本页 · 外观', icon: 'contrast-outline' as const, go: goTop },
     { title: '外观模式 (跟随系统/浅色/深色)', kw: '外观 模式 浅色 深色 跟随 系统 亮色 暗色', hint: '本页 · 外观', icon: 'sunny-outline' as const, go: goTop },
@@ -327,9 +341,11 @@ export default function ProfileScreen() {
     { title: '上课提醒 (上课/下课提前分钟数)', kw: '提醒 通知 上课 下课 提前 分钟 消息', hint: '校园数据', icon: 'notifications-outline' as const, go: goBottom },
     { title: '考试提醒 (考前一天/当天自动提醒)', kw: '考试 提醒 通知 考场 考前', hint: '校园数据', icon: 'pencil-outline' as const, go: goBottom },
     { title: '每日早报 (7点天气/第一节课/考试)', kw: '早报 每日 天气 第一节课 通知 早上', hint: '校园数据', icon: 'sunny-outline' as const, go: goBottom },
+    { title: '通知设置 (悬浮/声音/振动/锁屏显示)', kw: '通知 设置 悬浮 横幅 声音 振动 锁屏 显示 渠道', hint: '校园数据', icon: 'notifications-circle-outline' as const, go: goBottom },
     { title: '天气城市 (跟随定位/手动设置)', kw: '天气 城市 定位 温度 手动', hint: '校园数据', icon: 'cloud-outline' as const, go: () => setWxOpen(true) },
     { title: '倒计时 (四六级/期末考试)', kw: '倒计时 四六级 期末 考试 日期', hint: '本页', icon: 'hourglass-outline' as const, go: goBottom },
     { title: '备份导出 / 导入 / 保存到手机', kw: '备份 导出 导入 保存 手机 换机 迁移 JSON', hint: '数据与备份', icon: 'save-outline' as const, go: goBottom },
+    { title: '自动识别验证码并登录 (开关)', kw: '验证码 自动 识别 登录 ocr 综合平台 开关', hint: '本页 · 主站账号', icon: 'scan-outline' as const, go: goTop },
     { title: '公告 (全部公告/历史发布)', kw: '公告 通知 消息 历史 发布', hint: '独立页面', icon: 'megaphone-outline' as const, go: () => router.push('/notices' as never) },
     { title: '支持开发者 (赞助/收款码)', kw: '赞助 支持 开发者 收款码 微信 支付宝 奶茶', hint: '独立页面', icon: 'heart-outline' as const, go: () => router.push('/sponsor' as never) },
     { title: '官网接口地址 (公告/收款码下发)', kw: '官网 接口 地址 下发 公告 服务器', hint: '通用', icon: 'globe-outline' as const, go: () => setSiteOpen(true) },
@@ -363,6 +379,12 @@ export default function ProfileScreen() {
     void getDailyReportEnabled().then(setDailyReport);
     return subscribeDailyReport(() => void getDailyReportEnabled().then(setDailyReport));
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadChannels();
+    }, [loadChannels]),
+  );
 
   useEffect(() => {
     void loadCountdowns().then(setCdList);
@@ -416,6 +438,7 @@ export default function ProfileScreen() {
       }
       const s = await loadSettings();
       setClassLabel(s?.bjLabel ?? null);
+      setAutoCaptcha(await getCaptchaAutoEnabled());
     })();
   }, []);
 
@@ -528,6 +551,27 @@ export default function ProfileScreen() {
               </Pressable>
             ))}
           </View>
+
+          <Pressable
+            onPress={() => {
+              const next = !autoCaptcha;
+              setAutoCaptcha(next);
+              void setCaptchaAutoEnabled(next);
+            }}
+            style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 14 }}>
+            <Ionicons
+              name={autoCaptcha ? 'checkbox' : 'square-outline'}
+              size={18}
+              color={autoCaptcha ? colors.primary : colors.textSecondary}
+              style={{ marginTop: 1 }}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.text, fontSize: 13 }}>自动识别验证码并登录</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 2, lineHeight: 16 }}>
+                打开 App 时自动识别首页验证码并触发登录，失败会退回手动输入；验证码图片会上传到第三方 OCR 服务。
+              </Text>
+            </View>
+          </Pressable>
 
           <Pressable
             disabled={!username || !password}
@@ -833,6 +877,59 @@ export default function ProfileScreen() {
           </View>
 
           <View style={[styles.subBlock, styles.hairline, { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' }]}>
+            <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>通知设置</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2, lineHeight: 18 }}>
+              渠道默认已开启悬浮横幅、声音、振动和锁屏显示内容。系统或省电策略若关闭了其中某项，可点对应渠道到系统设置里打开（应用无法用代码强制修改这些系统开关）。
+            </Text>
+            <View style={{ marginTop: 8, gap: 6 }}>
+              {(channels ?? []).map((ch) => {
+                const ok = ch.exists && ch.issues.length === 0;
+                return (
+                  <Pressable
+                    key={ch.id}
+                    onPress={() => void openChannelNotificationSettings(ch.id)}
+                    style={[styles.timesBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundSelected, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12 }]}>
+                    <Ionicons
+                      name={ok ? 'checkmark-circle' : 'alert-circle'}
+                      size={15}
+                      color={ok ? '#16a34a' : '#f59e0b'}
+                    />
+                    <Text style={{ color: colors.text, fontSize: 12.5, flex: 1 }}>{ch.name}</Text>
+                    <Text style={{ color: ok ? '#16a34a' : '#f59e0b', fontSize: 11 }}>
+                      {ok ? '全部开启' : ch.issues.join(' / ')}
+                    </Text>
+                    <Ionicons name="chevron-forward" size={13} color={colors.textSecondary} />
+                  </Pressable>
+                );
+              })}
+            </View>
+            <View style={[styles.timesBtnRow, { marginTop: 8, marginBottom: 0 }]}>
+              <Pressable
+                disabled={fixingNotif}
+                onPress={() => {
+                  setFixingNotif(true);
+                  void ensureReminderChannel(true)
+                    .then((r) => {
+                      loadChannels();
+                      ToastAndroid.show(
+                        r === 'unavailable' ? '当前环境不支持通知渠道' : '已按默认值重建通知渠道，建议到系统设置确认一遍',
+                        ToastAndroid.LONG,
+                      );
+                    })
+                    .finally(() => setFixingNotif(false));
+                }}
+                style={[styles.timesBtn, glassBorder(), { flex: 1, backgroundColor: glass ? 'transparent' : colors.backgroundSelected }]}>
+                <Text style={{ color: colors.text, fontSize: 12 }}>{fixingNotif ? '修复中…' : '一键修复渠道'}</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => void openNotificationSettings()}
+                style={[styles.timesBtn, glassBorder(), { flex: 1, backgroundColor: glass ? 'transparent' : colors.backgroundSelected }]}>
+                <Text style={{ color: colors.text, fontSize: 12 }}>系统通知设置</Text>
+              </Pressable>
+            </View>
+          </View>
+
+          <View style={[styles.subBlock, styles.hairline, { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' }]}>
             <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>天气城市</Text>
             <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
               {wxCity ? `手动指定：${wxCity}` : '自动定位（IP 定位，城市可能不准）'}
@@ -913,13 +1010,14 @@ export default function ProfileScreen() {
         <CardWrap style={cardStyle(styles.section)}>
           <Text style={[styles.secTitle, { color: colors.text }]}>数据与备份</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
-            备份班级设置、作息、待办、倒计时、主题、镜像与账号。导出的 JSON 可发送到微信/QQ 收藏，换机或重装后粘贴导入。
+            备份全部可配置项：班级与课表界面、作息、待办、倒计时、主题与自定义配色、提醒开关、镜像与账号。导出的 JSON 可发送到微信/QQ 收藏，换机或重装后粘贴导入。
           </Text>
           <View style={[styles.timesBtnRow, { marginTop: 10 }]}>
             <Pressable
               onPress={() =>
                 void exportBackup().then((j) => {
                   setBkJson(j);
+                  setBkRaw(false);
                   setBkOutOpen(true);
                 })
               }
@@ -1052,17 +1150,43 @@ export default function ProfileScreen() {
         <Pressable style={styles.modalMask} onPress={() => setBkOutOpen(false)}>
           <Pressable style={[styles.modalBox, { backgroundColor: colors.background }]} onPress={() => {}}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>备份内容</Text>
-            <ScrollView style={{ maxHeight: 300 }}>
-              <TextInput
-                value={bkJson}
-                editable={false}
-                multiline
-                style={[
-                  styles.jsonInput,
-                  { backgroundColor: colors.backgroundElement, color: colors.text, borderWidth: 1, borderColor: 'rgba(100,116,139,0.45)' },
-                ]}
-              />
-            </ScrollView>
+            {(() => {
+              const s = summarizeBackup(bkJson);
+              if (!s) return <Text style={{ color: colors.textSecondary, fontSize: 13 }}>备份生成失败</Text>;
+              return (
+                <View style={{ gap: 6 }}>
+                  <Text style={{ color: colors.textSecondary, fontSize: 12.5, lineHeight: 19 }}>
+                    {s.classLabel ? `班级：${s.classLabel}\n` : ''}
+                    共 {s.sections.length} 项配置 · 导出于 {new Date(s.at).toLocaleString('zh-CN')}
+                  </Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                    {s.sections.map((label) => (
+                      <Text
+                        key={label}
+                        style={{ color: colors.text, fontSize: 11, backgroundColor: colors.backgroundElement, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                        {label}
+                      </Text>
+                    ))}
+                  </View>
+                  <Pressable onPress={() => setBkRaw((v) => !v)} style={{ marginTop: 4 }}>
+                    <Text style={{ color: colors.primary, fontSize: 12 }}>{bkRaw ? '收起原始 JSON ▲' : '查看原始 JSON ▼'}</Text>
+                  </Pressable>
+                  {bkRaw && (
+                    <ScrollView style={{ maxHeight: 240 }}>
+                      <TextInput
+                        value={bkJson}
+                        editable={false}
+                        multiline
+                        style={[
+                          styles.jsonInput,
+                          { backgroundColor: colors.backgroundElement, color: colors.text, borderWidth: 1, borderColor: 'rgba(100,116,139,0.45)' },
+                        ]}
+                      />
+                    </ScrollView>
+                  )}
+                </View>
+              );
+            })()}
             <View style={styles.modalBtnRow}>
               <Pressable onPress={() => setBkOutOpen(false)} style={[styles.modalBtn, { backgroundColor: colors.backgroundElement }]}>
                 <Text style={{ color: colors.text }}>关闭</Text>
@@ -1106,7 +1230,7 @@ export default function ProfileScreen() {
                   void importBackup(bkText).then((r) => {
                     if (r.ok) {
                       setBkInOpen(false);
-                      Alert.alert('恢复完成', '数据已导入，请退出并重新打开 App 使设置全部生效。');
+                      Alert.alert('恢复完成', `已恢复 ${r.imported ?? 0} 项配置，请退出并重新打开 App 使设置全部生效。`);
                     } else {
                       Alert.alert('导入失败', r.error ?? '未知错误');
                     }

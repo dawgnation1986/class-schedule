@@ -111,53 +111,162 @@ function hmToMin(s: string): number {
   return h * 60 + m;
 }
 
-/** 通知渠道: 上课 / 下课 / 考试分开注册, 系统通知设置里可分别查看与管理 */
-export const START_CHANNEL_ID = 'class-start-v3';
-export const END_CHANNEL_ID = 'class-end-v1';
-export const EXAM_CHANNEL_ID = 'exam-remind-v1';
-export const DAILY_CHANNEL_ID = 'daily-report-v1';
-export const GRADE_CHANNEL_ID = 'grade-update-v1';
-/** 旧版合并渠道(上课下课共用, 名字只叫"上课提醒"), 已废弃, 启动时自动清理 */
-const LEGACY_CHANNEL_ID = 'class-remind-v2';
+/** 通知渠道: 上课 / 下课 / 考试分开注册, 系统通知设置里可分别查看与管理
+ *  渠道 ID 带版本号: 属性(声音/振动/锁屏显示)创建后无法修改, 需要变更时换新 ID 并删旧渠道,
+ *  由系统按新渠道的默认值重新生成(悬浮/声音/振动/锁屏内容全部打开)。 */
+export const START_CHANNEL_ID = 'class-start-v4';
+export const END_CHANNEL_ID = 'class-end-v2';
+export const EXAM_CHANNEL_ID = 'exam-remind-v2';
+export const DAILY_CHANNEL_ID = 'daily-report-v2';
+export const GRADE_CHANNEL_ID = 'grade-update-v2';
 
-/** 渠道状态: ok=已存在且 MAX / created=新建 / recreated=重要级不足删除重建 / unavailable=模块不可用 */
+/** 渠道结构版本: 需要强制重建一次渠道时 +1 */
+const CHANNEL_SCHEMA = 2;
+const SCHEMA_KEY = 'notif.channel.schema.v1';
+
+/** 历史渠道 ID(合并渠道 + 旧版本各渠道), 启动时清理, 避免系统设置里残留重复项 */
+const LEGACY_CHANNEL_IDS = [
+  'class-remind-v2',
+  'class-start-v3',
+  'class-end-v1',
+  'exam-remind-v1',
+  'daily-report-v1',
+  'grade-update-v1',
+];
+
+export type NotificationChannelDef = { id: string; name: string; desc: string };
+
+/** 全部通知渠道(设置页用于展示/逐个跳转系统设置) */
+export const NOTIFICATION_CHANNELS: NotificationChannelDef[] = [
+  { id: START_CHANNEL_ID, name: '上课提醒', desc: '上课前的提醒' },
+  { id: END_CHANNEL_ID, name: '下课提醒', desc: '下课前的提醒' },
+  { id: EXAM_CHANNEL_ID, name: '考试提醒', desc: '考前一天与考试当天提醒' },
+  { id: DAILY_CHANNEL_ID, name: '每日早报', desc: '每天 07:00 的天气与课程早报' },
+  { id: GRADE_CHANNEL_ID, name: '成绩更新', desc: '查到新成绩时提醒' },
+];
+
+/** 渠道状态: ok=已存在且完整 / created=新建 / recreated=重建 / unavailable=模块不可用 */
 export type ReminderChannelStatus = 'ok' | 'created' | 'recreated' | 'unavailable';
 
-/** 确保上课/下课两个提醒渠道都存在且为 MAX 重要级: 不存在则创建; 重要级不足(创建后不可改)则删除重建 */
-export async function ensureReminderChannel(): Promise<ReminderChannelStatus> {
+/** 创建渠道时使用的完整默认值: MAX 重要级 + 默认声音 + 振动 + 锁屏显示通知及内容 */
+function fullChannelOptions(Notifications: NotificationsModule, name: string, description: string) {
+  return {
+    name,
+    description,
+    importance: Notifications.AndroidImportance.MAX,
+    sound: 'default',
+    vibrationPattern: [0, 350, 250, 350],
+    enableVibrate: true,
+    enableLights: true,
+    showBadge: true,
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+  };
+}
+
+/** 确保全部通知渠道存在且为完整默认值: 缺失或重要级不足则创建/重建 */
+export async function ensureReminderChannel(force = false): Promise<ReminderChannelStatus> {
   const Notifications = loadNotifications();
   if (!Notifications || Platform.OS !== 'android') return 'unavailable';
   try {
-    // 清理旧版合并渠道, 避免系统设置里残留"上课提醒"单渠道
-    if (await Notifications.getNotificationChannelAsync(LEGACY_CHANNEL_ID)) {
-      await Notifications.deleteNotificationChannelAsync(LEGACY_CHANNEL_ID);
+    const schema = Number(await AsyncStorage.getItem(SCHEMA_KEY)) || 0;
+    // 渠道属性创建后不可修改: 结构版本升级或强制修复时, 删掉旧渠道按新默认值重建
+    const rebuild = force || schema < CHANNEL_SCHEMA;
+
+    // 清理历史渠道 ID(含旧合并渠道), 避免系统设置里出现重复/属性不全的条目
+    for (const id of LEGACY_CHANNEL_IDS) {
+      if (await Notifications.getNotificationChannelAsync(id)) {
+        await Notifications.deleteNotificationChannelAsync(id);
+      }
     }
-    const defs: Array<[string, string]> = [
-      [START_CHANNEL_ID, '上课提醒'],
-      [END_CHANNEL_ID, '下课提醒'],
-      [EXAM_CHANNEL_ID, '考试提醒'],
-      [DAILY_CHANNEL_ID, '每日早报'],
-      [GRADE_CHANNEL_ID, '成绩更新'],
-    ];
+
     let worst: ReminderChannelStatus = 'ok';
-    for (const [id, name] of defs) {
-      const ch = await Notifications.getNotificationChannelAsync(id);
-      if (ch && Number(ch.importance) === Notifications.AndroidImportance.MAX) continue;
-      if (ch) await Notifications.deleteNotificationChannelAsync(id);
-      // MAX 重要级 + 振动 → 锁屏/后台弹出横幅(heads-up, 像微信消息那样)
-      await Notifications.setNotificationChannelAsync(id, {
-        name,
-        importance: Notifications.AndroidImportance.MAX,
-        sound: 'default',
-        vibrationPattern: [0, 300, 250, 300],
-        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-      });
+    for (const def of NOTIFICATION_CHANNELS) {
+      const ch = await Notifications.getNotificationChannelAsync(def.id);
+      const healthy = !!ch && Number(ch.importance) === Notifications.AndroidImportance.MAX;
+      if (healthy && !rebuild) continue;
+      if (ch) await Notifications.deleteNotificationChannelAsync(def.id);
+      await Notifications.setNotificationChannelAsync(
+        def.id,
+        fullChannelOptions(Notifications, def.name, def.desc),
+      );
       if (ch) worst = 'recreated';
       else if (worst === 'ok') worst = 'created';
     }
+    await AsyncStorage.setItem(SCHEMA_KEY, String(CHANNEL_SCHEMA)).catch(() => {});
     return worst;
   } catch {
     return 'unavailable';
+  }
+}
+
+/** 渠道体检: 逐项检查重要级/声音/振动/锁屏可见, 供设置页如实展示(系统开关无法用代码强制开启) */
+export type ChannelHealth = {
+  id: string;
+  name: string;
+  exists: boolean;
+  issues: string[];
+};
+
+export async function checkNotificationChannels(): Promise<ChannelHealth[]> {
+  const Notifications = loadNotifications();
+  if (!Notifications || Platform.OS !== 'android') {
+    return NOTIFICATION_CHANNELS.map((c) => ({ id: c.id, name: c.name, exists: false, issues: ['当前环境不支持'] }));
+  }
+  const out: ChannelHealth[] = [];
+  for (const def of NOTIFICATION_CHANNELS) {
+    try {
+      const ch = await Notifications.getNotificationChannelAsync(def.id);
+      if (!ch) {
+        out.push({ id: def.id, name: def.name, exists: false, issues: ['渠道未创建'] });
+        continue;
+      }
+      const issues: string[] = [];
+      if (Number(ch.importance) < Notifications.AndroidImportance.MAX) issues.push('横幅/悬浮');
+      if (!ch.sound) issues.push('声音');
+      if (ch.enableVibrate === false || !ch.vibrationPattern?.length) issues.push('振动');
+      if (Number(ch.lockscreenVisibility) !== Notifications.AndroidNotificationVisibility.PUBLIC) issues.push('锁屏显示');
+      out.push({ id: def.id, name: def.name, exists: true, issues });
+    } catch {
+      out.push({ id: def.id, name: def.name, exists: false, issues: ['读取失败'] });
+    }
+  }
+  return out;
+}
+
+/** 打开系统「通知设置」页(本应用) */
+export async function openNotificationSettings(): Promise<boolean> {
+  if (Platform.OS !== 'android') return false;
+  try {
+    const pkg = Constants.expoConfig?.android?.package;
+    if (!pkg) return false;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const IntentLauncher = require('expo-intent-launcher') as typeof import('expo-intent-launcher');
+    await IntentLauncher.startActivityAsync('android.settings.APP_NOTIFICATION_SETTINGS', {
+      extra: { 'android.provider.extra.APP_PACKAGE': pkg },
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** 打开某个通知渠道的系统设置页(可单独调悬浮/声音/振动/锁屏) */
+export async function openChannelNotificationSettings(channelId: string): Promise<boolean> {
+  if (Platform.OS !== 'android') return false;
+  try {
+    const pkg = Constants.expoConfig?.android?.package;
+    if (!pkg) return false;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const IntentLauncher = require('expo-intent-launcher') as typeof import('expo-intent-launcher');
+    await IntentLauncher.startActivityAsync('android.settings.CHANNEL_NOTIFICATION_SETTINGS', {
+      extra: {
+        'android.provider.extra.APP_PACKAGE': pkg,
+        'android.provider.extra.CHANNEL_ID': channelId,
+      },
+    });
+    return true;
+  } catch {
+    return false;
   }
 }
 

@@ -37,11 +37,11 @@ export function useTheme() {
           return def ? { ...Colors[theme], ...(theme === 'dark' ? def.dark : def.light) } : Colors[theme];
         })()
       : Colors[theme];
-  // 控件主色(全局按钮/链接)与自定义 hex 覆盖
+  // 控件主色(全局按钮/链接)与自定义颜色覆盖(自定义档下可覆盖任意配色项)
   const hex = getCustomHex();
   return {
     ...base,
-    ...(presetId === 'custom' && cpId === 'default' ? hex : null),
+    ...(presetId === 'custom' ? hex : null),
     primary: getAccentColor(),
   } as Palette & { primary: string };
 }
