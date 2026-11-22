@@ -54,8 +54,10 @@ export type BackupData = {
   kv: Record<string, string | null>;
 };
 
-export async function exportBackup(): Promise<string> {
-  const entries = await AsyncStorage.multiGet(KEYS);
+/** 导出备份: 传 keys 时只导出勾选的配置项(云端备份用), 不传则导出全部 */
+export async function exportBackup(keys?: string[]): Promise<string> {
+  const target = keys && keys.length ? keys.filter((k) => KEYS.includes(k)) : KEYS;
+  const entries = await AsyncStorage.multiGet(target);
   const kv: Record<string, string | null> = {};
   const sections: string[] = [];
   for (const [key, value] of entries) {

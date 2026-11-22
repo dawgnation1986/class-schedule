@@ -85,6 +85,7 @@ import { AgreementModal } from '@/components/agreement';
 import { requestClassAccess, resetAccessAndEnsureDirs } from '@/lib/class-folder';
 import { pinWidget } from '@/lib/widget';
 import { DEFAULT_SITE_URL, getSiteUrl, setSiteUrl, subscribeSiteUrl } from '@/lib/site';
+import { cloudList, getCloudSession, type CloudUser } from '@/lib/cloud';
 
 const PERIOD_ORDER = ['1-2', '3-4', '中午', '5-6', '7-8', '9-10'];
 
@@ -331,6 +332,9 @@ export default function ProfileScreen() {
   const [examRemind, setExamRemind] = useState(true);
   // 每日早报开关(默认开启)
   const [dailyReport, setDailyReport] = useState(true);
+  // 云端备份: 登录状态与备份数量(未登录时为空)
+  const [cloudUser, setCloudUser] = useState<CloudUser | null>(null);
+  const [cloudCount, setCloudCount] = useState(0);
   // 通知渠道体检结果(悬浮/声音/振动/锁屏)
   const [channels, setChannels] = useState<ChannelHealth[] | null>(null);
   const [fixingNotif, setFixingNotif] = useState(false);
@@ -386,6 +390,7 @@ export default function ProfileScreen() {
     { title: '倒计时 (四六级/期末考试)', kw: '倒计时 四六级 期末 考试 日期', hint: '课表与学习', icon: 'hourglass-outline' as const, go: () => goSection('schedule') },
     { title: '课表截图导入 (图片识别课程)', kw: '课表 截图 导入 OCR 识别 图片 相册 扫描 拍照', hint: '独立页面', icon: 'scan-outline' as const, go: () => { setSearchOpen(false); router.push('/timetable-ocr' as never); } },
     { title: '备份导出 / 导入 / 保存到手机', kw: '备份 导出 导入 保存 手机 换机 迁移 JSON', hint: '账号与数据', icon: 'save-outline' as const, go: () => goSection('account') },
+    { title: '云端备份 (一键备份/恢复, 多端同步)', kw: '云端 备份 恢复 上传 下载 账号 注册 登录 官网 多端', hint: '独立页面', icon: 'cloud-upload-outline' as const, go: () => { setSearchOpen(false); router.push('/cloud-backup' as never); } },
     { title: '自动识别验证码并登录 (开关)', kw: '验证码 自动 识别 登录 ocr 综合平台 开关', hint: '账号与数据', icon: 'scan-outline' as const, go: () => goSection('account') },
     { title: '公告 (全部公告/历史发布)', kw: '公告 通知 消息 历史 发布', hint: '独立页面', icon: 'megaphone-outline' as const, go: () => { setSearchOpen(false); router.push('/notices' as never); } },
     { title: '支持开发者 (赞助/收款码)', kw: '赞助 支持 开发者 收款码 微信 支付宝 奶茶', hint: '独立页面', icon: 'heart-outline' as const, go: () => { setSearchOpen(false); router.push('/sponsor' as never); } },
@@ -454,6 +459,33 @@ export default function ProfileScreen() {
       void loadProfile().then(setMe);
       void loadSessionName().then(setPortalName);
     }, [loadChannels]),
+  );
+
+  // 云端备份卡片: 每次回到「我的」刷新登录状态与备份数量
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      void (async () => {
+        const s = await getCloudSession();
+        if (!alive) return;
+        setCloudUser(s?.user ?? null);
+        if (!s) {
+          setCloudCount(0);
+          return;
+        }
+        try {
+          const r = await cloudList();
+          if (!alive) return;
+          setCloudUser(r.user);
+          setCloudCount(r.backups.length);
+        } catch {
+          if (alive) setCloudCount(s.user.used);
+        }
+      })();
+      return () => {
+        alive = false;
+      };
+    }, []),
   );
 
   useEffect(() => {
@@ -738,6 +770,40 @@ export default function ProfileScreen() {
               { title: '检查更新', sub: '查看最新版本与更新内容', icon: 'cloud-download-outline', onPress: () => setSection('update') },
               { title: '关于本项目', sub: 'GitHub 主页 · 仓库地址 · 项目信息', icon: 'logo-github', onPress: () => router.push('/about-project' as never) },
             ])}
+
+            {/* 云端备份: 页面最底部独立入口, 未登录也可进入注册 */}
+            <Text style={[styles.groupTitle, { color: colors.textSecondary }]}>云端备份</Text>
+            <Pressable
+              onPress={() => router.push('/cloud-backup' as never)}
+              style={({ pressed }) => (pressed ? { opacity: 0.75 } : null)}>
+              <CardWrap style={cardStyle([styles.section, { marginTop: 0 }])}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 12,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: glass ? 'rgba(37,99,235,0.15)' : colors.backgroundSelected,
+                    }}>
+                    <Ionicons name="cloud-upload-outline" size={21} color={colors.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.secTitle, { color: colors.text }]}>备份与恢复</Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: 11.5, marginTop: 3 }} numberOfLines={1}>
+                      {cloudUser
+                        ? `${cloudUser.username} · 已备份 ${cloudCount} / ${cloudUser.quota} 个`
+                        : '未登录 · 注册官网账号后可一键备份与恢复'}
+                    </Text>
+                  </View>
+                  <Text style={{ color: colors.primary, fontSize: 12.5, fontWeight: '700' }}>
+                    {cloudUser ? '管理' : '登录 / 注册'}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+                </View>
+              </CardWrap>
+            </Pressable>
           </>
         )}
 

@@ -124,6 +124,7 @@ export default function RootLayout() {
         <Stack.Screen name="gpa" />
         <Stack.Screen name="timetable-ocr" />
         <Stack.Screen name="profile-edit" />
+        <Stack.Screen name="cloud-backup" />
         <Stack.Screen name="about-project" />
         <Stack.Screen name="today" />
       </Stack>
