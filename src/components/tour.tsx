@@ -6,17 +6,9 @@ import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View, findN
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import Animated, {
-  FadeInDown,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTheme } from '@/hooks/use-theme';
 
 const DONE_KEY = 'tour.done.v1';
 
@@ -42,8 +34,11 @@ export type TourStep = { route: string; target: string; title: string; desc: str
 export const TOUR_STEPS: TourStep[] = [
   { route: '/timetable', target: 'tt.toolbar', title: '课表工具栏', desc: '实时/原始课表切换、查其他班级、翻周翻日、分享与全屏周视图都排在这里, 左右滑动工具栏可见更多按钮。' },
   { route: '/timetable', target: 'tt.grid', title: '课程表格', desc: '双指捏合即可缩放课表; 点格子可查看课程详情。' },
-  { route: '/profile', target: 'pf.theme', title: '外观模式', desc: '深色 / 浅色 / 跟随系统随你切换。' },
-  { route: '/profile', target: 'pf.bg', title: '自定义背景', desc: '选一张喜欢的图片做全 App 背景, 支持调节背景透明度和控件全透明。' },
+  { route: '/timetable', target: 'tt.weeknav', title: '底部周次切换', desc: '新增的周次条常驻在课表底部: 左右箭头翻周, 中间显示学期周次与日期范围, 点一下可回到本周。' },
+  { route: '/profile', target: 'pf.card', title: '个人资料卡片', desc: '点这张卡片可以更换头像、设置昵称与 QQ 号; 昵称没改过时会自动使用主站姓名。' },
+  { route: '/profile', target: 'pf.groups', title: '功能分组', desc: '课表截图导入、学业成绩、待办、倒计时等都收进了分组入口, 点进去就能用, 首页不再堆满设置。' },
+  { route: '/profile', target: 'pf.theme', title: '外观与个性化', desc: '主题预设、界面风格、背景与透明控件都在这个分组里, 想换皮肤点这里。' },
+  { route: '/profile', target: 'pf.bg', title: '背景与透明控件', desc: '选一张背景图做全 App 底色, 支持调节背景透明度与控件透明; 墨夜主题下会自动适配深色。' },
   { route: '/settings', target: 'st.guide', title: '教程设置', desc: '新手引导和图文教程常驻在这里, 随时可以回看。' },
 ];
 
@@ -52,11 +47,19 @@ const targetRefs = new Map<string, View>();
 const startListeners = new Set<() => void>();
 // 页面把自己的 ScrollView 登记进来(route -> scroller), 引导可自动滚动到屏幕外的目标
 const scrollers = new Map<string, ScrollView>();
+// 页面登记"回到初始视图"的重置函数, 避免引导时目标藏在二级页里找不到
+const resetters = new Map<string, () => void>();
 
 /** 页面登记其滚动容器, 使引导能滚动到屏幕外的目标控件 */
 export function registerTourScroller(route: string, ref: ScrollView | null): void {
   if (ref) scrollers.set(route, ref);
   else scrollers.delete(route);
+}
+
+/** 页面登记自己的重置函数(如从二级页回到根页); 传 null 取消登记 */
+export function registerTourResetter(route: string, reset: (() => void) | null): void {
+  if (reset) resetters.set(route, reset);
+  else resetters.delete(route);
 }
 
 /** 触发新手引导(首次启动自动 / 教程设置手动) */
@@ -85,8 +88,7 @@ const ACCENT = '#2563eb';
 const HOLE_PAD = 8;
 
 export function CoachTour() {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const colors = useTheme();
   const router = useRouter();
   const [st, setSt] = useState({ active: false, idx: 0 });
   const [rect, setRect] = useState<Rect | null>(null);
@@ -117,18 +119,19 @@ export function CoachTour() {
 
   const step = st.active ? TOUR_STEPS[st.idx] : null;
 
-  // 每步: 跳到对应页面, 周期性实时测量目标控件窗口坐标(滚动/布局变化实时跟随; 找不到则跳到下一步)
+  // 每步: 跳到对应页面并重置到根视图, 周期性实时测量目标控件窗口坐标(滚动/布局变化实时跟随; 找不到则跳到下一步)
   useEffect(() => {
     if (!step) return;
     let alive = true;
     let tries = 0;
+    resetters.get(step.route)?.();
     router.navigate(step.route as never);
     const poll = () => {
       if (!alive) return;
       const ref = targetRefs.get(step.target);
       if (!ref) {
         setRect(null);
-        if (tries++ > 40) next();
+        if (tries++ > 60) next();
         return;
       }
       ref.measureInWindow((x, y, w, h) => {
@@ -161,17 +164,17 @@ export function CoachTour() {
     };
   }, [step, router, next]);
 
-  // 洞的位置(弹簧动画)
+  // 洞的位置(平滑过渡, 不做回弹)
   const hx = useSharedValue(W / 2);
   const hy = useSharedValue(H / 2);
   const hw = useSharedValue(0);
   const hh = useSharedValue(0);
   useEffect(() => {
     if (rect) {
-      hx.value = withSpring(rect.x - HOLE_PAD, { damping: 18 });
-      hy.value = withSpring(rect.y - HOLE_PAD, { damping: 18 });
-      hw.value = withSpring(rect.w + HOLE_PAD * 2, { damping: 18 });
-      hh.value = withSpring(rect.h + HOLE_PAD * 2, { damping: 18 });
+      hx.value = withTiming(rect.x - HOLE_PAD, { duration: 180 });
+      hy.value = withTiming(rect.y - HOLE_PAD, { duration: 180 });
+      hw.value = withTiming(rect.w + HOLE_PAD * 2, { duration: 180 });
+      hh.value = withTiming(rect.h + HOLE_PAD * 2, { duration: 180 });
     }
   }, [rect, hx, hy, hw, hh]);
 
@@ -180,13 +183,6 @@ export function CoachTour() {
   const dimLeft = useAnimatedStyle(() => ({ left: 0, top: hy.value, width: Math.max(0, hx.value), height: hh.value }));
   const dimRight = useAnimatedStyle(() => ({ left: hx.value + hw.value, top: hy.value, width: Math.max(0, W - (hx.value + hw.value)), height: hh.value }));
   const hole = useAnimatedStyle(() => ({ left: hx.value, top: hy.value, width: hw.value, height: hh.value }));
-
-  // 洞边框脉冲
-  const pulse = useSharedValue(0.6);
-  useEffect(() => {
-    pulse.value = withRepeat(withTiming(1, { duration: 900 }), -1, true);
-  }, [pulse]);
-  const pulseStyle = useAnimatedStyle(() => ({ opacity: pulse.value * (rect ? 1 : 0) }));
 
   // 卡片定位: 优先在洞下方, 放不下则上方; 左右夹紧
   const cw = Math.min(330, W - 32);
@@ -204,13 +200,12 @@ export function CoachTour() {
         <Animated.View style={[styles.abs, styles.dim, dimBottom]} />
         <Animated.View style={[styles.abs, styles.dim, dimLeft]} />
         <Animated.View style={[styles.abs, styles.dim, dimRight]} />
-        {/* 洞边框 + 脉冲光圈 */}
+        {/* 洞边框 */}
         <Animated.View style={[styles.abs, styles.holeBorder, hole, { borderColor: ACCENT }]} />
-        <Animated.View style={[styles.abs, styles.holePulse, hole, { borderColor: ACCENT }, pulseStyle]} />
         {/* 指引卡片 */}
         {!!rect && !!step && (
           <Animated.View
-            entering={FadeInDown.springify().damping(16)}
+            entering={FadeIn.duration(180)}
             onLayout={(e) => setCardH(e.nativeEvent.layout.height)}
             style={[styles.card, { top: cardTop, left: cardLeft, width: cw, backgroundColor: colors.backgroundElement }]}>
             {/* 箭头(旋转方块) */}
@@ -244,9 +239,8 @@ export function CoachTour() {
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   abs: { position: 'absolute' },
-  dim: { backgroundColor: 'rgba(0,0,0,0.62)' },
-  holeBorder: { borderWidth: 2.5, borderRadius: 14, borderStyle: 'dashed' },
-  holePulse: { borderWidth: 2, borderRadius: 14 },
-  card: { position: 'absolute', borderRadius: 14, padding: 15, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 16, elevation: 12 },
+  dim: { backgroundColor: 'rgba(0,0,0,0.55)' },
+  holeBorder: { borderWidth: 2, borderRadius: 12 },
+  card: { position: 'absolute', borderRadius: 12, padding: 15, borderWidth: 1, borderColor: 'rgba(100,116,139,0.2)', shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.18, shadowRadius: 12, elevation: 8 },
   arrow: { position: 'absolute', width: 18, height: 18, transform: [{ rotate: '45deg' }] },
 });

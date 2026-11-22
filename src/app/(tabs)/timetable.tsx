@@ -1089,38 +1089,40 @@ function ClassicScreen() {
       )}
       {/* 底部周次切换: 不用回到顶部翻周 */}
       {timetable && timetable.rows.length > 0 && (
-        <CardWrap
-          style={[
-            styles.weekNavWrap,
-            night ? undefined : [glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }],
-          ]}>
-          <View style={styles.weekNav}>
-            <Pressable
-              onPress={() => shiftDate(-7)}
-              hitSlop={10}
-              accessibilityLabel="上一周"
-              style={styles.weekArrow}>
-              <Ionicons name="chevron-back" size={22} color={night ? '#e5e7eb' : colors.text} />
-            </Pressable>
-            <Pressable onPress={() => confirmDate(beijingNow())} style={styles.weekCenter}>
-              <Text style={[styles.weekNo, { color: night ? '#f3f4f6' : colors.text }]}>第 {weekNo} 周</Text>
-              <Text
-                style={[
-                  styles.weekRange,
-                  { color: night ? 'rgba(229,231,235,0.62)' : colors.textSecondary },
-                ]}>
-                {weekRange}
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => shiftDate(7)}
-              hitSlop={10}
-              accessibilityLabel="下一周"
-              style={styles.weekArrow}>
-              <Ionicons name="chevron-forward" size={22} color={night ? '#e5e7eb' : colors.text} />
-            </Pressable>
-          </View>
-        </CardWrap>
+        <TourTarget id="tt.weeknav">
+          <CardWrap
+            style={[
+              styles.weekNavWrap,
+              night ? undefined : [glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }],
+            ]}>
+            <View style={styles.weekNav}>
+              <Pressable
+                onPress={() => shiftDate(-7)}
+                hitSlop={10}
+                accessibilityLabel="上一周"
+                style={styles.weekArrow}>
+                <Ionicons name="chevron-back" size={22} color={night ? '#e5e7eb' : colors.text} />
+              </Pressable>
+              <Pressable onPress={() => confirmDate(beijingNow())} style={styles.weekCenter}>
+                <Text style={[styles.weekNo, { color: night ? '#f3f4f6' : colors.text }]}>第 {weekNo} 周</Text>
+                <Text
+                  style={[
+                    styles.weekRange,
+                    { color: night ? 'rgba(229,231,235,0.62)' : colors.textSecondary },
+                  ]}>
+                  {weekRange}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => shiftDate(7)}
+                hitSlop={10}
+                accessibilityLabel="下一周"
+                style={styles.weekArrow}>
+                <Ionicons name="chevron-forward" size={22} color={night ? '#e5e7eb' : colors.text} />
+              </Pressable>
+            </View>
+          </CardWrap>
+        </TourTarget>
       )}
       {/* 全屏横屏整周视图(捏合缩放) */}
       {timetable && (

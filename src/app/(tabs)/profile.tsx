@@ -79,7 +79,7 @@ import { adoptCustomForBackground } from '@/lib/theme-preset';
 import { UiModePicker } from '@/components/ui-mode-picker';
 import { AboutGithub } from '@/components/about-github';
 import { OnboardingModal } from '@/components/onboarding';
-import { TourTarget, registerTourScroller, startCoachTour } from '@/components/tour';
+import { TourTarget, registerTourScroller, registerTourResetter, startCoachTour } from '@/components/tour';
 import { AgreementModal } from '@/components/agreement';
 import { requestClassAccess, resetAccessAndEnsureDirs } from '@/lib/class-folder';
 import { pinWidget } from '@/lib/widget';
@@ -96,6 +96,8 @@ type GroupRow = {
   sub?: string;
   icon: ComponentProps<typeof Ionicons>['name'];
   onPress: () => void;
+  /** 新手引导高亮目标 id(可选) */
+  tourId?: string;
 };
 
 const SECTION_TITLES: Record<SectionKey, string> = {
@@ -394,6 +396,15 @@ export default function ProfileScreen() {
   ];
   useEffect(() => {
     registerTourScroller('/profile', scrollRef.current);
+    // 引导开始时回到根视图, 否则分组/个人卡片的目标藏在二级页里找不到
+    registerTourResetter('/profile', () => {
+      setSection(null);
+      setSearchOpen(false);
+    });
+    return () => {
+      registerTourScroller('/profile', null);
+      registerTourResetter('/profile', null);
+    };
   }, []);
 
   useEffect(() => {
@@ -489,41 +500,54 @@ export default function ProfileScreen() {
   }, [username, password, startPage]);
 
   // 分组入口卡: 12 号灰字标题 + 圆角 16 卡片, 行间 1px 分隔线
-  const renderGroup = (title: string, rows: GroupRow[]) => (
-    <>
-      <Text style={[styles.groupTitle, { color: colors.textSecondary }]}>{title}</Text>
+  const renderGroup = (title: string, rows: GroupRow[], groupTourId?: string) => {
+    const card = (
       <CardWrap style={cardStyle(styles.groupCard)}>
-        {rows.map((r, i) => (
-          <Pressable
-            key={r.title}
-            onPress={r.onPress}
-            style={({ pressed }) => [
-              styles.groupRow,
-              i > 0 && styles.rowSep,
-              i > 0 && { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' },
-              pressed && { opacity: 0.55 },
-            ]}>
-            <View
-              style={[
-                styles.rowIcon,
-                glass ? { borderWidth: 1, borderColor: glassLine } : { backgroundColor: colors.backgroundSelected },
+        {rows.map((r, i) => {
+          const row = (
+            <Pressable
+              onPress={r.onPress}
+              style={({ pressed }) => [
+                styles.groupRow,
+                i > 0 && styles.rowSep,
+                i > 0 && { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' },
+                pressed && { opacity: 0.55 },
               ]}>
-              <Ionicons name={r.icon} size={16} color={colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.rowTitle, { color: colors.text }]}>{r.title}</Text>
-              {!!r.sub && (
-                <Text style={[styles.rowSub, { color: colors.textSecondary }]} numberOfLines={1}>
-                  {r.sub}
-                </Text>
-              )}
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-          </Pressable>
-        ))}
+              <View
+                style={[
+                  styles.rowIcon,
+                  glass ? { borderWidth: 1, borderColor: glassLine } : { backgroundColor: colors.backgroundSelected },
+                ]}>
+                <Ionicons name={r.icon} size={16} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.rowTitle, { color: colors.text }]}>{r.title}</Text>
+                {!!r.sub && (
+                  <Text style={[styles.rowSub, { color: colors.textSecondary }]} numberOfLines={1}>
+                    {r.sub}
+                  </Text>
+                )}
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+            </Pressable>
+          );
+          return r.tourId ? (
+            <TourTarget key={r.title} id={r.tourId}>
+              {row}
+            </TourTarget>
+          ) : (
+            <View key={r.title}>{row}</View>
+          );
+        })}
       </CardWrap>
-    </>
-  );
+    );
+    return (
+      <>
+        <Text style={[styles.groupTitle, { color: colors.textSecondary }]}>{title}</Text>
+        {groupTourId ? <TourTarget id={groupTourId}>{card}</TourTarget> : card}
+      </>
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
@@ -608,9 +632,10 @@ export default function ProfileScreen() {
         {!section && (
           <>
             {/* 个人卡片: 头像 / 昵称 / 学号班级 / QQ */}
-            <Pressable
-              onPress={() => router.push('/profile-edit' as never)}
-              style={({ pressed }) => (pressed ? { opacity: 0.75 } : null)}>
+            <TourTarget id="pf.card">
+              <Pressable
+                onPress={() => router.push('/profile-edit' as never)}
+                style={({ pressed }) => (pressed ? { opacity: 0.75 } : null)}>
               <CardWrap style={cardStyle(styles.profileCard)}>
                 <View
                   style={[
@@ -649,6 +674,7 @@ export default function ProfileScreen() {
                 </View>
               </CardWrap>
             </Pressable>
+            </TourTarget>
 
             {renderGroup('课表与学习', [
               { title: '我的课表', sub: `当前班级：${classLabel ?? '未设置'}`, icon: 'school-outline', onPress: () => router.push('/settings' as never) },
@@ -656,7 +682,7 @@ export default function ProfileScreen() {
               { title: '学业成绩', icon: 'stats-chart-outline', onPress: () => router.push('/gpa' as never) },
               { title: '待办事项', icon: 'checkbox-outline', onPress: () => router.push('/todos' as never) },
               { title: '倒计时', icon: 'hourglass-outline', onPress: () => setSection('schedule') },
-            ])}
+            ], 'pf.groups')}
 
             {renderGroup('提醒与通知', [
               { title: '上课提醒', sub: `提前 ${remind.start} 分钟`, icon: 'notifications-outline', onPress: () => setSection('notify') },
@@ -668,9 +694,9 @@ export default function ProfileScreen() {
             {renderGroup('外观与个性化', [
               { title: '主题预设', icon: 'color-palette-outline', onPress: () => setSection('appearance') },
               { title: '界面风格', icon: 'contrast-outline', onPress: () => setSection('appearance') },
-              { title: '背景与透明控件', sub: `控件透明：${bg.ctrl ? '开' : '关'}`, icon: 'image-outline', onPress: () => setSection('appearance') },
+              { title: '背景与透明控件', sub: `控件透明：${bg.ctrl ? '开' : '关'}`, icon: 'image-outline', onPress: () => setSection('appearance'), tourId: 'pf.bg' },
               { title: '外观模式', icon: 'sunny-outline', onPress: () => setSection('appearance') },
-            ])}
+            ], 'pf.theme')}
 
             {renderGroup('账号与数据', [
               { title: '主站账号', icon: 'person-circle-outline', onPress: () => setSection('account') },
@@ -781,8 +807,7 @@ export default function ProfileScreen() {
         <UiModePicker />
 
         {/* 外观: 主题模式 / 自定义背景 / 课表界面 */}
-        <TourTarget id="pf.theme">
-          <CardWrap style={cardStyle([styles.section, styles.subCard])}>
+        <CardWrap style={cardStyle([styles.section, styles.subCard])}>
             <Text style={[styles.secTitle, { color: colors.text }]}>外观模式</Text>
             <Text style={{ color: colors.textSecondary, fontSize: 12 }}>跟随系统 / 浅色 / 深色，搭配主题预设更出彩</Text>
             <View style={[styles.timesBtnRow, { marginTop: 10, marginBottom: 0 }]}>
@@ -807,10 +832,8 @@ export default function ProfileScreen() {
               ))}
             </View>
           </CardWrap>
-        </TourTarget>
 
-        <TourTarget id="pf.bg">
-          <CardWrap style={cardStyle([styles.section, styles.subCard])}>
+        <CardWrap style={cardStyle([styles.section, styles.subCard])}>
             <Text style={[styles.secTitle, { color: colors.text }]}>自定义背景</Text>
             <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
               {bg.uri ? '已设置背景图片，全App生效' : '未设置，使用默认纯色背景'}
@@ -863,7 +886,6 @@ export default function ProfileScreen() {
               </Pressable>
             </View>
           </CardWrap>
-        </TourTarget>
 
         <CardWrap style={cardStyle([styles.section, styles.subCard])}>
           <Text style={[styles.secTitle, { color: colors.text }]}>课表界面</Text>

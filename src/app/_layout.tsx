@@ -98,8 +98,11 @@ export default function RootLayout() {
         visible={flow === 'agreement'}
         mode="gate"
         onAccepted={() => {
-          void shouldShowTour().then((f) => f && startCoachTour());
           setFlow(null);
+          // 等协议弹窗完全关闭后再启动引导, 否则两个 Modal 叠加会把引导步骤顶掉
+          setTimeout(() => {
+            void shouldShowTour().then((f) => f && startCoachTour());
+          }, 450);
         }}
       />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
