@@ -1,12 +1,12 @@
 ﻿import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { type Palette } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useBgSetting } from '@/lib/background';
 import { ApkDownload } from '@/components/download-view';
 import { MirrorSettings } from '@/components/mirror-settings';
-import { checkUpdate, currentVersion, type UpdateInfo } from '@/lib/updates';
+import { checkUpdate, currentVersion, RELEASES_PAGE, type UpdateInfo } from '@/lib/updates';
 
 /** 检查更新卡片: 显示当前版本 + 自动/手动查询 GitHub Releases + 内置下载 APK */
 export function UpdateCard({ colors }: { colors: Palette }) {
@@ -72,8 +72,17 @@ export function UpdateCard({ colors }: { colors: Palette }) {
       {!!err && <Text style={[styles.msg, { color: '#ef4444' }]}>{err}</Text>}
       {latest && !update?.hasUpdate && (
         <Text style={[styles.msg, { color: colors.textSecondary }]}>
-          GitHub 最新: v{latest}{update ? ' · 已是最新 ✓' : ''}
+          GitHub 最新: v{latest}{update ? ' · 已是最新' : ''}
         </Text>
+      )}
+      {/* 已是最新时也展示本版更新内容, 避免页面看起来是空的 */}
+      {!!update && !update.hasUpdate && !!update.notes && (
+        <View style={{ gap: 4, marginTop: 2 }}>
+          <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>本版更新内容</Text>
+          <Text style={[styles.msg, { color: colors.textSecondary }]} numberOfLines={14}>
+            {update.notes}
+          </Text>
+        </View>
       )}
       {update?.hasUpdate && (
         <View style={{ gap: 8 }}>
@@ -84,6 +93,9 @@ export function UpdateCard({ colors }: { colors: Palette }) {
           <ApkDownload info={update} colors={colors} />
         </View>
       )}
+      <Pressable onPress={() => void Linking.openURL(RELEASES_PAGE)} hitSlop={8} style={{ marginTop: 4 }}>
+        <Text style={{ color: colors.primary, fontSize: 12.5 }}>查看全部版本与更新日志 →</Text>
+      </Pressable>
       <MirrorSettings visible={mirrorOpen} onClose={() => setMirrorOpen(false)} colors={colors} />
     </View>
   );

@@ -1,6 +1,7 @@
 ﻿import { useCallback, useEffect, useRef, useState, type ComponentProps, type ElementType } from 'react';
 import {
   Alert,
+  BackHandler,
   Image,
   Modal,
   Pressable,
@@ -17,6 +18,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { MaxContentWidth, Spacing, type Palette } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -407,6 +409,24 @@ export default function ProfileScreen() {
     };
   }, []);
 
+  // 安卓返回键: 在二级页/搜索时先回到「我的」首页, 避免直接跳回主站
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (section) {
+          setSection(null);
+          return true;
+        }
+        if (searchOpen) {
+          setSearchOpen(false);
+          return true;
+        }
+        return false;
+      });
+      return () => sub.remove();
+    }, [section, searchOpen]),
+  );
+
   useEffect(() => {
     void getWeatherCity().then(setWxCity);
     void getSiteUrl().then(setSiteUrlState);
@@ -629,6 +649,7 @@ export default function ProfileScreen() {
         </View>
         )}
 
+        <Animated.View key={section ?? 'root'} entering={FadeIn.duration(160)}>
         {!section && (
           <>
             {/* 个人卡片: 头像 / 昵称 / 学号班级 / QQ */}
@@ -706,13 +727,14 @@ export default function ProfileScreen() {
 
             {renderGroup('关于与支持', [
               { title: '公告', icon: 'megaphone-outline', onPress: () => router.push('/notices' as never) },
-              { title: '功能教程 / 新手引导', icon: 'book-outline', onPress: () => setIntroOpen(true) },
+              { title: '功能教程（图文）', icon: 'book-outline', onPress: () => setIntroOpen(true) },
+              { title: '新手引导（步骤）', icon: 'compass-outline', onPress: () => startCoachTour() },
               { title: '支持开发者', icon: 'heart-outline', onPress: () => router.push('/sponsor' as never) },
               { title: '关于与协议', icon: 'information-circle-outline', onPress: () => setSection('about') },
             ], 'pf.about')}
 
-            {/* 检查更新 + 关于本项目: 独立入口, 不塞进分组 */}
-            {renderGroup(undefined, [
+            {/* 检查更新 + 关于本项目: 独立分组, 不与「关于与支持」连在一起 */}
+            {renderGroup('应用信息', [
               { title: '检查更新', sub: '查看最新版本与更新内容', icon: 'cloud-download-outline', onPress: () => setSection('update') },
               { title: '关于本项目', sub: 'GitHub 主页 · 仓库地址 · 项目信息', icon: 'logo-github', onPress: () => router.push('/about-project' as never) },
             ])}
@@ -1385,6 +1407,7 @@ export default function ProfileScreen() {
 
         {/* 检查更新 (独立模块) */}
         {section === 'update' && <UpdateCard colors={colors} />}
+        </Animated.View>
       </ScrollView>
 
       <TimesEditorModal visible={editOpen} initial={times} onClose={() => setEditOpen(false)} colors={colors} />
