@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -62,6 +63,7 @@ export default function CloudBackupScreen() {
       ? base
       : [base, glass && { borderWidth: 1, borderColor: glassLine }, { backgroundColor: glass ? 'transparent' : colors.backgroundElement }];
   const router = useRouter();
+  const appVersion = Constants.expoConfig?.version ?? '';
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
@@ -176,13 +178,13 @@ export default function CloudBackupScreen() {
       setBackupName('');
       const s = await getCloudSession();
       if (s) setSession(s);
-      Alert.alert('备份成功', `已上传「${name}」，共 ${selected.length} 项配置`);
+      Alert.alert('备份成功', `已上传「${name}」· v${data.appVersion || appVersion}，共 ${selected.length} 项配置`);
     } catch (e) {
       Alert.alert('备份失败', e instanceof Error ? e.message : '未知错误');
     } finally {
       setBusy(false);
     }
-  }, [busy, config, selected, backupName]);
+  }, [busy, config, selected, backupName, appVersion]);
 
   const doRestore = useCallback((b: CloudBackupMeta) => {
     Alert.alert(
@@ -486,6 +488,7 @@ export default function CloudBackupScreen() {
                   </View>
                   <Text style={{ color: colors.textSecondary, fontSize: 11.5, marginTop: 4 }}>
                     官网允许备份的选项如下，可从中勾选本次要上传的内容
+                    {appVersion ? ` · 当前 App 版本 v${appVersion}` : ''}
                   </Text>
                   <View style={styles.chipWrap}>
                     {sections.map((s) => {

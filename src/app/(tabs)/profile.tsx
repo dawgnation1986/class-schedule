@@ -392,6 +392,8 @@ export default function ProfileScreen() {
     { title: '备份导出 / 导入 / 保存到手机', kw: '备份 导出 导入 保存 手机 换机 迁移 JSON', hint: '账号与数据', icon: 'save-outline' as const, go: () => goSection('account') },
     { title: '云端备份 (一键备份/恢复, 多端同步)', kw: '云端 备份 恢复 上传 下载 账号 注册 登录 官网 多端', hint: '独立页面', icon: 'cloud-upload-outline' as const, go: () => { setSearchOpen(false); router.push('/cloud-backup' as never); } },
     { title: '自动识别验证码并登录 (开关)', kw: '验证码 自动 识别 登录 ocr 综合平台 开关', hint: '账号与数据', icon: 'scan-outline' as const, go: () => goSection('account') },
+    { title: '主站账号 (学号/密码/登录)', kw: '主站 账号 学号 密码 登录 综合平台 账户', hint: '账号与数据', icon: 'person-circle-outline' as const, go: () => goSection('account') },
+    { title: '默认起始页 (打开 App 进入主站或课表)', kw: '默认 起始页 首页 启动 主站 课表 位置', hint: '账号与数据', icon: 'home-outline' as const, go: () => goSection('account') },
     { title: '公告 (全部公告/历史发布)', kw: '公告 通知 消息 历史 发布', hint: '独立页面', icon: 'megaphone-outline' as const, go: () => { setSearchOpen(false); router.push('/notices' as never); } },
     { title: '支持开发者 (赞助/收款码)', kw: '赞助 支持 开发者 收款码 微信 支付宝 奶茶', hint: '独立页面', icon: 'heart-outline' as const, go: () => { setSearchOpen(false); router.push('/sponsor' as never); } },
     { title: '官网接口地址 (公告/收款码下发)', kw: '官网 接口 地址 下发 公告 服务器', hint: '关于与支持', icon: 'globe-outline' as const, go: () => { goSection('about'); setSiteOpen(true); } },
@@ -752,7 +754,8 @@ export default function ProfileScreen() {
             ], 'pf.theme')}
 
             {renderGroup('账号与数据', [
-              { title: '主站账号', icon: 'person-circle-outline', onPress: () => setSection('account') },
+              { title: '主站账号', sub: `${username || '未设置学号'} · ${password ? '已保存密码' : '未保存密码'}`, icon: 'person-circle-outline', onPress: () => setSection('account') },
+              { title: '默认起始页', sub: startPage === 'home' ? '打开 App 进入主站' : '打开 App 进入课表', icon: 'home-outline', onPress: () => setSection('account') },
               { title: '备份与恢复', icon: 'save-outline', onPress: () => setSection('account') },
               { title: '导出到系统日历', icon: 'calendar-outline', onPress: () => setSection('account') },
             ], 'pf.account')}
