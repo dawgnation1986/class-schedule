@@ -1,6 +1,7 @@
-﻿import { useCallback, useEffect, useRef, useState, type ElementType } from 'react';
+﻿import { useCallback, useEffect, useRef, useState, type ComponentProps, type ElementType } from 'react';
 import {
   Alert,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -37,6 +38,8 @@ import {
   type BgSetting,
 } from '@/lib/background';
 import { loadAccount, saveAccount, type StartPage } from '@/lib/account';
+import { DEFAULT_PROFILE, displayName, loadProfile, type UserProfile } from '@/lib/profile';
+import { loadSessionName } from '@/lib/portal';
 import { getCaptchaAutoEnabled, setCaptchaAutoEnabled } from '@/lib/captcha-ocr';
 import { loadSettings, loadTimetableCache } from '@/lib/settings';
 import { loadTimetableUI, saveTimetableUI, type TimetableUI } from '@/lib/settings';
@@ -83,6 +86,25 @@ import { pinWidget } from '@/lib/widget';
 import { DEFAULT_SITE_URL, getSiteUrl, setSiteUrl, subscribeSiteUrl } from '@/lib/site';
 
 const PERIOD_ORDER = ['1-2', '3-4', '中午', '5-6', '7-8', '9-10'];
+
+/** 二级页分组键 */
+type SectionKey = 'schedule' | 'notify' | 'appearance' | 'account' | 'about';
+
+/** 分组入口行 */
+type GroupRow = {
+  title: string;
+  sub?: string;
+  icon: ComponentProps<typeof Ionicons>['name'];
+  onPress: () => void;
+};
+
+const SECTION_TITLES: Record<SectionKey, string> = {
+  schedule: '课表与学习',
+  notify: '提醒与通知',
+  appearance: '外观与个性化',
+  account: '账号与数据',
+  about: '关于与支持',
+};
 
 /** 手动编辑每节起止时间 */
 function TimesEditorModal({
@@ -267,6 +289,13 @@ export default function ProfileScreen() {
   const [startPage, setStartPage] = useState<StartPage>('home');
   const [autoCaptcha, setAutoCaptcha] = useState(false);
   const [classLabel, setClassLabel] = useState<string | null>(null);
+  // 二级页: 根页只显示个人卡片 + 分组入口
+  const [section, setSection] = useState<SectionKey | null>(null);
+  // 顶部搜索框(点击放大镜展开)
+  const [searchOpen, setSearchOpen] = useState(false);
+  // 本机个人资料(头像/昵称/QQ)与主站登录姓名
+  const [me, setMe] = useState<UserProfile>(DEFAULT_PROFILE);
+  const [portalName, setPortalName] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [source, setSource] = useState<string>(activeSourceLabel());
   const [showTimes, setShowTimes] = useState(false);
@@ -326,36 +355,42 @@ export default function ProfileScreen() {
   };
   // 登记滚动容器: 新手引导可自动滚动到屏幕外的目标
   const scrollRef = useRef<ScrollView>(null);
-  // 设置搜索: 关键字匹配后跳转/展开
+  // 设置搜索: 关键字匹配后进入对应二级页/路由/弹窗
   const [q, setQ] = useState('');
   const goBottom = () => scrollRef.current?.scrollToEnd({ animated: true });
   const goTop = () => scrollRef.current?.scrollTo({ y: 0, animated: true });
+  // 进入二级页并回到顶部; 搜索选中后自动收起搜索框
+  const goSection = (s: SectionKey, toBottom = false) => {
+    setSection(s);
+    setSearchOpen(false);
+    setTimeout(() => (toBottom ? goBottom() : goTop()), 0);
+  };
   const SEARCH_ITEMS = [
-    { title: '主题预设 (纯白/纯黑/墨夜/护眼米黄/淡雅蓝/自定义)', kw: '主题 预设 纯白 纯黑 墨夜 护眼 米黄 淡雅 蓝 皮肤 配色 导出 导入 主题文件', hint: '本页 · 外观', icon: 'color-palette-outline' as const, go: goTop },
-    { title: '自定义配色 / 自定义颜色 (调色板)', kw: '自定义 配色 颜色 调色板 色卡 hex 底色 卡片 文字', hint: '本页 · 主题预设内', icon: 'options-outline' as const, go: goTop },
-    { title: '控件主色 (按钮/链接颜色)', kw: '主色 控件 按钮 链接 颜色 accent', hint: '本页 · 主题预设内', icon: 'brush-outline' as const, go: goTop },
-    { title: '界面设置 (原版界面/墨夜主题)', kw: '界面 设置 墨夜 原版 主题 模式 切换', hint: '本页 · 外观', icon: 'contrast-outline' as const, go: goTop },
-    { title: '外观模式 (跟随系统/浅色/深色)', kw: '外观 模式 浅色 深色 跟随 系统 亮色 暗色', hint: '本页 · 外观', icon: 'sunny-outline' as const, go: goTop },
-    { title: '自定义背景图 (背景/壁纸/透明度/控件透明)', kw: '背景 壁纸 图片 透明度 控件 全透明 毛玻璃', hint: '本页 · 外观', icon: 'image-outline' as const, go: goTop },
-    { title: '班级课表设置 (系部/专业/班级)', kw: '班级 课表 系部 专业 设置 校园 数据', hint: '校园数据', icon: 'school-outline' as const, go: () => router.push('/settings' as never) },
-    { title: '作息时间表 (冬季/夏季/手动编辑/JSON导入)', kw: '作息 时间 表 冬季 夏季 上课 下课 时间点', hint: '校园数据', icon: 'time-outline' as const, go: () => setShowTimes(true) },
-    { title: '上课提醒 (上课/下课提前分钟数)', kw: '提醒 通知 上课 下课 提前 分钟 消息', hint: '校园数据', icon: 'notifications-outline' as const, go: goBottom },
-    { title: '考试提醒 (考前一天/当天自动提醒)', kw: '考试 提醒 通知 考场 考前', hint: '校园数据', icon: 'pencil-outline' as const, go: goBottom },
-    { title: '每日早报 (7点天气/第一节课/考试)', kw: '早报 每日 天气 第一节课 通知 早上', hint: '校园数据', icon: 'sunny-outline' as const, go: goBottom },
-    { title: '通知设置 (悬浮/声音/振动/锁屏显示)', kw: '通知 设置 悬浮 横幅 声音 振动 锁屏 显示 渠道', hint: '校园数据', icon: 'notifications-circle-outline' as const, go: goBottom },
-    { title: '天气城市 (跟随定位/手动设置)', kw: '天气 城市 定位 温度 手动', hint: '校园数据', icon: 'cloud-outline' as const, go: () => setWxOpen(true) },
-    { title: '倒计时 (四六级/期末考试)', kw: '倒计时 四六级 期末 考试 日期', hint: '本页', icon: 'hourglass-outline' as const, go: goBottom },
-    { title: '课表截图导入 (图片识别课程)', kw: '课表 截图 导入 OCR 识别 图片 相册 扫描 拍照', hint: '独立页面', icon: 'scan-outline' as const, go: () => router.push('/timetable-ocr' as never) },
-    { title: '备份导出 / 导入 / 保存到手机', kw: '备份 导出 导入 保存 手机 换机 迁移 JSON', hint: '数据与备份', icon: 'save-outline' as const, go: goBottom },
-    { title: '自动识别验证码并登录 (开关)', kw: '验证码 自动 识别 登录 ocr 综合平台 开关', hint: '本页 · 主站账号', icon: 'scan-outline' as const, go: goTop },
-    { title: '公告 (全部公告/历史发布)', kw: '公告 通知 消息 历史 发布', hint: '独立页面', icon: 'megaphone-outline' as const, go: () => router.push('/notices' as never) },
-    { title: '支持开发者 (赞助/收款码)', kw: '赞助 支持 开发者 收款码 微信 支付宝 奶茶', hint: '独立页面', icon: 'heart-outline' as const, go: () => router.push('/sponsor' as never) },
-    { title: '官网接口地址 (公告/收款码下发)', kw: '官网 接口 地址 下发 公告 服务器', hint: '通用', icon: 'globe-outline' as const, go: () => setSiteOpen(true) },
-    { title: '新手引导 (方块高亮指引)', kw: '新手 引导 指引 教程 高亮', hint: '通用', icon: 'compass-outline' as const, go: () => startCoachTour() },
-    { title: '图文功能教程 (6页图文)', kw: '图文 教程 功能 介绍 回看', hint: '通用', icon: 'book-outline' as const, go: () => setIntroOpen(true) },
-    { title: '用户协议', kw: '用户 协议 条款', hint: '通用', icon: 'document-text-outline' as const, go: () => setAgreementOpen(true) },
-    { title: '检查更新 / 镜像设置 / 当前版本', kw: '检查 更新 版本 镜像 下载 升级', hint: '页面底部', icon: 'download-outline' as const, go: goBottom },
-    { title: '开发者选项 (登录修复/调试)', kw: '开发者 选项 调试 登录 修复', hint: '通用', icon: 'terminal-outline' as const, go: () => router.push('/dev' as never) },
+    { title: '主题预设 (纯白/纯黑/墨夜/护眼米黄/淡雅蓝/自定义)', kw: '主题 预设 纯白 纯黑 墨夜 护眼 米黄 淡雅 蓝 皮肤 配色 导出 导入 主题文件', hint: '外观与个性化', icon: 'color-palette-outline' as const, go: () => goSection('appearance') },
+    { title: '自定义配色 / 自定义颜色 (调色板)', kw: '自定义 配色 颜色 调色板 色卡 hex 底色 卡片 文字', hint: '外观与个性化', icon: 'options-outline' as const, go: () => goSection('appearance') },
+    { title: '控件主色 (按钮/链接颜色)', kw: '主色 控件 按钮 链接 颜色 accent', hint: '外观与个性化', icon: 'brush-outline' as const, go: () => goSection('appearance') },
+    { title: '界面设置 (原版界面/墨夜主题)', kw: '界面 设置 墨夜 原版 主题 模式 切换', hint: '外观与个性化', icon: 'contrast-outline' as const, go: () => goSection('appearance') },
+    { title: '外观模式 (跟随系统/浅色/深色)', kw: '外观 模式 浅色 深色 跟随 系统 亮色 暗色', hint: '外观与个性化', icon: 'sunny-outline' as const, go: () => goSection('appearance') },
+    { title: '自定义背景图 (背景/壁纸/透明度/控件透明)', kw: '背景 壁纸 图片 透明度 控件 全透明 毛玻璃', hint: '外观与个性化', icon: 'image-outline' as const, go: () => goSection('appearance') },
+    { title: '班级课表设置 (系部/专业/班级)', kw: '班级 课表 系部 专业 设置 校园 数据', hint: '课表与学习', icon: 'school-outline' as const, go: () => { goSection('schedule'); router.push('/settings' as never); } },
+    { title: '作息时间表 (冬季/夏季/手动编辑/JSON导入)', kw: '作息 时间 表 冬季 夏季 上课 下课 时间点', hint: '课表与学习', icon: 'time-outline' as const, go: () => { goSection('schedule'); setShowTimes(true); } },
+    { title: '上课提醒 (上课/下课提前分钟数)', kw: '提醒 通知 上课 下课 提前 分钟 消息', hint: '提醒与通知', icon: 'notifications-outline' as const, go: () => goSection('notify') },
+    { title: '考试提醒 (考前一天/当天自动提醒)', kw: '考试 提醒 通知 考场 考前', hint: '提醒与通知', icon: 'pencil-outline' as const, go: () => goSection('notify') },
+    { title: '每日早报 (7点天气/第一节课/考试)', kw: '早报 每日 天气 第一节课 通知 早上', hint: '提醒与通知', icon: 'sunny-outline' as const, go: () => goSection('notify') },
+    { title: '通知设置 (悬浮/声音/振动/锁屏显示)', kw: '通知 设置 悬浮 横幅 声音 振动 锁屏 显示 渠道', hint: '提醒与通知', icon: 'notifications-circle-outline' as const, go: () => goSection('notify') },
+    { title: '天气城市 (跟随定位/手动设置)', kw: '天气 城市 定位 温度 手动', hint: '提醒与通知', icon: 'cloud-outline' as const, go: () => { goSection('notify'); setWxOpen(true); } },
+    { title: '倒计时 (四六级/期末考试)', kw: '倒计时 四六级 期末 考试 日期', hint: '课表与学习', icon: 'hourglass-outline' as const, go: () => goSection('schedule') },
+    { title: '课表截图导入 (图片识别课程)', kw: '课表 截图 导入 OCR 识别 图片 相册 扫描 拍照', hint: '独立页面', icon: 'scan-outline' as const, go: () => { setSearchOpen(false); router.push('/timetable-ocr' as never); } },
+    { title: '备份导出 / 导入 / 保存到手机', kw: '备份 导出 导入 保存 手机 换机 迁移 JSON', hint: '账号与数据', icon: 'save-outline' as const, go: () => goSection('account') },
+    { title: '自动识别验证码并登录 (开关)', kw: '验证码 自动 识别 登录 ocr 综合平台 开关', hint: '账号与数据', icon: 'scan-outline' as const, go: () => goSection('account') },
+    { title: '公告 (全部公告/历史发布)', kw: '公告 通知 消息 历史 发布', hint: '独立页面', icon: 'megaphone-outline' as const, go: () => { setSearchOpen(false); router.push('/notices' as never); } },
+    { title: '支持开发者 (赞助/收款码)', kw: '赞助 支持 开发者 收款码 微信 支付宝 奶茶', hint: '独立页面', icon: 'heart-outline' as const, go: () => { setSearchOpen(false); router.push('/sponsor' as never); } },
+    { title: '官网接口地址 (公告/收款码下发)', kw: '官网 接口 地址 下发 公告 服务器', hint: '关于与支持', icon: 'globe-outline' as const, go: () => { goSection('about'); setSiteOpen(true); } },
+    { title: '新手引导 (方块高亮指引)', kw: '新手 引导 指引 教程 高亮', hint: '关于与支持', icon: 'compass-outline' as const, go: () => { goSection('about'); startCoachTour(); } },
+    { title: '图文功能教程 (6页图文)', kw: '图文 教程 功能 介绍 回看', hint: '关于与支持', icon: 'book-outline' as const, go: () => { goSection('about'); setIntroOpen(true); } },
+    { title: '用户协议', kw: '用户 协议 条款', hint: '关于与支持', icon: 'document-text-outline' as const, go: () => { goSection('about'); setAgreementOpen(true); } },
+    { title: '检查更新 / 镜像设置 / 当前版本', kw: '检查 更新 版本 镜像 下载 升级', hint: '关于与支持', icon: 'download-outline' as const, go: () => goSection('about', true) },
+    { title: '开发者选项 (登录修复/调试)', kw: '开发者 选项 调试 登录 修复', hint: '关于与支持', icon: 'terminal-outline' as const, go: () => { goSection('about'); router.push('/dev' as never); } },
   ];
   useEffect(() => {
     registerTourScroller('/profile', scrollRef.current);
@@ -385,6 +420,8 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       loadChannels();
+      void loadProfile().then(setMe);
+      void loadSessionName().then(setPortalName);
     }, [loadChannels]),
   );
 
@@ -451,14 +488,71 @@ export default function ProfileScreen() {
     setTimeout(() => setSaved(false), 1500);
   }, [username, password, startPage]);
 
+  // 分组入口卡: 12 号灰字标题 + 圆角 16 卡片, 行间 1px 分隔线
+  const renderGroup = (title: string, rows: GroupRow[]) => (
+    <>
+      <Text style={[styles.groupTitle, { color: colors.textSecondary }]}>{title}</Text>
+      <CardWrap style={cardStyle(styles.groupCard)}>
+        {rows.map((r, i) => (
+          <Pressable
+            key={r.title}
+            onPress={r.onPress}
+            style={({ pressed }) => [
+              styles.groupRow,
+              i > 0 && styles.rowSep,
+              i > 0 && { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' },
+              pressed && { opacity: 0.55 },
+            ]}>
+            <View
+              style={[
+                styles.rowIcon,
+                glass ? { borderWidth: 1, borderColor: glassLine } : { backgroundColor: colors.backgroundSelected },
+              ]}>
+              <Ionicons name={r.icon} size={16} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowTitle, { color: colors.text }]}>{r.title}</Text>
+              {!!r.sub && (
+                <Text style={[styles.rowSub, { color: colors.textSecondary }]} numberOfLines={1}>
+                  {r.sub}
+                </Text>
+              )}
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+          </Pressable>
+        ))}
+      </CardWrap>
+    </>
+  );
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
       {/* 墨夜背景: 深空渐变 + 顶部辉光(绝对定位铺满, 原版模式不渲染) */}
       {night && <NightGlowBackground>{null}</NightGlowBackground>}
       <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={[styles.title, { color: colors.text }]}>我的</Text>
+        <View style={styles.headerRow}>
+          {section ? (
+            <Pressable onPress={() => setSection(null)} style={styles.headerBack} hitSlop={8}>
+              <Ionicons name="arrow-back" size={22} color={colors.text} />
+              <Text style={[styles.headerTitle, { color: colors.text }]}>{SECTION_TITLES[section]}</Text>
+            </Pressable>
+          ) : (
+            <Text style={[styles.title, { color: colors.text }]}>我的</Text>
+          )}
+          {!section && (
+            <Pressable
+              onPress={() => {
+                setSearchOpen((v) => !v);
+                setQ('');
+              }}
+              hitSlop={8}>
+              <Ionicons name={searchOpen ? 'close' : 'search'} size={21} color={colors.text} />
+            </Pressable>
+          )}
+        </View>
 
-        {/* 设置搜索: 关键字匹配功能并跳转(位于标题下方) */}
+        {/* 设置搜索: 点右上角放大镜展开, 关键字匹配功能并跳转 */}
+        {!section && searchOpen && (
         <View style={[glass ? { borderWidth: 1, borderColor: glassLine } : { backgroundColor: colors.backgroundElement }, { borderRadius: 12, padding: 12, marginTop: 4 }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Ionicons name="search" size={16} color={colors.textSecondary} />
@@ -486,6 +580,7 @@ export default function ProfileScreen() {
                   onPress={() => {
                     it.go();
                     setQ('');
+                    setSearchOpen(false);
                   }}
                   style={({ pressed }) => [
                     { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 10, backgroundColor: night ? 'rgba(91,140,255,0.08)' : glass ? 'rgba(37,99,235,0.08)' : colors.background },
@@ -508,8 +603,94 @@ export default function ProfileScreen() {
             </View>
           )}
         </View>
+        )}
 
-        {/* 主站账号 */}
+        {!section && (
+          <>
+            {/* 个人卡片: 头像 / 昵称 / 学号班级 / QQ */}
+            <Pressable
+              onPress={() => router.push('/profile-edit' as never)}
+              style={({ pressed }) => (pressed ? { opacity: 0.75 } : null)}>
+              <CardWrap style={cardStyle(styles.profileCard)}>
+                <View
+                  style={[
+                    styles.avatar,
+                    glass ? { borderWidth: 1, borderColor: glassLine } : { backgroundColor: colors.backgroundElement },
+                  ]}>
+                  {me.avatar ? (
+                    <Image source={{ uri: me.avatar }} style={styles.avatarImg} />
+                  ) : (
+                    <Ionicons name="person" size={28} color={colors.textSecondary} />
+                  )}
+                  <View style={[styles.avatarBadge, { backgroundColor: colors.primary }]}>
+                    <Ionicons name="camera" size={10} color="#fff" />
+                  </View>
+                </View>
+                <View style={{ flex: 1, paddingRight: 4 }}>
+                  <Text style={[styles.profileName, { color: colors.text }]} numberOfLines={1}>
+                    {displayName(me, portalName) || '未设置昵称'}
+                  </Text>
+                  <Text style={[styles.profileSub, { color: colors.textSecondary }]} numberOfLines={1}>
+                    学号 {username || '未设置'} · 班级 {classLabel ?? '未设置'}
+                  </Text>
+                  <View
+                    style={[
+                      styles.qqPill,
+                      glass ? { borderWidth: 1, borderColor: glassLine } : { backgroundColor: colors.backgroundSelected },
+                    ]}>
+                    <Text style={{ color: colors.textSecondary, fontSize: 11 }}>
+                      {me.qq ? `QQ ${me.qq}` : 'QQ 未绑定'}
+                    </Text>
+                  </View>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                  <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>编辑</Text>
+                  <Ionicons name="chevron-forward" size={15} color={colors.textSecondary} />
+                </View>
+              </CardWrap>
+            </Pressable>
+
+            {renderGroup('课表与学习', [
+              { title: '我的课表', sub: `当前班级：${classLabel ?? '未设置'}`, icon: 'school-outline', onPress: () => router.push('/settings' as never) },
+              { title: '课表截图导入', icon: 'scan-outline', onPress: () => router.push('/timetable-ocr' as never) },
+              { title: '学业成绩', icon: 'stats-chart-outline', onPress: () => router.push('/gpa' as never) },
+              { title: '待办事项', icon: 'checkbox-outline', onPress: () => router.push('/todos' as never) },
+              { title: '倒计时', icon: 'hourglass-outline', onPress: () => setSection('schedule') },
+            ])}
+
+            {renderGroup('提醒与通知', [
+              { title: '上课提醒', sub: `提前 ${remind.start} 分钟`, icon: 'notifications-outline', onPress: () => setSection('notify') },
+              { title: '考试提醒', icon: 'pencil-outline', onPress: () => setSection('notify') },
+              { title: '每日早报', icon: 'sunny-outline', onPress: () => setSection('notify') },
+              { title: '通知渠道', icon: 'notifications-circle-outline', onPress: () => setSection('notify') },
+            ])}
+
+            {renderGroup('外观与个性化', [
+              { title: '主题预设', icon: 'color-palette-outline', onPress: () => setSection('appearance') },
+              { title: '界面风格', icon: 'contrast-outline', onPress: () => setSection('appearance') },
+              { title: '背景与透明控件', sub: `控件透明：${bg.ctrl ? '开' : '关'}`, icon: 'image-outline', onPress: () => setSection('appearance') },
+              { title: '外观模式', icon: 'sunny-outline', onPress: () => setSection('appearance') },
+            ])}
+
+            {renderGroup('账号与数据', [
+              { title: '主站账号', icon: 'person-circle-outline', onPress: () => setSection('account') },
+              { title: '备份与恢复', icon: 'save-outline', onPress: () => setSection('account') },
+              { title: '导出到系统日历', icon: 'calendar-outline', onPress: () => setSection('account') },
+            ])}
+
+            {renderGroup('关于与支持', [
+              { title: '公告', icon: 'megaphone-outline', onPress: () => router.push('/notices' as never) },
+              { title: '功能教程 / 新手引导', icon: 'book-outline', onPress: () => setIntroOpen(true) },
+              { title: '检查更新', icon: 'download-outline', onPress: () => setSection('about') },
+              { title: '支持开发者', icon: 'heart-outline', onPress: () => router.push('/sponsor' as never) },
+              { title: '关于与协议', icon: 'information-circle-outline', onPress: () => setSection('about') },
+            ])}
+          </>
+        )}
+
+        {/* 主站账号 (账号与数据) */}
+        {section === 'account' && (
+        <>
         <CardWrap style={cardStyle(styles.section)}>
           <Text style={[styles.secTitle, { color: colors.text }]}>主站账号</Text>
           <Text style={[styles.label, { color: colors.textSecondary }]}>学号</Text>
@@ -588,8 +769,12 @@ export default function ProfileScreen() {
             </Text>
           </Pressable>
         </CardWrap>
+        </>
+        )}
 
         {/* 主题预设: 自定义/纯白/纯黑/墨夜/护眼米黄/淡雅蓝 (含主题导出/导入/自定义配色) */}
+        {section === 'appearance' && (
+        <>
         <ThemePresetPicker />
 
         {/* 界面设置: 原版界面 / 墨夜主题 */}
@@ -707,10 +892,13 @@ export default function ProfileScreen() {
             ))}
           </View>
         </CardWrap>
+        </>
+        )}
 
-        {/* 校园数据: 班级课表 / 作息时间 / 天气城市 */}
+        {/* 课表与学习: 班级课表 / 桌面小组件 / 作息时间表 */}
+        {section === 'schedule' && (
         <CardWrap style={cardStyle(styles.section)}>
-          <Text style={[styles.secTitle, { color: colors.text }]}>校园数据</Text>
+          <Text style={[styles.secTitle, { color: colors.text }]}>课表与学习</Text>
 
           <View style={styles.subBlock}>
             <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>班级课表</Text>
@@ -779,8 +967,15 @@ export default function ProfileScreen() {
               </Pressable>
             </View>
           </View>
+        </CardWrap>
+        )}
 
-          <View style={[styles.subBlock, styles.hairline, { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' }]}>
+        {/* 提醒与通知: 上课提醒 / 每日早报 / 考试提醒 / 通知设置 / 天气城市 */}
+        {section === 'notify' && (
+        <CardWrap style={cardStyle(styles.section)}>
+          <Text style={[styles.secTitle, { color: colors.text }]}>提醒与通知</Text>
+
+          <View style={styles.subBlock}>
             <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>上课提醒</Text>
             <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
               提前 0-30 分钟提醒，0 为准点提醒；修改后自动重排未来 7 天提醒
@@ -957,8 +1152,10 @@ export default function ProfileScreen() {
             </View>
           </View>
         </CardWrap>
+        )}
 
         {/* 倒计时 */}
+        {section === 'schedule' && (
         <CardWrap style={cardStyle(styles.section)}>
           <Text style={[styles.secTitle, { color: colors.text }]}>倒计时</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
@@ -1007,8 +1204,10 @@ export default function ProfileScreen() {
             </Pressable>
           </View>
         </CardWrap>
+        )}
 
-        {/* 数据与备份 */}
+        {/* 数据与备份 (账号与数据) */}
+        {section === 'account' && (
         <CardWrap style={cardStyle(styles.section)}>
           <Text style={[styles.secTitle, { color: colors.text }]}>数据与备份</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
@@ -1066,8 +1265,11 @@ export default function ProfileScreen() {
             <Text style={{ color: glass ? colors.text : '#fff', fontSize: 12, fontWeight: '700' }}>导出课表到系统日历（.ics）</Text>
           </Pressable>
         </CardWrap>
+        )}
 
-        {/* 通用 */}
+        {/* 通用 (关于与支持) */}
+        {section === 'about' && (
+        <>
         <CardWrap style={cardStyle(styles.section)}>
           <Text style={[styles.secTitle, { color: colors.text }]}>通用</Text>
 
@@ -1153,6 +1355,8 @@ export default function ProfileScreen() {
 
         <UpdateCard colors={colors} />
         <AboutGithub colors={colors} />
+        </>
+        )}
       </ScrollView>
 
       <TimesEditorModal visible={editOpen} initial={times} onClose={() => setEditOpen(false)} colors={colors} />
@@ -1362,7 +1566,26 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   content: { padding: Spacing.three, maxWidth: MaxContentWidth, width: '100%', alignSelf: 'center', paddingBottom: 40 },
-  title: { fontSize: 24, fontWeight: '800', marginBottom: Spacing.three },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.three, minHeight: 34 },
+  headerBack: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  headerTitle: { fontSize: 19, fontWeight: '800' },
+  title: { fontSize: 24, fontWeight: '800' },
+  // 个人卡片
+  profileCard: { borderRadius: 18, padding: Spacing.three, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  avatar: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  avatarImg: { width: '100%', height: '100%' },
+  avatarBadge: { position: 'absolute', right: 0, bottom: 0, width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  profileName: { fontSize: 17, fontWeight: '800' },
+  profileSub: { fontSize: 12, marginTop: 3 },
+  qqPill: { alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, marginTop: 6 },
+  // 分组入口
+  groupTitle: { fontSize: 12, fontWeight: '700', marginTop: 18, marginBottom: 8, marginLeft: 4 },
+  groupCard: { borderRadius: 16, paddingHorizontal: 12, paddingVertical: 2 },
+  groupRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13 },
+  rowSep: { borderTopWidth: StyleSheet.hairlineWidth },
+  rowIcon: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  rowTitle: { fontSize: 14.5, fontWeight: '600' },
+  rowSub: { fontSize: 11.5, marginTop: 2 },
   label: { fontSize: 13, marginBottom: 6, marginTop: Spacing.two },
   input: { borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, borderWidth: 1, fontSize: 15 },
   startRow: { flexDirection: 'row', gap: Spacing.two },

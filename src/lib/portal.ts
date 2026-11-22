@@ -210,6 +210,18 @@ export async function submitLogin(
 /** 持久会话 */
 export type PortalSession = { cookie: string; name: string; apps: PortalApp[]; at: number };
 
+/** 只读本地会话里的姓名(不校验网络), 用于昵称兜底 */
+export async function loadSessionName(): Promise<string | null> {
+  try {
+    const raw = await AsyncStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw) as PortalSession;
+    return typeof s.name === 'string' && s.name.trim() ? s.name.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
 /** 尝试用本地保存的会话进入桌面; 失效则清除并返回 null */
 export async function tryRestoreSession(): Promise<PortalSession | null> {
   try {

@@ -112,6 +112,7 @@ export default function RootLayout() {
         <Stack.Screen name="todos" />
         <Stack.Screen name="gpa" />
         <Stack.Screen name="timetable-ocr" />
+        <Stack.Screen name="profile-edit" />
         <Stack.Screen name="today" />
       </Stack>
     </ThemeProvider>

@@ -31,6 +31,7 @@ export const BACKUP_SECTIONS: { key: string; label: string }[] = [
   { key: 'gh-mirrors-v1', label: '更新镜像' },
   { key: 'site.url.v1', label: '官网接口地址' },
   { key: 'account.portal.v1', label: '账号与起始页' },
+  { key: 'user.profile.v1', label: '个人资料' },
 ];
 
 const KEYS = BACKUP_SECTIONS.map((s) => s.key);
