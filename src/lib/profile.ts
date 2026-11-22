@@ -54,13 +54,30 @@ export async function pickAvatar(): Promise<string | null> {
   const asset = r.assets?.[0];
   if (!asset) return null;
   const ext = (asset.mimeType?.split('/')[1] || asset.uri.split('.').pop() || 'jpg').toLowerCase();
-  const dest = `${FileSystem.documentDirectory}avatar.${ext}`;
+  // 文件名带时间戳: 避免路径不变导致 Image 命中旧缓存(换头像看起来没生效/来回横跳)
+  const dest = `${FileSystem.documentDirectory}avatar-${Date.now()}.${ext}`;
   await FileSystem.copyAsync({ from: asset.uri, to: dest });
+  const prev = (await loadProfile()).avatar;
   await saveProfile({ avatar: dest });
+  if (prev && prev !== dest) {
+    try {
+      await FileSystem.deleteAsync(prev, { idempotent: true });
+    } catch {
+      // 旧文件删不掉不影响新头像
+    }
+  }
   return dest;
 }
 
 /** 恢复默认头像 */
 export async function clearAvatar(): Promise<void> {
+  const prev = (await loadProfile()).avatar;
   await saveProfile({ avatar: null });
+  if (prev) {
+    try {
+      await FileSystem.deleteAsync(prev, { idempotent: true });
+    } catch {
+      // 忽略
+    }
+  }
 }

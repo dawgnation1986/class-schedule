@@ -1,9 +1,11 @@
 /** 成绩统计: 平均分 / 学分加权绩点 / 目标 GPA 反推 / 学期趋势 */
-import { useCallback, useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -43,6 +45,29 @@ export default function GpaScreen() {
   const [goalTarget, setGoalTarget] = useState('');
   const [goalRemain, setGoalRemain] = useState('');
   const [editing, setEditing] = useState<{ key: string; name: string; value: string } | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const shotRef = useRef<ScrollView>(null);
+
+  /** 把整页成绩截成图片分享(含滚动区域全部内容) */
+  const shareImage = useCallback(async () => {
+    if (!shotRef.current || sharing) return;
+    setSharing(true);
+    try {
+      const uri = await captureRef(shotRef as unknown as RefObject<View>, {
+        format: 'png',
+        quality: 1,
+        result: 'tmpfile',
+        snapshotContentContainer: true,
+      });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: '分享成绩统计' });
+      }
+    } catch (e) {
+      Alert.alert('导出失败', e instanceof Error ? e.message : '请稍后重试');
+    } finally {
+      setSharing(false);
+    }
+  }, [sharing]);
 
   const load = useCallback(async (force: boolean) => {
     setLoading(true);
@@ -118,9 +143,22 @@ export default function GpaScreen() {
           <Text style={{ color: colors.text, fontSize: 16 }}>返回</Text>
         </Pressable>
         <Text style={[styles.title, { color: colors.text }]}>成绩统计</Text>
-        <Pressable onPress={() => load(true)} style={styles.backBtn}>
-          <Ionicons name="refresh" size={20} color={colors.text} />
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Pressable
+            onPress={() => void shareImage()}
+            disabled={!stat || sharing}
+            hitSlop={6}
+            style={[styles.backBtn, { opacity: stat ? 1 : 0.35 }]}>
+            {sharing ? (
+              <ActivityIndicator size="small" color={colors.text} />
+            ) : (
+              <Ionicons name="share-outline" size={21} color={colors.text} />
+            )}
+          </Pressable>
+          <Pressable onPress={() => load(true)} style={styles.backBtn}>
+            <Ionicons name="refresh" size={20} color={colors.text} />
+          </Pressable>
+        </View>
       </View>
 
       {loading && !stat && <Text style={[styles.loading, { color: colors.textSecondary }]}>正在读取成绩…</Text>}
@@ -134,7 +172,10 @@ export default function GpaScreen() {
       {stale && <Text style={styles.stale}>网络异常，展示的是上次缓存的数据</Text>}
 
       {stat && (
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          ref={shotRef}
+          contentContainerStyle={[styles.content, { backgroundColor: colors.background }]}
+          showsVerticalScrollIndicator={false}>
           {/* 总览 */}
           <View style={styles.overview}>
             <View style={[styles.overCard, { backgroundColor: colors.backgroundElement }]}>
@@ -347,6 +388,7 @@ export default function GpaScreen() {
           <Text style={[styles.note, { color: colors.textSecondary }]}>
             绩点按 (分数-50)/10 的 5 分制估算，等级课折算：优95 / 良85 / 中75 / 及格65；填了学分后按学分加权。数据由教务系统换算，仅供参考
           </Text>
+          <Text style={[styles.shareFoot, { color: colors.textSecondary }]}>由 课表助手 生成</Text>
         </ScrollView>
       )}
 
@@ -447,6 +489,7 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   note: { fontSize: 11, textAlign: 'center', lineHeight: 16 },
+  shareFoot: { fontSize: 10, textAlign: 'center', marginTop: 10, opacity: 0.7 },
   mask: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 24 },
   modalCard: { width: '100%', maxWidth: 360, borderRadius: 18, padding: 18 },
   modalInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 16, marginTop: 14 },
