@@ -1,8 +1,9 @@
 /** 云端备份与恢复: 注册/登录官网账号, 一键备份到云端、一键恢复到本机 */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ElementType } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -10,6 +11,8 @@ import {
   Text,
   TextInput,
   View,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -17,7 +20,10 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { usePageBackground } from '@/lib/background';
+import { useUiMode } from '@/hooks/use-ui-mode';
+import { NightCard, NightGlowBackground } from '@/components/night-kit';
+import { useBgSetting, usePageBackground } from '@/lib/background';
+import { loadProfile, type UserProfile } from '@/lib/profile';
 import { exportBackup, importBackup } from '@/lib/backup';
 import {
   cloudDelete,
@@ -44,7 +50,20 @@ export default function CloudBackupScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
   const pageBg = usePageBackground(colors);
+  const bgSetting = useBgSetting();
+  // 跟随「控件透明」设置: 与其他页面一致, 卡片只留 1px 描边并透出背景图
+  const glass = !!bgSetting.ctrl;
+  const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
+  const uiMode = useUiMode();
+  const night = uiMode === 'night';
+  const CardWrap: ElementType = night ? NightCard : View;
+  const cardStyle = (base: ViewStyle | ViewStyle[]): StyleProp<ViewStyle> =>
+    night
+      ? base
+      : [base, glass && { borderWidth: 1, borderColor: glassLine }, { backgroundColor: glass ? 'transparent' : colors.backgroundElement }];
   const router = useRouter();
+
+  const [profile, setProfile] = useState<UserProfile | null>(null);
 
   const [session, setSession] = useState<CloudSession | null>(null);
   const [config, setConfig] = useState<CloudConfig | null>(null);
@@ -76,6 +95,7 @@ export default function CloudBackupScreen() {
     setError(null);
     try {
       setSite(await getSiteUrl());
+      setProfile(await loadProfile());
       const cfg = await fetchCloudConfig();
       setConfig(cfg);
       setSelected(cfg.sections.map((s) => s.key));
@@ -252,6 +272,7 @@ export default function CloudBackupScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
+      {night && <NightGlowBackground>{null}</NightGlowBackground>}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color={colors.text} />
@@ -287,7 +308,7 @@ export default function CloudBackupScreen() {
             )}
 
             {!session ? (
-              <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
+              <CardWrap style={cardStyle(styles.card)}>
                 <View style={styles.cardTitleRow}>
                   <Ionicons name="cloud-outline" size={18} color={colors.primary} />
                   <Text style={[styles.cardTitle, { color: colors.text }]}>登录后使用云端备份</Text>
@@ -297,7 +318,7 @@ export default function CloudBackupScreen() {
                   {'\n'}官网：{site}
                 </Text>
 
-                <View style={[styles.tabRow, { backgroundColor: colors.background }]}>
+                <View style={[styles.tabRow, { backgroundColor: glass ? 'transparent' : colors.background }, glass && { borderWidth: 1, borderColor: glassLine }]}>
                   {(
                     [
                       ['login', '登录'],
@@ -403,19 +424,26 @@ export default function CloudBackupScreen() {
                 {mode === 'register' && !config?.allow_register && (
                   <Text style={{ color: '#f59e0b', fontSize: 12, marginTop: 8 }}>官网当前未开放注册，请联系管理员。</Text>
                 )}
-              </View>
+              </CardWrap>
             ) : (
               <>
                 {/* 账号信息 */}
-                <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
+                <CardWrap style={cardStyle(styles.card)}>
                   <View style={styles.cardTitleRow}>
-                    <Ionicons name="person-circle-outline" size={20} color={colors.primary} />
+                    <View style={[styles.avatar, glass ? { borderWidth: 1, borderColor: glassLine } : { backgroundColor: colors.background }]}>
+                      {profile?.avatar ? (
+                        <Image source={{ uri: profile.avatar }} style={styles.avatarImg} />
+                      ) : (
+                        <Ionicons name="person" size={20} color={colors.textSecondary} />
+                      )}
+                    </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>
-                        {session.user.username}
+                        {session.user.nickname || session.user.username}
                       </Text>
                       <Text style={{ color: colors.textSecondary, fontSize: 11.5, marginTop: 2 }} numberOfLines={1}>
-                        {session.user.email || '未绑定邮箱'}
+                        账号 {session.user.username}
+                        {session.user.email ? ` · ${session.user.email}` : ' · 未绑定邮箱'}
                         {session.user.qq ? ` · QQ ${session.user.qq}` : ''}
                       </Text>
                     </View>
@@ -431,7 +459,7 @@ export default function CloudBackupScreen() {
                       共 {formatSize(backups.reduce((n, b) => n + b.size, 0))} · 单包上限 {config?.max_size_mb ?? 8}MB
                     </Text>
                   </View>
-                  <View style={[styles.quotaBar, { backgroundColor: colors.background }]}>
+                  <View style={[styles.quotaBar, { backgroundColor: glass ? 'transparent' : colors.background }, glass && { borderWidth: 1, borderColor: glassLine }]}>
                     <View
                       style={{
                         width: `${usedPercent}%`,
@@ -441,10 +469,10 @@ export default function CloudBackupScreen() {
                       }}
                     />
                   </View>
-                </View>
+                </CardWrap>
 
                 {/* 备份内容 */}
-                <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
+                <CardWrap style={cardStyle(styles.card)}>
                   <View style={styles.cardTitleRow}>
                     <Ionicons name="options-outline" size={18} color={colors.primary} />
                     <Text style={[styles.cardTitle, { color: colors.text, flex: 1 }]}>备份内容</Text>
@@ -471,8 +499,8 @@ export default function CloudBackupScreen() {
                           style={[
                             styles.chip,
                             {
-                              backgroundColor: on ? colors.primary : colors.background,
-                              borderColor: on ? colors.primary : 'rgba(100,116,139,0.3)',
+                              backgroundColor: on ? colors.primary : glass ? 'transparent' : colors.background,
+                              borderColor: on ? colors.primary : glass ? glassLine : 'rgba(100,116,139,0.3)',
                             },
                           ]}>
                           <Text style={{ color: on ? '#fff' : colors.textSecondary, fontSize: 12 }}>{s.label}</Text>
@@ -504,10 +532,10 @@ export default function CloudBackupScreen() {
                       </>
                     )}
                   </Pressable>
-                </View>
+                </CardWrap>
 
                 {/* 备份列表 */}
-                <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
+                <CardWrap style={cardStyle(styles.card)}>
                   <View style={styles.cardTitleRow}>
                     <Ionicons name="archive-outline" size={18} color={colors.primary} />
                     <Text style={[styles.cardTitle, { color: colors.text, flex: 1 }]}>我的备份（{backups.length}）</Text>
@@ -575,7 +603,7 @@ export default function CloudBackupScreen() {
                       </View>
                     );
                   })}
-                </View>
+                </CardWrap>
 
                 <Text style={{ color: colors.textSecondary, fontSize: 11.5, lineHeight: 17, paddingHorizontal: 4 }}>
                   备份以明文 JSON 存在官网私有目录，只能通过账号鉴权接口访问。恢复只覆盖备份中包含的设置项，不会清空其他配置。
@@ -631,6 +659,8 @@ const styles = StyleSheet.create({
   card: { borderRadius: 14, padding: 14, gap: 4 },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cardTitle: { fontSize: 15, fontWeight: '800' },
+  avatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  avatarImg: { width: '100%', height: '100%' },
   errBox: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, padding: 10 },
   tabRow: { flexDirection: 'row', borderRadius: 10, padding: 3, marginTop: 12 },
   tab: { flex: 1, borderRadius: 8, paddingVertical: 8, alignItems: 'center' },

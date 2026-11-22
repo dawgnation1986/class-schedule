@@ -1,4 +1,4 @@
-/** 个人资料编辑: 头像 / 昵称 / QQ, 仅本机保存(随备份导出), 学号班级只读 */
+/** 个人资料编辑: 头像 / 昵称 / QQ, 本机保存并随备份导出; 登录云账户后昵称与 QQ 同步到云端 */
 import { useEffect, useState, type ElementType } from 'react';
 import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,6 +12,7 @@ import { useUiMode } from '@/hooks/use-ui-mode';
 import { useBgSetting, usePageBackground } from '@/lib/background';
 import { NightCard, NightGlowBackground } from '@/components/night-kit';
 import { DEFAULT_PROFILE, clearAvatar, loadProfile, pickAvatar, saveProfile, type UserProfile } from '@/lib/profile';
+import { cloudUpdateProfile, getCloudSession, type CloudUser } from '@/lib/cloud';
 import { loadAccount } from '@/lib/account';
 import { loadSettings } from '@/lib/settings';
 import { loadSessionName } from '@/lib/portal';
@@ -34,6 +35,7 @@ export default function ProfileEditScreen() {
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [nickname, setNickname] = useState('');
   const [qq, setQq] = useState('');
+  const [cloudUser, setCloudUser] = useState<CloudUser | null>(null);
   const [portalName, setPortalName] = useState<string | null>(null);
   const [studentNo, setStudentNo] = useState('');
   const [classLabel, setClassLabel] = useState<string | null>(null);
@@ -41,9 +43,13 @@ export default function ProfileEditScreen() {
   useEffect(() => {
     void (async () => {
       const p = await loadProfile();
+      const session = await getCloudSession();
+      const cu = session?.user ?? null;
       setProfile(p);
-      setNickname(p.nickname);
-      setQq(p.qq);
+      setCloudUser(cu);
+      // 本机为空时用云账户资料兜底, 已手动设置过则保持本机值
+      setNickname(p.nicknameManual ? p.nickname : p.nickname || cu?.nickname || '');
+      setQq(p.qq || cu?.qq || '');
       const [acc, settings, name] = await Promise.all([loadAccount(), loadSettings(), loadSessionName()]);
       setStudentNo(acc?.username ?? '');
       setClassLabel(settings?.bjLabel ?? null);
@@ -75,6 +81,16 @@ export default function ProfileEditScreen() {
     if (nick) await saveProfile({ nickname: nick, nicknameManual: true, qq: q });
     // 昵称为空 → 回退到主站姓名
     else await saveProfile({ nickname: '', nicknameManual: false, qq: q });
+    if (cloudUser) {
+      try {
+        const u = await cloudUpdateProfile({ nickname: nick, qq: q });
+        setCloudUser(u);
+      } catch (e) {
+        Alert.alert('已保存到本机', `同步云账户失败：${e instanceof Error ? e.message : '网络异常'}`);
+        router.back();
+        return;
+      }
+    }
     router.back();
   };
 
@@ -152,6 +168,63 @@ export default function ProfileEditScreen() {
           />
         </CardWrap>
 
+        {/* 云账户联动 */}
+        <CardWrap style={cardStyle(styles.card)}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>云账户</Text>
+          {cloudUser ? (
+            <>
+              <View style={[styles.cloudRow, glass && { borderTopColor: glassLine }]}>
+                <View
+                  style={[
+                    styles.cloudAvatar,
+                    glass ? { borderWidth: 1, borderColor: glassLine } : { backgroundColor: colors.backgroundElement },
+                  ]}>
+                  {profile.avatar ? (
+                    <Image source={{ uri: profile.avatar }} style={styles.avatarImg} />
+                  ) : (
+                    <Ionicons name="cloud" size={20} color={colors.textSecondary} />
+                  )}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.text, fontSize: 14, fontWeight: '700' }} numberOfLines={1}>
+                    {cloudUser.nickname || cloudUser.username}
+                  </Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: 11.5, marginTop: 2 }} numberOfLines={1}>
+                    账号 {cloudUser.username}
+                    {cloudUser.email ? ` · ${cloudUser.email}` : ''}
+                  </Text>
+                </View>
+                <View style={styles.cloudBadge}>
+                  <Ionicons name="checkmark-circle" size={13} color="#16a34a" />
+                  <Text style={{ color: '#16a34a', fontSize: 11, fontWeight: '700' }}>已连接</Text>
+                </View>
+              </View>
+              <Text style={[styles.hint, { color: colors.textSecondary }]}>
+                保存时昵称与 QQ 会同步到云账户，换设备登录后仍然保留。
+              </Text>
+            </>
+          ) : (
+            <>
+              <View style={styles.infoRow}>
+                <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>状态</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 13 }}>未连接</Text>
+              </View>
+              <Text style={[styles.hint, { color: colors.textSecondary }]}>
+                登录云账户后，昵称与 QQ 会同步到云端，个人资料与云端备份账号联动。
+              </Text>
+              <Pressable
+                onPress={() => router.push('/cloud-backup' as never)}
+                style={[
+                  styles.cloudLoginBtn,
+                  glass ? { borderWidth: 1, borderColor: glassLine } : { backgroundColor: colors.primary },
+                ]}>
+                <Ionicons name="cloud-upload-outline" size={15} color={glass ? colors.text : '#fff'} />
+                <Text style={{ color: glass ? colors.text : '#fff', fontSize: 13, fontWeight: '700' }}>去登录云账户</Text>
+              </Pressable>
+            </>
+          )}
+        </CardWrap>
+
         {/* 学号 / 班级(只读, 来自主站账号) */}
         <CardWrap style={cardStyle(styles.card)}>
           <View style={styles.infoRow}>
@@ -179,7 +252,7 @@ export default function ProfileEditScreen() {
         </Pressable>
 
         <Text style={[styles.note, { color: colors.textSecondary }]}>
-          头像、昵称、QQ 只保存在本机，会随备份一起导出。
+          头像保存在本机并随备份一起导出；昵称与 QQ 会同步到已登录的云账户。
         </Text>
       </ScrollView>
     </SafeAreaView>
@@ -203,6 +276,10 @@ const styles = StyleSheet.create({
   infoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', alignSelf: 'stretch', paddingVertical: 3 },
   infoSep: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: 6, paddingTop: 9 },
   infoLabel: { fontSize: 13 },
+  cloudRow: { flexDirection: 'row', alignItems: 'center', gap: 10, alignSelf: 'stretch', marginTop: 8 },
+  cloudAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  cloudBadge: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  cloudLoginBtn: { alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 10, paddingVertical: 11, marginTop: 10 },
   hint: { fontSize: 11.5, lineHeight: 17, alignSelf: 'flex-start', marginTop: 8 },
   saveBtn: { borderRadius: 12, alignItems: 'center', paddingVertical: 14, marginTop: Spacing.four },
   saveText: { color: '#fff', fontSize: 15, fontWeight: '700' },

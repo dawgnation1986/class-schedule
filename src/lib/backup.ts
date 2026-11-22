@@ -2,8 +2,11 @@
  *  v2: 覆盖全部可配置项 + 导出摘要; 导入按"存在才恢复"处理, 兼容 v1 旧备份。 */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import * as FileSystem from 'expo-file-system/legacy';
 
+import { getBackground, setBgSetting } from '@/lib/background';
 import { DIR_BACKUP, hasClassAccess, writeText } from '@/lib/class-folder';
+import { loadProfile, saveProfile } from '@/lib/profile';
 import { loadSettings } from '@/lib/settings';
 
 /** 备份项: 键值 + 展示用名称(设置页导出摘要按此分组) */
@@ -24,6 +27,7 @@ export const BACKUP_SECTIONS: { key: string; label: string }[] = [
   { key: 'theme-custom-hex-v1', label: '自定义颜色' },
   { key: 'theme-appearance-snap-v1', label: '自定义外观快照' },
   { key: 'app-background-v1', label: '自定义背景' },
+  { key: 'app-background-file.v1', label: '背景图片' },
   { key: 'weather-city-v1', label: '天气城市' },
   { key: 'reminder.minutes.v1', label: '上课提醒' },
   { key: 'exam.remind.enabled.v1', label: '考试提醒' },
@@ -32,9 +36,56 @@ export const BACKUP_SECTIONS: { key: string; label: string }[] = [
   { key: 'site.url.v1', label: '官网接口地址' },
   { key: 'account.portal.v1', label: '账号与起始页' },
   { key: 'user.profile.v1', label: '个人资料' },
+  { key: 'user.avatar.v1', label: '头像' },
 ];
 
 const KEYS = BACKUP_SECTIONS.map((s) => s.key);
+
+/** 非 AsyncStorage 项: 头像与背景图需要把图片文件本身打包进备份 */
+const FILE_KEYS: Record<string, { label: string; kind: 'avatar' | 'background' }> = {
+  'user.avatar.v1': { label: '头像', kind: 'avatar' },
+  'app-background-file.v1': { label: '背景图片', kind: 'background' },
+};
+
+/** 单张图片最大 2MB(编码后约 2.7MB), 头像+背景仍能通过常见的 8MB 上传限制 */
+const MAX_FILE_BYTES = 2 * 1024 * 1024;
+
+async function packFile(uri: string | null): Promise<string | null> {
+  if (!uri) return null;
+  try {
+    const info = await FileSystem.getInfoAsync(uri);
+    if (!info.exists) return null;
+    const size = 'size' in info ? Number(info.size) : 0;
+    if (size > MAX_FILE_BYTES) return null;
+    const b64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+    if (!b64) return null;
+    const ext = uri.split('.').pop()?.split('?')[0]?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+    return JSON.stringify({ ext, b64 });
+  } catch {
+    return null;
+  }
+}
+
+async function restoreFile(raw: string, base: string): Promise<string | null> {
+  try {
+    const o = JSON.parse(raw) as { ext?: string; b64?: string };
+    if (!o?.b64) return null;
+    const ext = /^[a-z0-9]{2,5}$/i.test(o.ext ?? '') ? (o.ext as string) : 'jpg';
+    const dest = `${FileSystem.documentDirectory ?? ''}${base}-${Date.now()}.${ext}`;
+    await FileSystem.writeAsStringAsync(dest, o.b64, { encoding: FileSystem.EncodingType.Base64 });
+    return dest;
+  } catch {
+    return null;
+  }
+}
+
+async function fileExists(uri: string): Promise<boolean> {
+  try {
+    return (await FileSystem.getInfoAsync(uri)).exists;
+  } catch {
+    return false;
+  }
+}
 
 export type BackupSummary = {
   classLabel?: string;
@@ -57,7 +108,8 @@ export type BackupData = {
 /** 导出备份: 传 keys 时只导出勾选的配置项(云端备份用), 不传则导出全部 */
 export async function exportBackup(keys?: string[]): Promise<string> {
   const target = keys && keys.length ? keys.filter((k) => KEYS.includes(k)) : KEYS;
-  const entries = await AsyncStorage.multiGet(target);
+  const plainKeys = target.filter((k) => !FILE_KEYS[k]);
+  const entries = plainKeys.length ? await AsyncStorage.multiGet(plainKeys) : [];
   const kv: Record<string, string | null> = {};
   const sections: string[] = [];
   for (const [key, value] of entries) {
@@ -65,6 +117,16 @@ export async function exportBackup(keys?: string[]): Promise<string> {
     kv[key] = value;
     const label = BACKUP_SECTIONS.find((s) => s.key === key)?.label;
     if (label) sections.push(label);
+  }
+  // 头像 / 背景图: 图片文件本身编码进备份, 换机恢复后仍能显示
+  for (const key of target) {
+    const f = FILE_KEYS[key];
+    if (!f) continue;
+    const uri = f.kind === 'avatar' ? (await loadProfile()).avatar : getBackground().uri;
+    const packed = await packFile(uri);
+    if (!packed) continue;
+    kv[key] = packed;
+    sections.push(f.label);
   }
   const settings = await loadSettings();
   const data: BackupData = {
@@ -141,11 +203,51 @@ export async function importBackup(
   const pairs: [string, string][] = [];
   let skipped = 0;
   for (const key of KEYS) {
+    if (FILE_KEYS[key]) continue;
     const v = j.kv[key];
     if (typeof v === 'string') pairs.push([key, v]);
     else if (v !== undefined && v !== null) skipped += 1;
   }
-  if (!pairs.length) return { ok: false, error: '备份里没有可恢复的配置项' };
-  await AsyncStorage.multiSet(pairs);
-  return { ok: true, imported: pairs.length, skipped };
+  const avatarRaw = j.kv['user.avatar.v1'];
+  const bgRaw = j.kv['app-background-file.v1'];
+  const hasFile = typeof avatarRaw === 'string' || typeof bgRaw === 'string';
+  if (!pairs.length && !hasFile) return { ok: false, error: '备份里没有可恢复的配置项' };
+
+  // 先写普通键值, 再把图片落到私有目录并回填路径(顺序不能反, 否则旧路径会覆盖新文件)
+  if (pairs.length) await AsyncStorage.multiSet(pairs);
+  let restored = 0;
+
+  if (typeof avatarRaw === 'string') {
+    const dest = await restoreFile(avatarRaw, 'avatar');
+    if (dest) {
+      await saveProfile({ avatar: dest });
+      restored += 1;
+    } else skipped += 1;
+  } else if (avatarRaw !== undefined && avatarRaw !== null) {
+    skipped += 1;
+  } else {
+    // 旧备份没带图片: 恢复出来的头像路径在本机不存在时清空, 避免显示空图
+    const p = await loadProfile();
+    if (p.avatar && !(await fileExists(p.avatar))) await saveProfile({ avatar: null });
+  }
+
+  if (typeof bgRaw === 'string') {
+    const dest = await restoreFile(bgRaw, 'custom-bg');
+    if (dest) {
+      // 透明度/控件透明等设置刚从备份写回, 读取最新值再换成本机图片路径
+      let bg = getBackground();
+      try {
+        const rawBg = await AsyncStorage.getItem('app-background-v1');
+        if (rawBg) bg = { ...bg, ...(JSON.parse(rawBg) as typeof bg) };
+      } catch {
+        // 解析失败沿用当前值
+      }
+      await setBgSetting({ ...bg, uri: dest });
+      restored += 1;
+    } else skipped += 1;
+  } else if (bgRaw !== undefined && bgRaw !== null) {
+    skipped += 1;
+  }
+
+  return { ok: true, imported: pairs.length + restored, skipped };
 }

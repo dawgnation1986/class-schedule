@@ -6,6 +6,8 @@ import { getSiteUrl } from '@/lib/site';
 export type CloudUser = {
   id: string;
   username: string;
+  /** 昵称(与 App 个人资料联动, 空则由官网回退为用户名) */
+  nickname?: string;
   email: string;
   qq: string;
   created: string;
@@ -138,6 +140,20 @@ export async function cloudList(): Promise<{ user: CloudUser; backups: CloudBack
   const user = j.user ?? s.user;
   if (j.user) await setSession({ ...s, user: j.user });
   return { user, backups: j.backups ?? [] };
+}
+
+/** 同步个人资料到云账户(昵称 / QQ / 邮箱), App 个人资料页保存时调用 */
+export async function cloudUpdateProfile(patch: {
+  nickname?: string;
+  qq?: string;
+  email?: string;
+}): Promise<CloudUser> {
+  const s = await getCloudSession();
+  if (!s) throw new Error('请先登录');
+  const j = await call('update_profile', { token: s.token, ...patch });
+  const user = j.user ?? s.user;
+  if (j.user) await setSession({ ...s, user: j.user });
+  return user;
 }
 
 export type BackupPayload = {
