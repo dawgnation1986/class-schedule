@@ -77,7 +77,6 @@ import {
 import { ThemePresetPicker } from '@/components/theme-preset-picker';
 import { adoptCustomForBackground } from '@/lib/theme-preset';
 import { UiModePicker } from '@/components/ui-mode-picker';
-import { AboutGithub } from '@/components/about-github';
 import { OnboardingModal } from '@/components/onboarding';
 import { TourTarget, registerTourScroller, registerTourResetter, startCoachTour } from '@/components/tour';
 import { AgreementModal } from '@/components/agreement';
@@ -88,7 +87,7 @@ import { DEFAULT_SITE_URL, getSiteUrl, setSiteUrl, subscribeSiteUrl } from '@/li
 const PERIOD_ORDER = ['1-2', '3-4', '中午', '5-6', '7-8', '9-10'];
 
 /** 二级页分组键 */
-type SectionKey = 'schedule' | 'notify' | 'appearance' | 'account' | 'about';
+type SectionKey = 'schedule' | 'notify' | 'appearance' | 'account' | 'about' | 'update';
 
 /** 分组入口行 */
 type GroupRow = {
@@ -106,6 +105,7 @@ const SECTION_TITLES: Record<SectionKey, string> = {
   appearance: '外观与个性化',
   account: '账号与数据',
   about: '关于与支持',
+  update: '检查更新',
 };
 
 /** 手动编辑每节起止时间 */
@@ -391,7 +391,7 @@ export default function ProfileScreen() {
     { title: '新手引导 (方块高亮指引)', kw: '新手 引导 指引 教程 高亮', hint: '关于与支持', icon: 'compass-outline' as const, go: () => { goSection('about'); startCoachTour(); } },
     { title: '图文功能教程 (6页图文)', kw: '图文 教程 功能 介绍 回看', hint: '关于与支持', icon: 'book-outline' as const, go: () => { goSection('about'); setIntroOpen(true); } },
     { title: '用户协议', kw: '用户 协议 条款', hint: '关于与支持', icon: 'document-text-outline' as const, go: () => { goSection('about'); setAgreementOpen(true); } },
-    { title: '检查更新 / 镜像设置 / 当前版本', kw: '检查 更新 版本 镜像 下载 升级', hint: '关于与支持', icon: 'download-outline' as const, go: () => goSection('about', true) },
+    { title: '检查更新 / 镜像设置 / 当前版本', kw: '检查 更新 版本 镜像 下载 升级', hint: '关于与支持', icon: 'download-outline' as const, go: () => setSection('update') },
     { title: '开发者选项 (登录修复/调试)', kw: '开发者 选项 调试 登录 修复', hint: '关于与支持', icon: 'terminal-outline' as const, go: () => { goSection('about'); router.push('/dev' as never); } },
   ];
   useEffect(() => {
@@ -500,7 +500,7 @@ export default function ProfileScreen() {
   }, [username, password, startPage]);
 
   // 分组入口卡: 12 号灰字标题 + 圆角 16 卡片, 行间 1px 分隔线
-  const renderGroup = (title: string, rows: GroupRow[], groupTourId?: string) => {
+  const renderGroup = (title: string | undefined, rows: GroupRow[], groupTourId?: string) => {
     const card = (
       <CardWrap style={cardStyle(styles.groupCard)}>
         {rows.map((r, i) => {
@@ -543,7 +543,7 @@ export default function ProfileScreen() {
     );
     return (
       <>
-        <Text style={[styles.groupTitle, { color: colors.textSecondary }]}>{title}</Text>
+        {!!title && <Text style={[styles.groupTitle, { color: colors.textSecondary }]}>{title}</Text>}
         {groupTourId ? <TourTarget id={groupTourId}>{card}</TourTarget> : card}
       </>
     );
@@ -688,8 +688,8 @@ export default function ProfileScreen() {
               { title: '上课提醒', sub: `提前 ${remind.start} 分钟`, icon: 'notifications-outline', onPress: () => setSection('notify') },
               { title: '考试提醒', icon: 'pencil-outline', onPress: () => setSection('notify') },
               { title: '每日早报', icon: 'sunny-outline', onPress: () => setSection('notify') },
-              { title: '通知渠道', icon: 'notifications-circle-outline', onPress: () => setSection('notify') },
-            ])}
+              { title: '通知渠道', icon: 'notifications-circle-outline', onPress: () => setSection('notify'), tourId: 'pf.notifych' },
+            ], 'pf.notify')}
 
             {renderGroup('外观与个性化', [
               { title: '主题预设', icon: 'color-palette-outline', onPress: () => setSection('appearance') },
@@ -702,14 +702,19 @@ export default function ProfileScreen() {
               { title: '主站账号', icon: 'person-circle-outline', onPress: () => setSection('account') },
               { title: '备份与恢复', icon: 'save-outline', onPress: () => setSection('account') },
               { title: '导出到系统日历', icon: 'calendar-outline', onPress: () => setSection('account') },
-            ])}
+            ], 'pf.account')}
 
             {renderGroup('关于与支持', [
               { title: '公告', icon: 'megaphone-outline', onPress: () => router.push('/notices' as never) },
               { title: '功能教程 / 新手引导', icon: 'book-outline', onPress: () => setIntroOpen(true) },
-              { title: '检查更新', icon: 'download-outline', onPress: () => setSection('about') },
               { title: '支持开发者', icon: 'heart-outline', onPress: () => router.push('/sponsor' as never) },
               { title: '关于与协议', icon: 'information-circle-outline', onPress: () => setSection('about') },
+            ], 'pf.about')}
+
+            {/* 检查更新 + 关于本项目: 独立入口, 不塞进分组 */}
+            {renderGroup(undefined, [
+              { title: '检查更新', sub: '查看最新版本与更新内容', icon: 'cloud-download-outline', onPress: () => setSection('update') },
+              { title: '关于本项目', sub: 'GitHub 主页 · 仓库地址 · 项目信息', icon: 'logo-github', onPress: () => router.push('/about-project' as never) },
             ])}
           </>
         )}
@@ -1375,10 +1380,11 @@ export default function ProfileScreen() {
           </Pressable>
         </CardWrap>
 
-        <UpdateCard colors={colors} />
-        <AboutGithub colors={colors} />
         </>
         )}
+
+        {/* 检查更新 (独立模块) */}
+        {section === 'update' && <UpdateCard colors={colors} />}
       </ScrollView>
 
       <TimesEditorModal visible={editOpen} initial={times} onClose={() => setEditOpen(false)} colors={colors} />

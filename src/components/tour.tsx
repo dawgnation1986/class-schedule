@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View, findNodeHandle } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
@@ -39,6 +40,10 @@ export const TOUR_STEPS: TourStep[] = [
   { route: '/profile', target: 'pf.groups', title: '功能分组', desc: '课表截图导入、学业成绩、待办、倒计时等都收进了分组入口, 点进去就能用, 首页不再堆满设置。' },
   { route: '/profile', target: 'pf.theme', title: '外观与个性化', desc: '主题预设、界面风格、背景与透明控件都在这个分组里, 想换皮肤点这里。' },
   { route: '/profile', target: 'pf.bg', title: '背景与透明控件', desc: '选一张背景图做全 App 底色, 支持调节背景透明度与控件透明; 墨夜主题下会自动适配深色。' },
+  { route: '/profile', target: 'pf.notify', title: '提醒与通知', desc: '上课提醒、考试提醒、每日早报与通知渠道都在这里设置; 上课提醒会按作息时间自动提前推送。' },
+  { route: '/profile', target: 'pf.notifych', title: '通知渠道', desc: '可以逐项检查悬浮通知、声音、振动与锁屏显示是否正常, 收不到提醒时先来这里体检。' },
+  { route: '/profile', target: 'pf.account', title: '账号与数据', desc: '主站账号、备份与恢复、导出到系统日历都在这里; 换手机前记得先导出备份。' },
+  { route: '/profile', target: 'pf.about', title: '关于与支持', desc: '公告、功能教程、支持开发者与用户协议都在这里; 下方独立入口是检查更新与关于本项目。' },
   { route: '/settings', target: 'st.guide', title: '教程设置', desc: '新手引导和图文教程常驻在这里, 随时可以回看。' },
 ];
 
@@ -90,6 +95,7 @@ const HOLE_PAD = 8;
 export function CoachTour() {
   const colors = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [st, setSt] = useState({ active: false, idx: 0 });
   const [rect, setRect] = useState<Rect | null>(null);
   const [cardH, setCardH] = useState(170);
@@ -202,6 +208,10 @@ export function CoachTour() {
         <Animated.View style={[styles.abs, styles.dim, dimRight]} />
         {/* 洞边框 */}
         <Animated.View style={[styles.abs, styles.holeBorder, hole, { borderColor: ACCENT }]} />
+        {/* 常驻跳过按钮: 目标暂时找不到时也能退出 */}
+        <Pressable onPress={finish} hitSlop={12} style={[styles.skipBtn, { top: insets.top + 8 }]}>
+          <Text style={styles.skipText}>跳过引导</Text>
+        </Pressable>
         {/* 指引卡片 */}
         {!!rect && !!step && (
           <Animated.View
@@ -243,4 +253,15 @@ const styles = StyleSheet.create({
   holeBorder: { borderWidth: 2, borderRadius: 12 },
   card: { position: 'absolute', borderRadius: 12, padding: 15, borderWidth: 1, borderColor: 'rgba(100,116,139,0.2)', shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.18, shadowRadius: 12, elevation: 8 },
   arrow: { position: 'absolute', width: 18, height: 18, transform: [{ rotate: '45deg' }] },
+  skipBtn: {
+    position: 'absolute',
+    right: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 99,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.55)',
+    backgroundColor: 'rgba(255,255,255,0.16)',
+  },
+  skipText: { color: '#fff', fontSize: 13, fontWeight: '600' },
 });

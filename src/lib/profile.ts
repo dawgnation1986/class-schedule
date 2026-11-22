@@ -1,6 +1,6 @@
 /** 个人资料: 头像 / 昵称 / QQ 号, 仅本机保存(随备份导出), 不上传 */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 
 export type UserProfile = {
@@ -40,13 +40,20 @@ export async function saveProfile(patch: Partial<UserProfile>): Promise<UserProf
   return next;
 }
 
-/** 选一张图片作为头像: 拷进应用私有目录, 避免相册权限失效后头像丢失 */
+/** 从相册选头像(请求授权 + 支持裁剪), 拷进应用私有目录避免相册权限失效后头像丢失 */
 export async function pickAvatar(): Promise<string | null> {
-  const r = await DocumentPicker.getDocumentAsync({ type: 'image/*', copyToCacheDirectory: true });
+  const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!perm.granted) throw new Error('未获得相册权限，无法选择头像');
+  const r = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    allowsEditing: true,
+    aspect: [1, 1],
+    quality: 0.9,
+  });
   if (r.canceled) return null;
   const asset = r.assets?.[0];
   if (!asset) return null;
-  const ext = asset.name?.split('.').pop()?.toLowerCase() || 'jpg';
+  const ext = (asset.mimeType?.split('/')[1] || asset.uri.split('.').pop() || 'jpg').toLowerCase();
   const dest = `${FileSystem.documentDirectory}avatar.${ext}`;
   await FileSystem.copyAsync({ from: asset.uri, to: dest });
   await saveProfile({ avatar: dest });

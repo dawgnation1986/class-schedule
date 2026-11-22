@@ -105,7 +105,15 @@ export default function RootLayout() {
           }, 450);
         }}
       />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: 'transparent' },
+          // 页面切换过渡: 右侧滑入 + 返回手势, 全平台统一
+          animation: 'slide_from_right',
+          animationDuration: 220,
+          gestureEnabled: true,
+        }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="settings" />
         <Stack.Screen name="sponsor" />
@@ -116,6 +124,7 @@ export default function RootLayout() {
         <Stack.Screen name="gpa" />
         <Stack.Screen name="timetable-ocr" />
         <Stack.Screen name="profile-edit" />
+        <Stack.Screen name="about-project" />
         <Stack.Screen name="today" />
       </Stack>
     </ThemeProvider>

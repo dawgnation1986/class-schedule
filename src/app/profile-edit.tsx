@@ -1,6 +1,6 @@
 /** 个人资料编辑: 头像 / 昵称 / QQ, 仅本机保存(随备份导出), 学号班级只读 */
 import { useEffect, useState, type ElementType } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -52,8 +52,16 @@ export default function ProfileEditScreen() {
   }, []);
 
   const doPick = async () => {
-    const uri = await pickAvatar();
-    if (uri) setProfile(await loadProfile());
+    try {
+      const uri = await pickAvatar();
+      if (uri) setProfile(await loadProfile());
+    } catch (e) {
+      // 相册权限被拒绝: 引导去系统设置开启
+      Alert.alert('无法选择头像', e instanceof Error ? e.message : '请检查相册权限', [
+        { text: '取消', style: 'cancel' },
+        { text: '去设置', onPress: () => void Linking.openSettings() },
+      ]);
+    }
   };
 
   const doClear = async () => {
