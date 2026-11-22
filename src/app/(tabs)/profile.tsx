@@ -16,7 +16,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
@@ -296,6 +296,20 @@ export default function ProfileScreen() {
   const [classLabel, setClassLabel] = useState<string | null>(null);
   // 二级页: 根页只显示个人卡片 + 分组入口
   const [section, setSection] = useState<SectionKey | null>(null);
+  // 支持从个人资料页「学号」等处直接跳到指定二级页
+  const params = useLocalSearchParams<{ section?: string }>();
+  const jumpedSection = useRef<string | null>(null);
+  useEffect(() => {
+    const s = params.section;
+    if (!s) {
+      jumpedSection.current = null;
+      return;
+    }
+    if (!(s in SECTION_TITLES) || jumpedSection.current === s) return;
+    jumpedSection.current = s;
+    setSection(s as SectionKey);
+    router.setParams({ section: '' });
+  }, [params.section, router]);
   // 顶部搜索框(点击放大镜展开)
   const [searchOpen, setSearchOpen] = useState(false);
   // 本机个人资料(头像/昵称/QQ)与主站登录姓名

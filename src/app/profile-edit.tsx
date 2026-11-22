@@ -225,18 +225,21 @@ export default function ProfileEditScreen() {
           )}
         </CardWrap>
 
-        {/* 学号 / 班级(只读, 来自主站账号) */}
+        {/* 学号 / 班级(来自主站账号, 点击学号可去设置) */}
         <CardWrap style={cardStyle(styles.card)}>
-          <View style={styles.infoRow}>
+          <Pressable onPress={() => router.push('/profile?section=account' as never)} style={styles.infoRow}>
             <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>学号</Text>
-            <Text style={{ color: colors.text, fontSize: 14 }}>{studentNo || '未设置'}</Text>
-          </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text style={{ color: colors.text, fontSize: 14 }}>{studentNo || '未设置'}</Text>
+              <Ionicons name="chevron-forward" size={15} color={colors.textSecondary} />
+            </View>
+          </Pressable>
           <View style={[styles.infoRow, styles.infoSep, { borderTopColor: glass ? glassLine : 'rgba(100,116,139,0.18)' }]}>
             <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>班级</Text>
             <Text style={{ color: colors.text, fontSize: 14 }}>{classLabel ?? '未设置'}</Text>
           </View>
           <Text style={[styles.hint, { color: colors.textSecondary }]}>
-            来自主站账号，去 账号与数据 → 主站账号 修改
+            点击学号可去设置主站账号、密码与默认起始页
           </Text>
         </CardWrap>
 
