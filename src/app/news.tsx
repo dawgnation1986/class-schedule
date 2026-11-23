@@ -5,7 +5,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Linking,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -23,7 +25,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { PageBackdrop, useBgSetting, usePageBackground } from '@/lib/background';
 import { NightCard, NightGlowBackground } from '@/components/night-kit';
-import { fetchDailyNews, type NewsItem } from '@/lib/news';
+import { fetchDailyNews, fetchNewsArticle, type NewsArticle, type NewsItem } from '@/lib/news';
 
 export default function NewsScreen() {
   const scheme = useColorScheme();
@@ -40,6 +42,10 @@ export default function NewsScreen() {
   const [err, setErr] = useState<string | null>(null);
   const [cached, setCached] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [reader, setReader] = useState<NewsItem | null>(null);
+  const [article, setArticle] = useState<NewsArticle | null>(null);
+  const [artLoading, setArtLoading] = useState(false);
+  const [artErr, setArtErr] = useState<string | null>(null);
 
   const load = useCallback(async (force = false) => {
     try {
@@ -69,6 +75,26 @@ export default function NewsScreen() {
     } catch {
       await Linking.openURL(url).catch(() => {});
     }
+  }, []);
+
+  const openReader = useCallback(async (item: NewsItem) => {
+    setReader(item);
+    setArticle(null);
+    setArtErr(null);
+    setArtLoading(true);
+    try {
+      setArticle(await fetchNewsArticle(item.link));
+    } catch (e) {
+      setArtErr(e instanceof Error ? e.message : '正文加载失败');
+    } finally {
+      setArtLoading(false);
+    }
+  }, []);
+
+  const closeReader = useCallback(() => {
+    setReader(null);
+    setArticle(null);
+    setArtErr(null);
   }, []);
 
   const Card = night ? NightCard : View;
@@ -139,7 +165,7 @@ export default function NewsScreen() {
         )}
 
         {list?.map((n, i) => (
-          <Pressable key={n.id + i} onPress={() => void openLink(n.link)} style={({ pressed }) => (pressed ? { opacity: 0.75 } : null)}>
+          <Pressable key={n.id + i} onPress={() => void openReader(n)} style={({ pressed }) => (pressed ? { opacity: 0.75 } : null)}>
             <Card style={[styles.card, !night && cardBg]}>
               <View style={styles.itemHead}>
                 <View style={[styles.index, { backgroundColor: i < 3 ? colors.primary : colors.backgroundSelected }]}>
@@ -163,7 +189,7 @@ export default function NewsScreen() {
                   {n.time ? ` · ${n.time}` : ''}
                 </Text>
                 <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '700', marginLeft: 'auto' }}>
-                  阅读原文
+                  阅读全文
                 </Text>
                 <Ionicons name="chevron-forward" size={12} color={colors.primary} />
               </View>
@@ -173,10 +199,100 @@ export default function NewsScreen() {
 
         {list !== null && list.length > 0 && (
           <Text style={{ color: colors.textSecondary, fontSize: 11, textAlign: 'center', marginTop: 4 }}>
-            内容来自中国新闻网官方 RSS，点击条目跳转原文
+            点击条目在站内阅读全文，正文页可跳转原文
           </Text>
         )}
       </ScrollView>
+
+      {/* 站内阅读 */}
+      <Modal visible={!!reader} animationType="slide" onRequestClose={closeReader}>
+        <SafeAreaView style={[styles.readerSafe, { backgroundColor: pageBg }]} edges={['top', 'bottom']}>
+          {night && <NightGlowBackground>{null}</NightGlowBackground>}
+          <PageBackdrop />
+          <View style={styles.readerHead}>
+            <Pressable onPress={closeReader} hitSlop={10} style={styles.readerBack}>
+              <Ionicons name="arrow-back" size={22} color={colors.text} />
+            </Pressable>
+            <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', flex: 1 }}>新闻正文</Text>
+            <Pressable
+              onPress={() => reader && void openLink(reader.link)}
+              style={[styles.originChip, { borderColor: colors.primary }]}>
+              <Ionicons name="open-outline" size={13} color={colors.primary} />
+              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>阅读原文</Text>
+            </Pressable>
+          </View>
+
+          <ScrollView contentContainerStyle={styles.readerContent} showsVerticalScrollIndicator={false}>
+            <Text style={[styles.readerTitle, { color: colors.text }]}>{article?.title || reader?.title}</Text>
+            <View style={styles.readerMeta}>
+              <Ionicons name="radio-outline" size={12} color={colors.textSecondary} />
+              <Text style={{ color: colors.textSecondary, fontSize: 11.5 }}>
+                {article?.source || reader?.source || '中国新闻网'}
+                {article?.time || reader?.time ? ` · ${article?.time || reader?.time}` : ''}
+              </Text>
+            </View>
+
+            {artLoading && (
+              <View style={{ alignItems: 'center', paddingVertical: 36, gap: 10 }}>
+                <ActivityIndicator color={colors.primary} />
+                <Text style={{ color: colors.textSecondary, fontSize: 12 }}>正在加载正文…</Text>
+              </View>
+            )}
+
+            {!!artErr && (
+              <View
+                style={[
+                  styles.tip,
+                  { backgroundColor: 'rgba(245,158,11,0.12)', borderColor: 'rgba(245,158,11,0.45)' },
+                ]}>
+                <Ionicons name="cloud-offline-outline" size={14} color="#f59e0b" />
+                <Text style={{ color: '#b45309', fontSize: 12, flex: 1 }}>
+                  正文加载失败（{artErr}），可点击下方「阅读原文」查看。
+                </Text>
+              </View>
+            )}
+
+            {!artLoading && !artErr && article && (
+              <>
+                {article.blocks.some((b) => b.text || b.images.length) ? (
+                  article.blocks.map((b, bi) => (
+                    <View key={bi} style={{ gap: 10, marginBottom: 6 }}>
+                      {b.images.map((src) => (
+                        <Image
+                          key={src}
+                          source={{ uri: src }}
+                          style={[styles.readerImg, { backgroundColor: 'rgba(100,116,139,0.12)' }]}
+                          resizeMode="cover"
+                        />
+                      ))}
+                      {!!b.text && <Text style={[styles.readerText, { color: colors.text }]}>{b.text}</Text>}
+                    </View>
+                  ))
+                ) : (
+                  <View style={{ alignItems: 'center', paddingVertical: 24, gap: 8 }}>
+                    <Ionicons name="videocam-outline" size={30} color={colors.textSecondary} />
+                    <Text style={{ color: colors.textSecondary, fontSize: 12.5, textAlign: 'center', lineHeight: 19 }}>
+                      该内容以视频或图片形式发布，{'\n'}站内暂不支持播放，请点击「阅读原文」查看。
+                    </Text>
+                  </View>
+                )}
+
+                {!!reader?.summary && !article.blocks.some((b) => b.text.length > 40) && (
+                  <Text style={{ color: colors.textSecondary, fontSize: 12.5, lineHeight: 20 }}>{reader.summary}</Text>
+                )}
+              </>
+            )}
+
+            <Pressable onPress={() => reader && void openLink(reader.link)} style={styles.detailBtn}>
+              <Ionicons name="open-outline" size={16} color="#fff" />
+              <Text style={{ color: '#fff', fontSize: 14, fontWeight: '800' }}>阅读原文</Text>
+            </Pressable>
+            <Text style={{ color: colors.textSecondary, fontSize: 10.5, lineHeight: 16, textAlign: 'center' }}>
+              正文自动提取自中国新闻网，排版可能有缺失，完整内容请阅读原文。
+            </Text>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -209,4 +325,37 @@ const styles = StyleSheet.create({
   index: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
   itemTitle: { flex: 1, fontSize: 15, fontWeight: '700', lineHeight: 21 },
   itemFoot: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10 },
+  readerSafe: { flex: 1 },
+  readerHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  readerBack: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
+  originChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  readerContent: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 36, gap: 12 },
+  readerTitle: { fontSize: 21, fontWeight: '800', lineHeight: 30 },
+  readerMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: -4 },
+  readerImg: { width: '100%', height: 200, borderRadius: 10 },
+  readerText: { fontSize: 15.5, lineHeight: 26 },
+  detailBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#2563eb',
+    borderRadius: 11,
+    paddingVertical: 13,
+    marginTop: 8,
+  },
 });

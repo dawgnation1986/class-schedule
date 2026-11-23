@@ -16,6 +16,18 @@ export type NewsItem = {
   ts: number;
 };
 
+/** 正文段落(图片与文字按原文顺序排列) */
+export type NewsBlock = { text: string; images: string[] };
+
+export type NewsArticle = {
+  title: string;
+  source: string;
+  time: string;
+  blocks: NewsBlock[];
+  /** 原文地址 */
+  url: string;
+};
+
 const FEEDS = [
   { url: 'https://www.chinanews.com.cn/rss/importnews.xml', source: '中国新闻网 · 要闻' },
   { url: 'https://www.chinanews.com.cn/rss/scroll-news.xml', source: '中国新闻网 · 即时' },
@@ -102,13 +114,13 @@ function parseFeed(xml: string, source: string): NewsItem[] {
 
 async function fetchText(url: string): Promise<string> {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 9000);
+  const timer = setTimeout(() => ctrl.abort(), 12000);
   try {
     const r = await fetch(url, {
       signal: ctrl.signal,
       headers: {
         'User-Agent': UA,
-        Accept: 'application/rss+xml, application/xml, text/xml, */*',
+        Accept: '*/*',
       },
     });
     if (!r.ok) throw new Error('http ' + r.status);
@@ -154,4 +166,57 @@ export async function fetchDailyNews(force = false): Promise<{ list: NewsItem[];
     // 缓存损坏 → 抛错
   }
   throw new Error('新闻加载失败，请检查网络后重试');
+}
+
+const articleCache = new Map<string, NewsArticle>();
+
+function absImage(src: string): string {
+  const s = (src || '').trim();
+  if (!s) return '';
+  if (s.startsWith('//')) return 'https:' + s;
+  if (/^https?:\/\//i.test(s)) return s;
+  return 'https://www.chinanews.com.cn' + (s.startsWith('/') ? s : `/${s}`);
+}
+
+/** 抓取一篇新闻正文用于站内阅读; 正文为空(如视频稿)时由调用方回退到原文 */
+export async function fetchNewsArticle(url: string): Promise<NewsArticle> {
+  const hit = articleCache.get(url);
+  if (hit) return hit;
+
+  const html = await fetchText(url);
+  const title = cleanXml((html.match(/<h1[^>]*class="content_left_title"[^>]*>([\s\S]*?)<\/h1>/) ?? [])[1] ?? '');
+  const timeBlock = cleanXml((html.match(/<div class="content_left_time">([\s\S]*?)<\/div>/) ?? [])[1] ?? '');
+  const time = (timeBlock.match(/(\d{4}年\d{1,2}月\d{1,2}日\s*\d{1,2}:\d{2})/) ?? [])[1] ?? '';
+  const source = (timeBlock.match(/来源：\s*(\S+)/) ?? [])[1] ?? '';
+
+  let body = '';
+  const start = html.indexOf('<div class="left_zw">');
+  if (start >= 0) {
+    const from = start + '<div class="left_zw">'.length;
+    const end = html.indexOf('正文end', from);
+    body = html.slice(from, end > from ? end : Math.min(html.length, from + 24000));
+  }
+  body = body
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<table[^>]*class="adInContent"[\s\S]*?<\/table>/gi, ' ')
+    .replace(/<div class="adEditor"[\s\S]*?<\/div>/gi, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ');
+
+  const blocks: NewsBlock[] = [];
+  for (const seg of body.split(/<\/p>/i)) {
+    const images = [...seg.matchAll(/<img[^>]+src=['"]([^'"]+)['"]/gi)]
+      .map((m) => absImage(m[1]))
+      .filter(Boolean);
+    const text = cleanXml(seg);
+    if (text || images.length) blocks.push({ text, images });
+  }
+
+  const article: NewsArticle = { title: title || '', source, time, blocks, url };
+  articleCache.set(url, article);
+  if (articleCache.size > 30) {
+    const first = articleCache.keys().next().value;
+    if (first) articleCache.delete(first);
+  }
+  return article;
 }
