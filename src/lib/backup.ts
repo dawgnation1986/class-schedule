@@ -231,6 +231,7 @@ export async function importBackup(
     if (p.avatar && !(await fileExists(p.avatar))) await saveProfile({ avatar: null });
   }
 
+  let fileBgApplied = false;
   if (typeof bgRaw === 'string') {
     const dest = await restoreFile(bgRaw, 'custom-bg');
     if (dest) {
@@ -244,9 +245,26 @@ export async function importBackup(
       }
       await setBgSetting({ ...bg, uri: dest });
       restored += 1;
+      fileBgApplied = true;
     } else skipped += 1;
   } else if (bgRaw !== undefined && bgRaw !== null) {
     skipped += 1;
+  }
+
+  // 背景设置是直接写 AsyncStorage 的, 内存缓存不会自己更新:
+  // 这里统一同步一次, 保证备份里"没有背景图"时当前背景能立刻清掉(否则会残留上一份的图片)
+  if (!fileBgApplied) {
+    const rawBg = await AsyncStorage.getItem('app-background-v1').catch(() => null);
+    if (rawBg !== null) {
+      let bg = getBackground();
+      try {
+        bg = { ...bg, ...(JSON.parse(rawBg) as typeof bg) };
+      } catch {
+        // 解析失败沿用当前值
+      }
+      if (bg.uri && !(await fileExists(bg.uri))) bg = { ...bg, uri: null };
+      await setBgSetting(bg);
+    }
   }
 
   return { ok: true, imported: pairs.length + restored, skipped };
