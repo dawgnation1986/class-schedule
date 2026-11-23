@@ -1,5 +1,5 @@
-/** 天气: 手动城市(持久化) / IP 定位 → Open-Meteo 查询天气 (免 key, 30 分钟缓存)
- *  备用链: Open-Meteo(境外) 失败 → 中国天气网数据源(sojson, 国内免代理) → 上次成功缓存 */
+/** 天气: 手动城市(持久化) / IP 定位 → 墨迹天气公开接口 (免 key, 30 分钟缓存)
+ *  备用链: 墨迹失败 → Open-Meteo(境外) → 中国天气网数据源(sojson, 国内免代理) → 上次成功缓存 */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { CN_CITY_CODES } from './cn-city-codes';
@@ -71,6 +71,8 @@ export async function setWeatherCity(c: string | null): Promise<void> {
   chipCache = null;
   fullCache = null;
   locCache = null;
+  mojiCache = null;
+  mojiCityCache.clear();
 }
 
 /** WMO weather code → (描述, 图标, 颜色) */
@@ -166,6 +168,124 @@ async function locate(): Promise<{ lat: number; lon: number; city: string }> {
   if (!out) return FALLBACK;
   locCache = { at: Date.now(), data: out };
   return out;
+}
+
+/* ---------- 主源: 墨迹天气公开接口(免 key, 无需代理) ---------- */
+
+/** 城市名 → 墨迹 cityId 缓存(6 小时) */
+const mojiCityCache = new Map<string, { id: number; type: number; at: number }>();
+let mojiCache: { at: number; data: { weather: Weather; full: WeatherFull } } | null = null;
+
+/** 墨迹时间戳是 UTC 秒, 展示按北京时间(+8)换算 */
+function ymdOfSec(sec: number): string {
+  const d = new Date((sec + 8 * 3600) * 1000);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+}
+
+function hmOfSec(sec: number): string {
+  if (!Number.isFinite(sec) || sec <= 0) return '';
+  const d = new Date((sec + 8 * 3600) * 1000);
+  return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+}
+
+/** 墨迹城市检索: 按中文城市名查 cityId */
+async function mojiLookup(name: string): Promise<{ id: number; type: number } | null> {
+  const key = (name || '').trim();
+  if (!key) return null;
+  const hit = mojiCityCache.get(key);
+  if (hit && Date.now() - hit.at < 6 * 60 * 60 * 1000) return { id: hit.id, type: hit.type };
+  const candidates = [key, key.replace(/(市|地区|自治州|盟|区|县)$/, '')];
+  for (const n of candidates) {
+    if (!n) continue;
+    try {
+      const j = await fetchJson('https://ssch.api.moji.com/citymanage/json/h5/searchCity', 8000, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `keyWord=${encodeURIComponent(n)}`,
+      });
+      const c = j?.city_list?.[0];
+      const id = Number(c?.cityId);
+      if (Number.isFinite(id) && id > 0) {
+        const res = { id, type: Number(c.cityType ?? 0) };
+        mojiCityCache.set(key, { ...res, at: Date.now() });
+        return res;
+      }
+    } catch {
+      // 尝试下一个写法
+    }
+  }
+  return null;
+}
+
+/** 解析墨迹需要的城市: 手动城市 > 国内 IP 定位 > 通用定位 */
+async function mojiCity(): Promise<{ id: number; type: number; city: string } | null> {
+  const manual = await getWeatherCity();
+  let name = manual || '';
+  if (!name) {
+    name = (await ipCityDomestic()) || '';
+    if (!name) {
+      try {
+        name = (await locate()).city;
+      } catch {
+        // 定位失败 → 留给兜底链
+      }
+    }
+  }
+  if (!name) return null;
+  const hit = await mojiLookup(name);
+  return hit ? { ...hit, city: name } : null;
+}
+
+/** 主源: 墨迹 fc40(实况 + 未来 15 天 + AQI) */
+async function fetchMojiBundle(): Promise<{ weather: Weather; full: WeatherFull }> {
+  if (mojiCache && Date.now() - mojiCache.at < TTL) return mojiCache.data;
+  const city = await mojiCity();
+  if (!city) throw new Error('moji city not found');
+  const j = await fetchJson('https://h5ctywhr.api.moji.com/fc40', 10000, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cityId: city.id, cityType: city.type }),
+  });
+  const cond = j?.condition;
+  const rawDays: any[] = j?.forecastDays?.forecastDay ?? [];
+  if (j?.code !== 0 || !cond || !rawDays.length) throw new Error('moji unavailable');
+
+  const cityName = String(j.cityName ?? city.city).replace(/市$/, '') || city.city;
+  const [desc, icon, tint] = describeText(String(cond.weather ?? ''));
+  const weather: Weather = {
+    city: cityName,
+    temp: Math.round(Number(cond.temp)),
+    desc,
+    icon,
+    tint,
+  };
+
+  // 该源从"今天"开始连续 41 天; 过滤掉服务器日切前的昨天
+  const today = ymdOfSec(Math.floor(Date.now() / 1000));
+  const valid = rawDays.filter((d) => ymdOfSec(Number(d.predictDate)) >= today);
+  const src = (valid.length ? valid : rawDays).slice(0, 15);
+  const days: DayForecast[] = src.map((d: any) => {
+    const type = String(d.weatherDay ?? '');
+    const [dd, ii, tt] = describeText(type);
+    return {
+      date: ymdOfSec(Number(d.predictDate)),
+      desc: dd,
+      icon: ii,
+      tint: tt,
+      max: Math.round(Number(d.tempHigh)) || 0,
+      min: Math.round(Number(d.tempLow)) || 0,
+      humidity: Math.round(Number(d.humidity)) || 0,
+      precipProb: type.includes('雨') ? 60 : type.includes('雪') ? 50 : 0,
+      wind: (Number(String(d.windLevelDay ?? '').replace(/[^\d]/g, '')) || 0) * 5,
+      uv: 0,
+      sunrise: hmOfSec(Number(d.sunRise)),
+      sunset: hmOfSec(Number(d.sunDown)),
+    };
+  });
+
+  const data = { weather, full: { city: cityName, pm25: null, days } as WeatherFull };
+  mojiCache = { at: Date.now(), data };
+  return data;
 }
 
 /* ---------- 国内备用源: 中国天气网数据(sojson 镜像, 免 key, HTTP) ---------- */
@@ -270,27 +390,36 @@ export async function getCachedWeather(): Promise<Weather | null> {
   }
 }
 
+/** 备用源: Open-Meteo 实况(境外, 数据最全) */
+async function fetchOpenMeteoChip(): Promise<Weather> {
+  const { lat, lon, city } = await locate();
+  const w = await fetchJson(
+    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+      '&current=temperature_2m,weather_code,is_day&timezone=auto',
+    6000,
+  );
+  const cur = w.current;
+  const [desc, icon, tint] = describe(cur.weather_code, cur.is_day === 1);
+  return { city, temp: Math.round(cur.temperature_2m), desc, icon, tint };
+}
+
 export async function fetchWeather(): Promise<Weather> {
   if (chipCache && Date.now() - chipCache.at < TTL) return chipCache.data;
 
   let data: Weather | null = null;
   try {
-    // 主源: Open-Meteo(境外, 数据最全)
-    const { lat, lon, city } = await locate();
-    const w = await fetchJson(
-      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-        '&current=temperature_2m,weather_code,is_day&timezone=auto',
-      6000,
-    );
-    const cur = w.current;
-    const [desc, icon, tint] = describe(cur.weather_code, cur.is_day === 1);
-    data = { city, temp: Math.round(cur.temperature_2m), desc, icon, tint };
+    // 主源: 墨迹天气公开接口
+    data = (await fetchMojiBundle()).weather;
   } catch {
-    // 备用源: 国内天气接口(不需要代理)
+    // 备用链: Open-Meteo → 国内天气接口
     try {
-      data = await fetchDomesticWeather();
+      data = await fetchOpenMeteoChip();
     } catch {
-      data = null;
+      try {
+        data = await fetchDomesticWeather();
+      } catch {
+        data = null;
+      }
     }
   }
 
@@ -384,10 +513,16 @@ export async function fetchWeatherFull(): Promise<WeatherFull> {
 
   let data: WeatherFull;
   try {
-    data = await fetchOpenMeteoFull();
+    // 主源: 墨迹天气(15 天)
+    data = (await fetchMojiBundle()).full;
   } catch {
-    // 主源不可用 → 国内备用源
-    data = await fetchDomesticFull();
+    try {
+      // 备用源: Open-Meteo
+      data = await fetchOpenMeteoFull();
+    } catch {
+      // 最后备用: 国内天气接口
+      data = await fetchDomesticFull();
+    }
   }
   fullCache = { at: Date.now(), data };
   return data;

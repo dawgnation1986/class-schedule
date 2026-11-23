@@ -160,7 +160,7 @@ export function WeatherModal({
                 );
               })}
               <Text style={[styles.disclaimer, { color: colors.textSecondary }]}>
-                免费接口预报，不一定准确，仅供参考
+                数据来自公开天气接口（墨迹天气等），不一定准确，仅供参考
               </Text>
             </ScrollView>
           )}
@@ -270,7 +270,7 @@ export function WeatherModal({
                 </View>
               </View>
               <Text style={[styles.disclaimer, { color: colors.textSecondary }]}>
-                免费接口预报，不一定准确，仅供参考
+                数据来自公开天气接口（墨迹天气等），不一定准确，仅供参考
               </Text>
             </ScrollView>
           </Animated.View>

@@ -118,6 +118,8 @@ export default function RootLayout() {
         <Stack.Screen name="settings" />
         <Stack.Screen name="sponsor" />
         <Stack.Screen name="notices" />
+        <Stack.Screen name="news" />
+        <Stack.Screen name="welfare" />
         <Stack.Screen name="temp-query" />
         <Stack.Screen name="portal-page" />
         <Stack.Screen name="todos" />

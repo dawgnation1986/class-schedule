@@ -25,7 +25,7 @@ import { Spacing, type Palette } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 import { useUiMode } from '@/hooks/use-ui-mode';
-import { usePageBackground, useBgSetting } from '@/lib/background';
+import { usePageBackground, useBgSetting, PageBackdrop } from '@/lib/background';
 import { NightGlowBackground, NightCard } from '@/components/night-kit';
 import {
   beijingNow,
@@ -669,15 +669,33 @@ function ClassicScreen() {
       <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
         {/* 墨夜背景: 深空渐变 + 顶部辉光(绝对定位铺满, 原版模式不渲染) */}
         {night && <NightGlowBackground>{null}</NightGlowBackground>}
-        <View style={styles.emptyWrap}>
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>还没有配置班级</Text>
+        <PageBackdrop />
+        <ScrollView contentContainerStyle={styles.emptyWrap} showsVerticalScrollIndicator={false}>
+          <View style={[styles.emptyIcon, { backgroundColor: 'rgba(37,99,235,0.10)' }]}>
+            <Ionicons name="calendar-clear-outline" size={34} color={colors.primary} />
+          </View>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>未能监测到课表与管理系统信息</Text>
           <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-            先去设置里选择系部、专业和班级，之后打开 APP 就会自动查询本周课表。
+            请点击“前往”按钮前往设置。推荐把「班级课表查询」设为默认起始页，打开 App 即可自动查询课表。
           </Text>
-          <Pressable style={styles.emptyBtn} onPress={() => router.push('/settings')}>
-            <Text style={{ color: '#fff', fontWeight: '700' }}>去设置</Text>
+          <Pressable
+            style={[styles.emptyBtn, glassBorder(), { backgroundColor: glass ? 'rgba(37,99,235,0.15)' : '#2563eb' }]}
+            onPress={() => router.push('/profile?section=account' as never)}>
+            <Ionicons name="arrow-forward-circle-outline" size={18} color={glass ? colors.primary : '#fff'} />
+            <Text style={{ color: glass ? colors.primary : '#fff', fontWeight: '800', fontSize: 15 }}>前往主站账户设置</Text>
           </Pressable>
-        </View>
+          <Pressable
+            style={[styles.emptyBtnGhost, glassBorder(), { backgroundColor: btnBg() ?? 'transparent' }]}
+            onPress={() => router.push('/settings' as never)}>
+            <Text style={{ color: colors.text, fontWeight: '600', fontSize: 13.5 }}>先设置系部 / 专业 / 班级</Text>
+          </Pressable>
+          <View style={[styles.emptyWarn, { backgroundColor: 'rgba(245,158,11,0.12)', borderColor: 'rgba(245,158,11,0.45)' }]}>
+            <Ionicons name="alert-circle-outline" size={16} color="#f59e0b" />
+            <Text style={{ color: '#b45309', fontSize: 12.5, lineHeight: 18, flex: 1 }}>
+              如果未能设置班级信息，将无法有效查询课程与其他数据。
+            </Text>
+          </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -720,7 +738,7 @@ function ClassicScreen() {
                       size={15}
                       color={weather.tint}
                     />
-                    <Text style={[styles.weatherText, { color: colors.text }]}>
+                    <Text style={[styles.weatherText, { color: colors.text }]} numberOfLines={1}>
                       {weather.city} {weather.temp}° {weather.desc}
                     </Text>
                   </>
@@ -736,6 +754,13 @@ function ClassicScreen() {
                   </>
                 )}
               </View>
+            </Pressable>
+            <Pressable
+              onPress={() => router.push('/news' as never)}
+              hitSlop={6}
+              style={[styles.newsChip, glassBorder(), { backgroundColor: btnBg() ?? colors.backgroundElement }]}>
+              <Ionicons name="newspaper-outline" size={14} color={colors.primary} />
+              <Text style={[styles.weatherText, { color: colors.text }]}>新闻</Text>
             </Pressable>
           </View>
           <Text style={[styles.dateText, { color: colors.textSecondary }]}>
@@ -1292,15 +1317,17 @@ const styles = StyleSheet.create({
   classTitle: { fontSize: 22, fontWeight: '800' },
   dateText: { fontSize: 13, marginTop: 2 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  newsChip: { flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 5, flexShrink: 0 },
   weatherChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     borderRadius: 999,
+    flexShrink: 1,
     paddingHorizontal: 9,
     paddingVertical: 4,
   },
-  weatherText: { fontSize: 12, fontWeight: '600' },
+  weatherText: { fontSize: 12, fontWeight: '600', flexShrink: 1 },
   refreshBtn: { borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9 },
   typeSwitch: { marginTop: Spacing.two, flexGrow: 0 },
   typeSwitchInner: { flexDirection: 'row', gap: Spacing.two, paddingHorizontal: Spacing.three, alignItems: 'center' },
@@ -1338,10 +1365,24 @@ const styles = StyleSheet.create({
   cellText: { fontSize: 12 },
   course: { marginBottom: 6, padding: 4 },
   courseName: { fontSize: 12, fontWeight: '600', lineHeight: 16 },
-  emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.four, gap: Spacing.two },
-  emptyTitle: { fontSize: 20, fontWeight: '700' },
+  emptyWrap: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.four, gap: Spacing.two },
+  emptyIcon: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  emptyTitle: { fontSize: 20, fontWeight: '700', textAlign: 'center' },
   emptyText: { textAlign: 'center', lineHeight: 20 },
-  emptyBtn: { backgroundColor: '#2563eb', borderRadius: 12, paddingHorizontal: 28, paddingVertical: 12, marginTop: Spacing.two },
+  emptyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 12,
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    marginTop: Spacing.two,
+    alignSelf: 'stretch',
+    maxWidth: 340,
+  },
+  emptyBtnGhost: { borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10, alignSelf: 'stretch', maxWidth: 340, alignItems: 'center' },
+  emptyWarn: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 10, padding: 10, alignSelf: 'stretch', maxWidth: 340, marginTop: 4 },
   modalMask: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: Spacing.four },
   modalBox: { borderRadius: 14, padding: Spacing.three },
   modalTitle: { fontSize: 17, fontWeight: '700', marginBottom: Spacing.two },

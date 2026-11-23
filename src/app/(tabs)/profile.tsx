@@ -403,6 +403,8 @@ export default function ProfileScreen() {
     { title: '天气城市 (跟随定位/手动设置)', kw: '天气 城市 定位 温度 手动', hint: '提醒与通知', icon: 'cloud-outline' as const, go: () => { goSection('notify'); setWxOpen(true); } },
     { title: '倒计时 (四六级/期末考试)', kw: '倒计时 四六级 期末 考试 日期', hint: '课表与学习', icon: 'hourglass-outline' as const, go: () => goSection('schedule') },
     { title: '课表截图导入 (图片识别课程)', kw: '课表 截图 导入 OCR 识别 图片 相册 扫描 拍照', hint: '独立页面', icon: 'scan-outline' as const, go: () => { setSearchOpen(false); router.push('/timetable-ocr' as never); } },
+    { title: '每日新闻 (要闻/即时)', kw: '新闻 每日 要闻 即时 资讯 热点 中国新闻网', hint: '独立页面', icon: 'newspaper-outline' as const, go: () => { setSearchOpen(false); router.push('/news' as never); } },
+    { title: '宝贝回家 (公益寻亲/防拐)', kw: '公益 宝贝回家 寻亲 寻人 防拐 打拐 报警 DNA 采血 团圆', hint: '独立页面', icon: 'heart-outline' as const, go: () => { setSearchOpen(false); router.push('/welfare' as never); } },
     { title: '备份导出 / 导入 / 保存到手机', kw: '备份 导出 导入 保存 手机 换机 迁移 JSON', hint: '账号与数据', icon: 'save-outline' as const, go: () => goSection('account') },
     { title: '云端备份 (一键备份/恢复, 多端同步)', kw: '云端 备份 恢复 上传 下载 账号 注册 登录 官网 多端', hint: '独立页面', icon: 'cloud-upload-outline' as const, go: () => { setSearchOpen(false); router.push('/cloud-backup' as never); } },
     { title: '自动识别验证码并登录 (开关)', kw: '验证码 自动 识别 登录 ocr 综合平台 开关', hint: '账号与数据', icon: 'scan-outline' as const, go: () => goSection('account') },
@@ -752,6 +754,11 @@ export default function ProfileScreen() {
               { title: '待办事项', icon: 'checkbox-outline', onPress: () => router.push('/todos' as never) },
               { title: '倒计时', icon: 'hourglass-outline', onPress: () => setSection('schedule') },
             ], 'pf.groups')}
+
+            {renderGroup('资讯与公益', [
+              { title: '每日新闻', sub: '中国新闻网官方 RSS · 要闻与即时新闻', icon: 'newspaper-outline', onPress: () => router.push('/news' as never) },
+              { title: '宝贝回家 · 公益寻亲', sub: '寻亲入口 · 免费采血 · 防拐知识', icon: 'heart-outline', onPress: () => router.push('/welfare' as never) },
+            ])}
 
             {renderGroup('提醒与通知', [
               { title: '上课提醒', sub: `提前 ${remind.start} 分钟`, icon: 'notifications-outline', onPress: () => setSection('notify') },
