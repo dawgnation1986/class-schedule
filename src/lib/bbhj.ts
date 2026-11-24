@@ -18,6 +18,10 @@ export type BbhjRecord = {
   registerTime: string;
   /** 官网详情页 */
   detailUrl: string;
+  /** 官方标注禁止转发(宝贝寻家等), 需脱敏并仅限站内展示 */
+  restricted: boolean;
+  /** 脱敏后的年龄区间(仅 restricted 有值) */
+  age: string;
 };
 
 type Card = {
@@ -38,6 +42,50 @@ const UA =
 
 /** 帮宝贝回家: 优先展示儿童相关分类 */
 const ALLOWED = new Set(['家寻宝贝', '宝贝寻家', '流浪乞讨', '其他寻人']);
+/** 官方明确禁止转发的分类/文案 */
+const RESTRICTED_CATEGORIES = new Set(['宝贝寻家', '宝贝找家']);
+const RESTRICTED_MARK = /禁止转发|禁止转载|禁止传播|不得转发|请勿转发/;
+
+/** 姓名脱敏: 张三 → 张＊, 张小雨 → 张＊雨 */
+function maskName(name: string): string {
+  const chars = [...name];
+  if (chars.length <= 1) return '＊';
+  if (chars.length === 2) return chars[0] + '＊';
+  return chars[0] + '＊' + chars[chars.length - 1];
+}
+
+/** 电话脱敏: 只保留后四位 */
+function maskPhone(text: string): string {
+  return (text || '')
+    .replace(/1[3-9]\d{9}/g, (m) => `****${m.slice(-4)}`)
+    .replace(/0\d{2,3}[-\s]?\d{7,8}/g, (m) => `****${m.slice(-4)}`);
+}
+
+/** 地址脱敏: 只保留省 + 市 */
+function maskPlace(place: string): string {
+  const parts = (place || '').split(/\s+/).filter(Boolean);
+  if (!parts.length) return '';
+  const keep = [parts[0]];
+  if (parts[1] && /(市|自治州|地区|盟)$/.test(parts[1])) keep.push(parts[1]);
+  return keep.join(' ');
+}
+
+/** 出生日期 → 年龄区间 */
+function ageBand(birthday: string): string {
+  const m = birthday.match(/(\d{4})[-/年.](\d{1,2})/);
+  if (!m) return '';
+  const year = Number(m[1]);
+  if (!year || year < 1900) return '';
+  const age = Math.max(0, new Date().getFullYear() - year);
+  if (age <= 1) return '约 1 岁';
+  return `约 ${Math.max(1, age - 1)}-${age + 1} 岁`;
+}
+
+/** 日期 → 只保留年月 */
+function yearMonth(v: string): string {
+  const m = v.match(/(\d{4})[-/年.](\d{1,2})/);
+  return m ? `${m[1]}年${Number(m[2])}月` : v;
+}
 
 let poolCache: { at: number; cards: Card[] } | null = null;
 const detailCache = new Map<string, Partial<BbhjRecord>>();
@@ -200,7 +248,7 @@ export async function fetchRandomRecord(excludeId?: string): Promise<BbhjRecord>
     return /^(无|未知|不详|未署名)?$/.test(t) ? '' : t;
   };
 
-  return {
+  const base: BbhjRecord = {
     id: detail.id || card.id,
     name: cleanName(detail.name || '') || cleanName(card.name) || '未署名',
     gender: detail.gender || '',
@@ -213,5 +261,25 @@ export async function fetchRandomRecord(excludeId?: string): Promise<BbhjRecord>
     feature: detail.feature || '',
     registerTime: card.registerTime,
     detailUrl: BASE + card.href,
+    restricted: false,
+    age: '',
+  };
+
+  const restricted =
+    RESTRICTED_CATEGORIES.has(base.category) ||
+    RESTRICTED_MARK.test(base.feature) ||
+    RESTRICTED_MARK.test(card.name);
+
+  if (!restricted) return base;
+
+  // 官方标注禁止转发: 只展示脱敏后的信息, 完整内容引导前往官网
+  return {
+    ...base,
+    restricted: true,
+    age: ageBand(base.birthday),
+    name: base.name === '未署名' ? base.name : maskName(base.name),
+    lostTime: yearMonth(base.lostTime),
+    lostPlace: maskPlace(base.lostPlace),
+    feature: maskPhone(base.feature.replace(/【[^】]*禁止(?:转发|转载|传播)[^】]*】/g, '')).trim(),
   };
 }

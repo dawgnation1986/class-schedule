@@ -133,12 +133,18 @@ export default function WelfareScreen() {
 
   const metaRows: [string, string][] = record
     ? [
-        ['出生日期', record.birthday || '—'],
-        ['走失日期', record.lostTime || '—'],
+        [
+          record.restricted ? '年龄' : '出生日期',
+          record.restricted ? record.age || '—' : record.birthday || '—',
+        ],
+        [record.restricted ? '走失年月' : '走失日期', record.lostTime || '—'],
         ['走失地点', record.lostPlace || '—'],
         ['当时身高', record.height || '—'],
       ]
     : [];
+
+  const now = new Date();
+  const todayLabel = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
@@ -193,7 +199,7 @@ export default function WelfareScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800' }}>帮宝贝回家</Text>
                   <Text style={{ color: colors.textSecondary, fontSize: 11.5, marginTop: 3 }}>
-                    随机展示一条寻亲信息，多次转发就多一份希望。
+                    随机展示一条寻亲信息，标注禁止转发的资料仅限站内查看。
                   </Text>
                 </View>
               </View>
@@ -227,18 +233,38 @@ export default function WelfareScreen() {
 
               {record && (
                 <>
+                  {record.restricted && (
+                    <View
+                      style={[
+                        styles.desensBar,
+                        { backgroundColor: 'rgba(245,158,11,0.12)', borderColor: 'rgba(245,158,11,0.45)' },
+                      ]}>
+                      <Ionicons name="lock-closed-outline" size={14} color="#d97706" />
+                      <Text style={{ color: '#b45309', fontSize: 11.5, flex: 1, lineHeight: 17 }}>
+                        该资料标注「禁止转发」，已脱敏处理，仅限站内查看；完整信息请前往宝贝回家官网查看。
+                      </Text>
+                    </View>
+                  )}
+
                   <View style={[styles.photoWrap, { backgroundColor: 'rgba(100,116,139,0.10)' }]}>
                     {!photoErr && record.photo ? (
                       <Image
                         source={{ uri: record.photo }}
                         style={styles.photo}
                         resizeMode="contain"
+                        blurRadius={record.restricted ? 6 : 0}
                         onError={() => setPhotoErr(true)}
                       />
                     ) : (
                       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                         <Ionicons name="image-outline" size={36} color={colors.textSecondary} />
                         <Text style={{ color: colors.textSecondary, fontSize: 11 }}>暂无照片</Text>
+                      </View>
+                    )}
+                    {record.restricted && !!record.photo && !photoErr && (
+                      <View pointerEvents="none" style={styles.watermark}>
+                        <Text style={styles.watermarkText}>学生综合管理平台 · 已脱敏</Text>
+                        <Text style={styles.watermarkText}>{todayLabel} · 仅限站内查看</Text>
                       </View>
                     )}
                   </View>
@@ -297,7 +323,9 @@ export default function WelfareScreen() {
                   <View style={styles.actions}>
                     <Pressable onPress={() => void openUrl(record.detailUrl)} style={styles.detailBtn}>
                       <Ionicons name="document-text-outline" size={16} color="#fff" />
-                      <Text style={{ color: '#fff', fontSize: 14, fontWeight: '800' }}>查看详情</Text>
+                      <Text style={{ color: '#fff', fontSize: 14, fontWeight: '800' }}>
+                        {record.restricted ? '前往官网查看' : '查看详情'}
+                      </Text>
                     </Pressable>
                     <Pressable
                       disabled={recLoading}
@@ -323,7 +351,9 @@ export default function WelfareScreen() {
               <View style={[styles.shareTip, { borderColor: glass ? glassLine : 'rgba(100,116,139,0.22)', backgroundColor: night ? 'rgba(30,41,59,0.55)' : 'transparent' }]}>
                 <Ionicons name="shield-checkmark-outline" size={15} color={colors.textSecondary} />
                 <Text style={{ color: colors.textSecondary, fontSize: 11, flex: 1, lineHeight: 16 }}>
-                  转发时请保留原始信息与联系方式，不要修改或裁剪图片。
+                  {record.restricted
+                    ? '该信息已脱敏，请勿转发或截图传播；带联系方式的完整内容请前往宝贝回家官网查看。'
+                    : '转发时请保留原始信息与联系方式，不要修改或裁剪图片。'}
                 </Text>
               </View>
             )}
@@ -509,7 +539,7 @@ export default function WelfareScreen() {
               {
                 icon: 'share-social-outline' as const,
                 title: '转发寻亲信息',
-                desc: '把随机寻亲卡片分享给亲友，多一次扩散就多一份希望。',
+                desc: '把允许公开的寻亲卡片分享给亲友；标注禁止转发的资料请勿传播。',
                 action: '去转发一条',
                 run: () => {
                   setTab('find');
@@ -620,6 +650,25 @@ const styles = StyleSheet.create({
   introIcon: { width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   photoWrap: { height: 210, borderRadius: 10, overflow: 'hidden', marginTop: 2 },
   photo: { width: '100%', height: '100%' },
+  desensBar: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 9,
+    marginBottom: 10,
+  },
+  watermark: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    paddingVertical: 5,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  watermarkText: { color: 'rgba(255,255,255,0.92)', fontSize: 9.5, fontWeight: '700', lineHeight: 13 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
   name: { fontSize: 20, fontWeight: '800', maxWidth: '52%' },
   tag: { borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2.5 },
