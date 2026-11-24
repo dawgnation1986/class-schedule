@@ -86,6 +86,7 @@ import { requestClassAccess, resetAccessAndEnsureDirs } from '@/lib/class-folder
 import { pinWidget } from '@/lib/widget';
 import { DEFAULT_SITE_URL, getSiteUrl, setSiteUrl, subscribeSiteUrl } from '@/lib/site';
 import { cloudList, getCloudSession, type CloudUser } from '@/lib/cloud';
+import { takePendingProfileSection } from '@/lib/nav-intent';
 
 const PERIOD_ORDER = ['1-2', '3-4', '中午', '5-6', '7-8', '9-10'];
 
@@ -308,8 +309,20 @@ export default function ProfileScreen() {
     if (!(s in SECTION_TITLES) || jumpedSection.current === s) return;
     jumpedSection.current = s;
     setSection(s as SectionKey);
-    router.setParams({ section: '' });
-  }, [params.section, router]);
+    // 不再调用 router.setParams(会在部分机型上反复触发导航导致白屏)
+  }, [params.section]);
+
+  // 其他页面通过 setPendingProfileSection 指定的二级页, 聚焦时消费一次
+  useFocusEffect(
+    useCallback(() => {
+      const s = takePendingProfileSection();
+      if (s && s in SECTION_TITLES) {
+        jumpedSection.current = s;
+        setSection(s as SectionKey);
+        scrollRef.current?.scrollTo({ y: 0, animated: false });
+      }
+    }, []),
+  );
   // 顶部搜索框(点击放大镜展开)
   const [searchOpen, setSearchOpen] = useState(false);
   // 本机个人资料(头像/昵称/QQ)与主站登录姓名

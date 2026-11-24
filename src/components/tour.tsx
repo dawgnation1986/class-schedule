@@ -137,7 +137,7 @@ export function CoachTour() {
       const ref = targetRefs.get(step.target);
       if (!ref) {
         setRect(null);
-        if (tries++ > 60) next();
+        if (tries++ > 8) next();
         return;
       }
       ref.measureInWindow((x, y, w, h) => {
@@ -157,7 +157,7 @@ export function CoachTour() {
           }
         } else {
           setRect(null);
-          if (tries++ > 40) next();
+          if (tries++ > 8) next();
         }
       });
     };
@@ -210,7 +210,7 @@ export function CoachTour() {
         <Animated.View style={[styles.abs, styles.holeBorder, hole, { borderColor: ACCENT }]} />
         {/* 常驻跳过按钮: 目标暂时找不到时也能退出 */}
         <Pressable onPress={finish} hitSlop={12} style={[styles.skipBtn, { top: insets.top + 8 }]}>
-          <Text style={styles.skipText}>跳过引导</Text>
+          <Text style={styles.skipText}>跳过全部引导</Text>
         </Pressable>
         {/* 指引卡片 */}
         {!!rect && !!step && (

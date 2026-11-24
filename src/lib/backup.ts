@@ -8,6 +8,8 @@ import { getBackground, setBgSetting } from '@/lib/background';
 import { DIR_BACKUP, hasClassAccess, writeText } from '@/lib/class-folder';
 import { loadProfile, saveProfile } from '@/lib/profile';
 import { loadSettings } from '@/lib/settings';
+import { getCloudSession } from '@/lib/cloud';
+import { resetCaptchaOcrCache } from '@/lib/captcha-ocr';
 
 /** 备份项: 键值 + 展示用名称(设置页导出摘要按此分组) */
 export const BACKUP_SECTIONS: { key: string; label: string }[] = [
@@ -35,6 +37,14 @@ export const BACKUP_SECTIONS: { key: string; label: string }[] = [
   { key: 'gh-mirrors-v1', label: '更新镜像' },
   { key: 'site.url.v1', label: '官网接口地址' },
   { key: 'account.portal.v1', label: '账号与起始页' },
+  { key: 'captcha.auto.v1', label: '自动识别验证码' },
+  { key: 'captcha.ocr-key.v1', label: 'OCR Key' },
+  { key: 'captcha.baidu-ak.v1', label: '百度 OCR AK' },
+  { key: 'captcha.baidu-sk.v1', label: '百度 OCR SK' },
+  { key: 'captcha.ocr-url.v1', label: '自定义 OCR 接口' },
+  { key: 'onboarding.done.v1', label: '图文教程状态' },
+  { key: 'tour.done.v1', label: '新手引导状态' },
+  { key: 'agreement.accepted.v1', label: '用户协议状态' },
   { key: 'user.profile.v1', label: '个人资料' },
   { key: 'user.avatar.v1', label: '头像' },
 ];
@@ -187,6 +197,22 @@ export function summarizeBackup(text: string): BackupSummary | null {
   }
 }
 
+/** 账号合并: 备份里缺学号/密码时沿用本机已有凭证 */
+function mergeAccount(incoming: string, existing: string | null): string {
+  if (!existing) return incoming;
+  try {
+    const inc = JSON.parse(incoming) as Record<string, unknown>;
+    const cur = JSON.parse(existing) as Record<string, unknown>;
+    const out = { ...inc };
+    if (!String(out.username ?? '').trim() && String(cur.username ?? '').trim()) out.username = cur.username;
+    if (!String(out.password ?? '').trim() && String(cur.password ?? '').trim()) out.password = cur.password;
+    if (!out.startPage && cur.startPage) out.startPage = cur.startPage;
+    return JSON.stringify(out);
+  } catch {
+    return incoming;
+  }
+}
+
 /** 导入备份: 只恢复备份中实际存在的项(不清空当前其他设置), 兼容 v1 */
 export async function importBackup(
   text: string,
@@ -202,11 +228,27 @@ export async function importBackup(
   }
   const pairs: [string, string][] = [];
   let skipped = 0;
+  // 账号: 备份里凭证为空时保留本机已登录的账号, 避免恢复旧备份把人"登出"
+  let currentAccount: string | null = null;
+  if (typeof j.kv['account.portal.v1'] === 'string') {
+    currentAccount = await AsyncStorage.getItem('account.portal.v1').catch(() => null);
+  }
+  // 已登录云账户时, 恢复备份里不同的官网地址会让云端会话失效 → 保留当前地址
+  const activeCloudBase = await getCloudSession()
+    .then((s) => s?.base ?? null)
+    .catch(() => null);
   for (const key of KEYS) {
     if (FILE_KEYS[key]) continue;
     const v = j.kv[key];
-    if (typeof v === 'string') pairs.push([key, v]);
-    else if (v !== undefined && v !== null) skipped += 1;
+    if (typeof v === 'string') {
+      if (key === 'account.portal.v1') {
+        pairs.push([key, mergeAccount(v, currentAccount)]);
+      } else if (key === 'site.url.v1' && activeCloudBase && v !== activeCloudBase) {
+        skipped += 1;
+      } else {
+        pairs.push([key, v]);
+      }
+    } else if (v !== undefined && v !== null) skipped += 1;
   }
   const avatarRaw = j.kv['user.avatar.v1'];
   const bgRaw = j.kv['app-background-file.v1'];
@@ -266,6 +308,9 @@ export async function importBackup(
       await setBgSetting(bg);
     }
   }
+
+  // OCR 配置有内存缓存, 恢复后立即失效, 不用重启也能生效
+  resetCaptchaOcrCache();
 
   return { ok: true, imported: pairs.length + restored, skipped };
 }

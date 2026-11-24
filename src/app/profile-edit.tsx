@@ -16,6 +16,7 @@ import { cloudUpdateProfile, getCloudSession, type CloudUser } from '@/lib/cloud
 import { loadAccount } from '@/lib/account';
 import { loadSettings } from '@/lib/settings';
 import { loadSessionName } from '@/lib/portal';
+import { setPendingProfileSection } from '@/lib/nav-intent';
 
 export default function ProfileEditScreen() {
   const router = useRouter();
@@ -227,7 +228,12 @@ export default function ProfileEditScreen() {
 
         {/* 学号 / 班级(来自主站账号, 点击学号可去设置) */}
         <CardWrap style={cardStyle(styles.card)}>
-          <Pressable onPress={() => router.push('/profile?section=account' as never)} style={styles.infoRow}>
+          <Pressable
+            onPress={() => {
+              setPendingProfileSection('account');
+              router.back();
+            }}
+            style={styles.infoRow}>
             <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>学号</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Text style={{ color: colors.text, fontSize: 14 }}>{studentNo || '未设置'}</Text>

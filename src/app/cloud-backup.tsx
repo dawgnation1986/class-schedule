@@ -25,7 +25,9 @@ import { useUiMode } from '@/hooks/use-ui-mode';
 import { NightCard, NightGlowBackground } from '@/components/night-kit';
 import { useBgSetting, usePageBackground } from '@/lib/background';
 import { loadProfile, type UserProfile } from '@/lib/profile';
-import { exportBackup, importBackup } from '@/lib/backup';
+import { BACKUP_SECTIONS, exportBackup, importBackup } from '@/lib/backup';
+import { loadSettings } from '@/lib/settings';
+import { loadAccount } from '@/lib/account';
 import {
   cloudDelete,
   cloudDownload,
@@ -89,8 +91,31 @@ export default function CloudBackupScreen() {
   const [renameId, setRenameId] = useState<string | null>(null);
   const [renameText, setRenameText] = useState('');
 
-  const sections = config?.sections ?? [];
+  // 备份内容以本机清单为准: 即使官网配置没更新, 也能备份全部设置(含主站账号/OCR/引导状态)
+  const sections = BACKUP_SECTIONS;
   const allSelected = sections.length > 0 && selected.length === sections.length;
+
+  /** 新设备 / 清空数据后登录: 自动恢复最新云端备份, 直接回到上次备份时的样子 */
+  const autoRestoreIfFresh = useCallback(async (list: CloudBackupMeta[]) => {
+    if (!list.length) return;
+    const [settings, acc] = await Promise.all([loadSettings(), loadAccount()]);
+    const fresh = !settings && !(acc?.username && acc?.password);
+    if (!fresh) return;
+    const newest = [...list].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))[0];
+    try {
+      const data = await cloudDownload(newest.id);
+      const r = await importBackup(JSON.stringify(data));
+      if (r.ok) {
+        setProfile(await loadProfile());
+        Alert.alert(
+          '已自动恢复云端备份',
+          `检测到本机是新设备或已清空数据，已自动恢复最新备份「${newest.name}」（${r.imported ?? 0} 项）。\n主站账号、验证码识别、班级与界面设置已一并恢复，建议重新打开 App 使全部设置生效。`,
+        );
+      }
+    } catch {
+      // 自动恢复失败不阻塞登录, 仍可在备份列表里手动恢复
+    }
+  }, []);
 
   const init = useCallback(async () => {
     setLoading(true);
@@ -100,13 +125,14 @@ export default function CloudBackupScreen() {
       setProfile(await loadProfile());
       const cfg = await fetchCloudConfig();
       setConfig(cfg);
-      setSelected(cfg.sections.map((s) => s.key));
+      setSelected(BACKUP_SECTIONS.map((s) => s.key));
       const s = await getCloudSession();
       setSession(s);
       if (s) {
         const r = await cloudList();
         setSession((prev) => (prev ? { ...prev, user: r.user } : prev));
         setBackups(r.backups);
+        await autoRestoreIfFresh(r.backups);
       } else {
         setBackups([]);
       }
@@ -115,7 +141,7 @@ export default function CloudBackupScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [autoRestoreIfFresh]);
 
   useEffect(() => {
     void init();
@@ -140,12 +166,13 @@ export default function CloudBackupScreen() {
       const r = await cloudList();
       setSession((prev) => (prev ? { ...prev, user: r.user } : prev));
       setBackups(r.backups);
+      await autoRestoreIfFresh(r.backups);
     } catch (e) {
       setError(e instanceof Error ? e.message : '操作失败');
     } finally {
       setBusy(false);
     }
-  }, [busy, mode, account, password, username, email, qq]);
+  }, [busy, mode, account, password, username, email, qq, autoRestoreIfFresh]);
 
   const refresh = useCallback(async () => {
     if (refreshing) return;
@@ -487,7 +514,8 @@ export default function CloudBackupScreen() {
                     </Pressable>
                   </View>
                   <Text style={{ color: colors.textSecondary, fontSize: 11.5, marginTop: 4 }}>
-                    官网允许备份的选项如下，可从中勾选本次要上传的内容
+                    已默认全选全部配置（含主站账号、验证码识别与引导状态）；换机或重装后登录会
+                    <Text style={{ color: colors.primary, fontWeight: '700' }}>自动恢复最新备份</Text>
                     {appVersion ? ` · 当前 App 版本 v${appVersion}` : ''}
                   </Text>
                   <View style={styles.chipWrap}>
@@ -609,7 +637,7 @@ export default function CloudBackupScreen() {
                 </CardWrap>
 
                 <Text style={{ color: colors.textSecondary, fontSize: 11.5, lineHeight: 17, paddingHorizontal: 4 }}>
-                  备份以明文 JSON 存在官网私有目录，只能通过账号鉴权接口访问。恢复只覆盖备份中包含的设置项，不会清空其他配置。
+                  备份以明文 JSON 存在官网私有目录，只能通过账号鉴权接口访问。新设备登录后会自动恢复最新备份；恢复只覆盖备份中包含的设置项，不会清空其他配置。
                 </Text>
               </>
             )}

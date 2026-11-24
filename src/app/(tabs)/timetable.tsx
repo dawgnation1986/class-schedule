@@ -40,6 +40,7 @@ import { fetchWeather, fetchWeatherFull, setWeatherCity, type Weather, type Weat
 import { WeatherModal } from '@/components/weather-modal';
 import { scheduleClassReminders, scheduleExamReminders } from '@/lib/notifications';
 import { refreshWidgets } from '@/lib/widget';
+import { setPendingProfileSection } from '@/lib/nav-intent';
 import { TourTarget } from '@/components/tour';
 import { getPeriodTimes, subscribeTimes } from '@/lib/schedule-times';
 import { NovaTimetable } from '@/components/timetable-nova';
@@ -675,19 +676,53 @@ function ClassicScreen() {
             <Ionicons name="calendar-clear-outline" size={34} color={colors.primary} />
           </View>
           <Text style={[styles.emptyTitle, { color: colors.text }]}>未能监测到课表与管理系统信息</Text>
-          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-            请点击“前往”按钮前往设置。推荐把「班级课表查询」设为默认起始页，打开 App 即可自动查询课表。
-          </Text>
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>完成下面两步，App 就会自动查询并显示你的课表。</Text>
+
+          <View style={styles.emptySteps}>
+            <View style={styles.emptyStepRow}>
+              <View style={[styles.emptyStepNo, { backgroundColor: 'rgba(37,99,235,0.12)' }]}>
+                <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '800' }}>1</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.emptyStepTitle, { color: colors.text }]}>绑定主站账号</Text>
+                <Text style={[styles.emptyStepDesc, { color: colors.textSecondary }]}>
+                  填写学号与密码，推荐把「班级课表查询」设为默认起始页
+                </Text>
+              </View>
+            </View>
+            <View style={[styles.emptyStepLine, { backgroundColor: 'rgba(148,163,184,0.30)' }]} />
+            <View style={styles.emptyStepRow}>
+              <View style={[styles.emptyStepNo, { backgroundColor: 'rgba(16,185,129,0.12)' }]}>
+                <Text style={{ color: '#059669', fontSize: 12, fontWeight: '800' }}>2</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.emptyStepTitle, { color: colors.text }]}>设置系部 / 专业 / 班级</Text>
+                <Text style={[styles.emptyStepDesc, { color: colors.textSecondary }]}>按班级自动拉取当周课表与调课信息</Text>
+              </View>
+            </View>
+          </View>
+
           <Pressable
             style={[styles.emptyBtn, glassBorder(), { backgroundColor: glass ? 'rgba(37,99,235,0.15)' : '#2563eb' }]}
-            onPress={() => router.push('/profile?section=account' as never)}>
-            <Ionicons name="arrow-forward-circle-outline" size={18} color={glass ? colors.primary : '#fff'} />
+            onPress={() => {
+              setPendingProfileSection('account');
+              router.navigate('/profile' as never);
+            }}>
+            <Ionicons name="person-circle-outline" size={18} color={glass ? colors.primary : '#fff'} />
             <Text style={{ color: glass ? colors.primary : '#fff', fontWeight: '800', fontSize: 15 }}>前往主站账户设置</Text>
           </Pressable>
           <Pressable
-            style={[styles.emptyBtnGhost, glassBorder(), { backgroundColor: btnBg() ?? 'transparent' }]}
+            style={[
+              styles.emptyBtnGhost,
+              glassBorder(),
+              {
+                backgroundColor: btnBg() ?? 'transparent',
+                borderColor: glass ? 'transparent' : 'rgba(148,163,184,0.45)',
+              },
+            ]}
             onPress={() => router.push('/settings' as never)}>
-            <Text style={{ color: colors.text, fontWeight: '600', fontSize: 13.5 }}>先设置系部 / 专业 / 班级</Text>
+            <Ionicons name="school-outline" size={17} color={colors.text} />
+            <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14.5 }}>设置班级课表</Text>
           </Pressable>
           <View style={[styles.emptyWarn, { backgroundColor: 'rgba(245,158,11,0.12)', borderColor: 'rgba(245,158,11,0.45)' }]}>
             <Ionicons name="alert-circle-outline" size={16} color="#f59e0b" />
@@ -1369,6 +1404,21 @@ const styles = StyleSheet.create({
   emptyIcon: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   emptyTitle: { fontSize: 20, fontWeight: '700', textAlign: 'center' },
   emptyText: { textAlign: 'center', lineHeight: 20 },
+  emptySteps: {
+    alignSelf: 'stretch',
+    maxWidth: 340,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(148,163,184,0.28)',
+    padding: 14,
+    gap: 12,
+    marginTop: 4,
+  },
+  emptyStepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  emptyStepNo: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  emptyStepTitle: { fontSize: 14, fontWeight: '700' },
+  emptyStepDesc: { fontSize: 11.5, lineHeight: 17, marginTop: 3 },
+  emptyStepLine: { height: 1, marginLeft: 32 },
   emptyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1376,12 +1426,23 @@ const styles = StyleSheet.create({
     gap: 8,
     borderRadius: 12,
     paddingHorizontal: 28,
-    paddingVertical: 12,
+    paddingVertical: 13,
     marginTop: Spacing.two,
     alignSelf: 'stretch',
     maxWidth: 340,
   },
-  emptyBtnGhost: { borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10, alignSelf: 'stretch', maxWidth: 340, alignItems: 'center' },
+  emptyBtnGhost: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    alignSelf: 'stretch',
+    maxWidth: 340,
+  },
   emptyWarn: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 10, padding: 10, alignSelf: 'stretch', maxWidth: 340, marginTop: 4 },
   modalMask: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: Spacing.four },
   modalBox: { borderRadius: 14, padding: Spacing.three },

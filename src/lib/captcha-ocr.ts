@@ -48,6 +48,13 @@ export async function setCaptchaAutoEnabled(on: boolean): Promise<void> {
   subs.forEach((f) => f());
 }
 
+/** 导入备份后清空内存缓存, 让新配置立即生效 */
+export function resetCaptchaOcrCache(): void {
+  enabledCache = null;
+  configCache = null;
+  subs.forEach((f) => f());
+}
+
 /** 当前 OCR 配置(全部留空 = 只用内置 ocr.space) */
 export async function getOcrConfig(): Promise<OcrConfig> {
   if (configCache) return configCache;
