@@ -45,6 +45,7 @@ export const BACKUP_SECTIONS: { key: string; label: string }[] = [
   { key: 'onboarding.done.v1', label: '图文教程状态' },
   { key: 'tour.done.v1', label: '新手引导状态' },
   { key: 'agreement.accepted.v1', label: '用户协议状态' },
+  { key: 'glass-skin-v1', label: '液态玻璃风格' },
   { key: 'user.profile.v1', label: '个人资料' },
   { key: 'user.avatar.v1', label: '头像' },
 ];

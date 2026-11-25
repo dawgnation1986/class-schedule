@@ -18,6 +18,7 @@ import { primeThemeMode } from '@/lib/theme';
 import { primeUiMode } from '@/lib/ui-mode';
 import { primeThemePreset } from '@/lib/theme-preset';
 import { primeNightGlass } from '@/lib/night-glass';
+import { primeGlassSkin } from '@/lib/glass-skin';
 import { requestClassAccess, resetAccessAndEnsureDirs } from '@/lib/class-folder';
 import { writeCacheSnapshot } from '@/lib/cache-snapshot';
 import { checkGradeUpdates, initNotifications, primeReminders, refreshTimetableAndRemind } from '@/lib/notifications';
@@ -48,6 +49,7 @@ export default function RootLayout() {
     void primeUiMode();
     void primeThemePreset();
     void primeNightGlass();
+    void primeGlassSkin();
     void primeBackground();
     void initNotifications().then(() => {
       void primeReminders();

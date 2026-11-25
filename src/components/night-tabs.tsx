@@ -6,13 +6,18 @@
 import { withLayoutContext } from 'expo-router';
 import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
 
+import { useGlassSkin } from '@/hooks/use-glass-skin';
+
 const { Navigator } = createNativeBottomTabNavigator();
 const Tabs = withLayoutContext(Navigator);
 
 export default function NightTabs() {
+  const glass = useGlassSkin();
   return (
     <Tabs
-      tabBarActiveTintColor="#5B8CFF"
+      tabBarActiveTintColor={glass ? '#8FD0FF' : '#5B8CFF'}
+      tabBarStyle={glass ? { backgroundColor: 'rgba(18,24,46,0.72)' } : undefined}
+      translucent={glass}
       hapticFeedbackEnabled={true}
       sidebarAdaptable={false}>
       <Tabs.Screen

@@ -1,12 +1,10 @@
 /**
- * 墨夜控件库: 墨夜主题下的全套重绘控件
- * - NightGlowBackground  屏幕背景: 深空渐变 + 彩色光斑(iOS 26 液态玻璃底)
- * - NightCard            卡片: 真实毛玻璃(expo-blur) + 半透明暗色叠层 + 细描边
- * - NightPrimaryButton   主按钮: 蓝紫渐变 + 玻璃描边 + 按压缩放
- * - NightSectionHeader   分组标题: 渐变强调条 + 加粗标题
+ * 墨夜 / 液态玻璃控件库(共用一套布局)
+ * - 墨夜主题: 实色深色面板 + 蓝紫强调条
+ * - 液态玻璃: iOS 26 风格原生毛玻璃(expo-blur) + 彩色流光背景 + 玻璃描边
  *
- * 玻璃效果全部由 JS/StyleSheet 实现, 不引入原生模糊模块, 不会因此闪退。
- * 兼容模式(调试开关): 关闭「液态玻璃」后自动回退为实色深面板。
+ * 两套风格由「液态玻璃」开关决定, 布局、位置、尺寸完全一致。
+ * 毛玻璃可由调试开关关闭(回退为无原生模糊的半透明面板), 不会因此闪退。
  */
 import { type ReactNode, useRef } from 'react';
 import {
@@ -23,6 +21,7 @@ import { BlurView } from 'expo-blur';
 
 import { useTheme } from '@/hooks/use-theme';
 import { useNightGlass } from '@/hooks/use-night-glass';
+import { useGlassSkin } from '@/hooks/use-glass-skin';
 
 export const NightTint = {
   blue: '#5B8CFF',
@@ -33,10 +32,10 @@ export const NightTint = {
   panelAlt: '#1A2236',
 };
 
-/** 屏幕背景: 深空渐变 + 彩色光斑, 玻璃卡片背后透出流动的色彩 */
+/** 屏幕背景: 墨夜为深空渐变; 液态玻璃为彩色流光(让毛玻璃有可折射的内容) */
 export function NightGlowBackground({ children }: { children: ReactNode }) {
-  const glass = useNightGlass();
-  if (!glass) {
+  const glassSkin = useGlassSkin();
+  if (!glassSkin) {
     return (
       <LinearGradient colors={['#101527', '#0B0E17']} style={StyleSheet.absoluteFill}>
         <LinearGradient
@@ -49,15 +48,21 @@ export function NightGlowBackground({ children }: { children: ReactNode }) {
   }
   return (
     <View style={StyleSheet.absoluteFill}>
-      <LinearGradient colors={['#0A0F1F', '#05070D', '#0B1020']} style={StyleSheet.absoluteFill} />
-      {/* 多层低透明圆叠加, 不依赖模糊模块也能得到柔和的彩色辉光 */}
+      <LinearGradient
+        colors={['#16224A', '#3A2060', '#0E1A38', '#24123A']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      {/* 多层低透明圆叠加, 形成柔和的彩色流光背景 */}
       <View pointerEvents="none" style={[styles.blob, styles.blobBlueOuter]} />
       <View pointerEvents="none" style={[styles.blob, styles.blobBlueInner]} />
-      <View pointerEvents="none" style={[styles.blob, styles.blobVioletOuter]} />
-      <View pointerEvents="none" style={[styles.blob, styles.blobVioletInner]} />
+      <View pointerEvents="none" style={[styles.blob, styles.blobPinkOuter]} />
+      <View pointerEvents="none" style={[styles.blob, styles.blobPinkInner]} />
       <View pointerEvents="none" style={[styles.blob, styles.blobCyan]} />
+      <View pointerEvents="none" style={[styles.blob, styles.blobViolet]} />
       <LinearGradient
-        colors={['rgba(160,190,255,0.16)', 'rgba(160,190,255,0.04)', 'transparent']}
+        colors={['rgba(255,255,255,0.22)', 'rgba(255,255,255,0.05)', 'transparent']}
         style={styles.glowTop}
       />
       {children}
@@ -65,7 +70,7 @@ export function NightGlowBackground({ children }: { children: ReactNode }) {
   );
 }
 
-/** 卡片: 液态玻璃(半透明面板 + 顶部高光 + 玻璃描边), 兼容模式为实色深面板 */
+/** 卡片: 液态玻璃下为真实毛玻璃, 墨夜下为实色深面板 */
 export function NightCard({
   children,
   style,
@@ -73,24 +78,37 @@ export function NightCard({
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
-  const glass = useNightGlass();
-  if (!glass) {
-    // 兼容模式: 不用原生模糊, 仅半透明深色面板(最稳, 不会因 BlurView 崩溃)
-    return <View style={[styles.fallbackCard, style]}>{children}</View>;
+  const glassSkin = useGlassSkin();
+  const blurOn = useNightGlass();
+
+  if (!glassSkin) {
+    return (
+      <View style={[styles.cardShadow, style]}>
+        <View style={styles.card}>
+          <LinearGradient
+            colors={[NightTint.blue, NightTint.violet, 'transparent']}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.hairline}
+          />
+          {children}
+        </View>
+      </View>
+    );
   }
+
+  if (!blurOn) {
+    // 兼容模式: 无原生模糊, 仅半透明玻璃色面板
+    return <View style={[styles.glassFallback, style]}>{children}</View>;
+  }
+
   return (
     <View style={[styles.glassShadow, style]}>
-      <BlurView
-        intensity={50}
-        tint="dark"
-        blurMethod="dimezisBlurView"
-        style={styles.glassCard}>
-        {/* 轻微暗色叠层, 保证文字可读性 */}
+      <BlurView intensity={48} tint="dark" blurMethod="dimezisBlurView" style={styles.glassCard}>
         <View pointerEvents="none" style={styles.glassTint} />
-        {/* 顶部 1px 高光边 */}
         <LinearGradient
           pointerEvents="none"
-          colors={['transparent', 'rgba(255,255,255,0.55)', 'transparent']}
+          colors={['transparent', 'rgba(255,255,255,0.6)', 'transparent']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.glassEdge}
@@ -164,25 +182,26 @@ const styles = StyleSheet.create({
   // —— 背景 ——
   glowTop: { position: 'absolute', top: -60, left: -40, right: -40, height: 260 },
   blob: { position: 'absolute', borderRadius: 999 },
-  blobBlueOuter: { width: 560, height: 560, top: -260, left: -220, backgroundColor: 'rgba(48,110,255,0.10)' },
-  blobBlueInner: { width: 300, height: 300, top: -130, left: -90, backgroundColor: 'rgba(76,132,255,0.12)' },
-  blobVioletOuter: { width: 480, height: 480, top: 150, right: -240, backgroundColor: 'rgba(140,80,255,0.09)' },
-  blobVioletInner: { width: 260, height: 260, top: 240, right: -120, backgroundColor: 'rgba(152,92,255,0.11)' },
-  blobCyan: { width: 460, height: 460, bottom: -240, left: 30, backgroundColor: 'rgba(0,190,255,0.06)' },
+  blobBlueOuter: { width: 620, height: 620, top: -280, left: -240, backgroundColor: 'rgba(70,130,255,0.20)' },
+  blobBlueInner: { width: 340, height: 340, top: -140, left: -100, backgroundColor: 'rgba(90,150,255,0.22)' },
+  blobPinkOuter: { width: 520, height: 520, top: 120, right: -260, backgroundColor: 'rgba(255,90,160,0.13)' },
+  blobPinkInner: { width: 280, height: 280, top: 220, right: -130, backgroundColor: 'rgba(255,110,180,0.16)' },
+  blobCyan: { width: 520, height: 520, bottom: -280, left: 10, backgroundColor: 'rgba(0,210,255,0.10)' },
+  blobViolet: { width: 400, height: 400, bottom: -160, right: -140, backgroundColor: 'rgba(160,90,255,0.14)' },
 
-  // —— 玻璃卡片 ——
+  // —— 液态玻璃卡片 ——
   glassShadow: {
-    borderRadius: 22,
-    shadowColor: '#020617',
-    shadowOpacity: 0.55,
-    shadowRadius: 26,
-    shadowOffset: { width: 0, height: 14 },
-    elevation: 12,
+    borderRadius: 24,
+    shadowColor: '#000000',
+    shadowOpacity: 0.35,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 10,
   },
   glassCard: {
-    borderRadius: 22,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
+    borderColor: 'rgba(255,255,255,0.22)',
     overflow: 'hidden',
   },
   glassTint: {
@@ -191,23 +210,40 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(12,18,32,0.30)',
+    backgroundColor: 'rgba(16,22,40,0.22)',
   },
-  glassEdge: { position: 'absolute', top: 0, left: 14, right: 14, height: 1 },
-
-  // —— 兼容模式(无原生模糊) ——
-  fallbackCard: {
-    borderRadius: 22,
+  glassEdge: { position: 'absolute', top: 0, left: 16, right: 16, height: 1 },
+  glassFallback: {
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    backgroundColor: 'rgba(18,24,40,0.88)',
-    shadowColor: '#020617',
-    shadowOpacity: 0.45,
+    borderColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: 'rgba(26,34,58,0.72)',
+    overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOpacity: 0.3,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 10 },
     elevation: 8,
+  },
+
+  // —— 墨夜实色卡片 ——
+  cardShadow: {
+    borderRadius: 20,
+    backgroundColor: NightTint.panel,
+    shadowColor: '#5B8CFF',
+    shadowOpacity: 0.10,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
+  },
+  card: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: NightTint.line,
+    backgroundColor: NightTint.panel,
     overflow: 'hidden',
   },
+  hairline: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.8 },
 
   // —— 按钮 ——
   btnWrap: {

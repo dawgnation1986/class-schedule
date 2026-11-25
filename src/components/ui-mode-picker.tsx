@@ -1,5 +1,6 @@
 ﻿/**
- * 界面设置: 原版界面 / 墨夜主题
+ * 界面设置: 原版界面 / 墨夜主题 / 液态玻璃
+ * 液态玻璃与墨夜共用同一套布局, 只是把面板换成 iOS 26 原生毛玻璃 + 彩色流光背景
  * 选择器带水滴动效: 指示器拉伸滑到目标档位, 一颗小水珠拖尾跟来, 落定收拢
  *
  * 稳定性说明: 动画使用 RN 内置 Animated(JS 线程驱动), 不用 reanimated worklet
@@ -12,14 +13,19 @@ import { useUiMode } from '@/hooks/use-ui-mode';
 import { useTheme } from '@/hooks/use-theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useNightGlassDisabled } from '@/hooks/use-night-glass';
+import { useGlassSkin } from '@/hooks/use-glass-skin';
 import { saveUiMode, type UiMode } from '@/lib/ui-mode';
+import { setGlassSkin } from '@/lib/glass-skin';
 import { setNightGlassDisabled } from '@/lib/night-glass';
 import { useBgSetting } from '@/lib/background';
 import { NightCard, NightTint } from '@/components/night-kit';
 
-const OPTIONS: { value: UiMode; label: string; hint: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { value: 'original', label: '原版界面', hint: '经典样式, 清晰直白', icon: 'square' },
-  { value: 'night', label: '墨夜主题', hint: 'iOS 26 液态玻璃 · 深空', icon: 'moon' },
+type PickerVal = UiMode | 'glass';
+
+const OPTIONS: { value: PickerVal; label: string; hint: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { value: 'original', label: '原版界面', hint: '经典样式 · 清晰', icon: 'square' },
+  { value: 'night', label: '墨夜主题', hint: '实色深色面板', icon: 'moon' },
+  { value: 'glass', label: '液态玻璃', hint: 'iOS 26 毛玻璃', icon: 'sparkles' },
 ];
 
 export function UiModePicker() {
@@ -27,18 +33,20 @@ export function UiModePicker() {
   const colors = useTheme();
   const scheme = useColorScheme();
   const glassDisabled = useNightGlassDisabled();
+  const glassSkin = useGlassSkin();
   const bgSetting = useBgSetting();
   const glass = !!bgSetting.ctrl;
   const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
-  const [draft, setDraft] = useState<UiMode>(mode);
-  useEffect(() => setDraft(mode), [mode]);
+  const current: PickerVal = mode === 'night' ? (glassSkin ? 'glass' : 'night') : 'original';
+  const [draft, setDraft] = useState<PickerVal>(current);
+  useEffect(() => setDraft(current), [current]);
 
-  // 两档布局: 指示器按像素平移(段宽 onLayout 实测)
+  // 三档布局: 指示器按像素平移(段宽 onLayout 实测)
   const [segW, setSegW] = useState(0);
 
-  const x = useRef(new Animated.Value(OPTIONS.findIndex((o) => o.value === draft) * segW)).current;
+  const x = useRef(new Animated.Value(OPTIONS.findIndex((o) => o.value === current) * segW)).current;
   const stretch = useRef(new Animated.Value(0)).current;
-  const x2 = useRef(new Animated.Value(OPTIONS.findIndex((o) => o.value === draft) * segW)).current;
+  const x2 = useRef(new Animated.Value(OPTIONS.findIndex((o) => o.value === current) * segW)).current;
   const op2 = useRef(new Animated.Value(0)).current;
   const lastX = useRef(0);
 
@@ -66,18 +74,29 @@ export function UiModePicker() {
   const scaleY = stretch.interpolate({ inputRange: [0, 1], outputRange: [1, 0.78] });
 
   const night = mode === 'night';
-  const indBg = night
-    ? 'rgba(91,140,255,0.22)'
-    : glass
-      ? 'rgba(37,99,235,0.20)'
-      : colors.background === '#000000'
-        ? 'rgba(255,255,255,0.20)'
-        : 'rgba(37,99,235,0.12)';
-  const activeColor = night ? '#5B8CFF' : colors.primary;
+  const glassActive = night && glassSkin;
+  const indBg = glassActive
+    ? 'rgba(120,190,255,0.26)'
+    : night
+      ? 'rgba(91,140,255,0.22)'
+      : glass
+        ? 'rgba(37,99,235,0.20)'
+        : colors.background === '#000000'
+          ? 'rgba(255,255,255,0.20)'
+          : 'rgba(37,99,235,0.12)';
+  const activeColor = night ? (glassActive ? '#8FD0FF' : '#5B8CFF') : colors.primary;
 
-  const pick = (v: UiMode) => {
+  const pick = (v: PickerVal) => {
     setDraft(v);
-    void saveUiMode(v);
+    if (v === 'glass') {
+      void setGlassSkin(true);
+      void saveUiMode('night');
+    } else if (v === 'night') {
+      void setGlassSkin(false);
+      void saveUiMode('night');
+    } else {
+      void saveUiMode('original');
+    }
   };
 
   const body = (
@@ -116,14 +135,14 @@ export function UiModePicker() {
         </View>
       </View>
 
-      {/* 调试/兼容开关: 关闭后墨夜主题回退为实色面板, 防止个别机型卡顿或花屏 */}
-      {night && (
-        <View style={[styles.glassRow, { borderColor: NightTint.line }]}>
+      {/* 调试/兼容开关: 关闭后液态玻璃回退为无原生模糊的半透明面板 */}
+      {glassActive && (
+        <View style={[styles.glassRow, { borderColor: 'rgba(255,255,255,0.18)' }]}>
           <Ionicons name="sparkles-outline" size={16} color={activeColor} />
           <View style={{ flex: 1 }}>
-            <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>液态玻璃效果</Text>
+            <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>原生毛玻璃</Text>
             <Text style={{ color: colors.textSecondary, fontSize: 10.5, marginTop: 2 }}>
-              iOS 26 风格毛玻璃；如遇卡顿、花屏或崩溃可关闭
+              如遇卡顿、花屏或崩溃可关闭，立即回退为半透明面板
             </Text>
           </View>
           <Switch
@@ -167,7 +186,7 @@ const styles = StyleSheet.create({
   },
   row: { flex: 1, flexDirection: 'row' },
   opt: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 14 },
-  ind: { position: 'absolute', top: 4, bottom: 4, left: 4, width: '50%', borderRadius: 13 },
+  ind: { position: 'absolute', top: 4, bottom: 4, left: 4, width: '33.3333%', borderRadius: 13 },
   drop: { position: 'absolute', top: 8, left: 4, width: 9, height: 9, borderRadius: 4.5 },
   glassRow: {
     flexDirection: 'row',
