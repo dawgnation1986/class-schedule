@@ -8,7 +8,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { withLayoutContext, usePathname, useRouter } from 'expo-router';
-import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -19,7 +19,7 @@ import { useNightGlass } from '@/hooks/use-night-glass';
 import { useTabBarLook } from '@/hooks/use-tab-bar-look';
 import { luminance, withAlpha } from '@/lib/tab-bar-style';
 
-const { Navigator } = createNativeBottomTabNavigator();
+const { Navigator } = createBottomTabNavigator();
 const Tabs = withLayoutContext(Navigator);
 
 const ITEMS = [
@@ -217,35 +217,26 @@ export default function NightTabs() {
   return (
     <View style={{ flex: 1 }}>
       <Tabs
-        tabBarHidden={glass}
-        tabBarActiveTintColor={glass ? '#8FD0FF' : '#5B8CFF'}
-        tabBarStyle={glass ? { backgroundColor: 'rgba(18,24,46,0.72)' } : undefined}
-        translucent={glass}
-        hapticFeedbackEnabled={true}
-        sidebarAdaptable={false}>
+        // JS 版导航器不渲染任何原生/Material 底栏: 该白药丸不再透出
+        tabBar={() => null}
+        screenLayout={({ children }) => (
+          <View style={{ flex: 1, paddingBottom: reserve, backgroundColor: 'transparent' }}>{children}</View>
+        )}
+        screenOptions={{
+          headerShown: false,
+          sceneStyle: { backgroundColor: 'transparent' },
+        }}>
         <Tabs.Screen
           name="home"
-          options={{
-            title: '主站',
-            sceneStyle: { backgroundColor: 'transparent', paddingBottom: glass ? reserve : 0 },
-            tabBarIcon: () => require('@/assets/images/tabIcons/explore.png'),
-          }}
+          options={{ title: '主站' }}
         />
         <Tabs.Screen
           name="timetable"
-          options={{
-            title: '课表',
-            sceneStyle: { backgroundColor: 'transparent', paddingBottom: glass ? reserve : 0 },
-            tabBarIcon: () => require('@/assets/images/tabIcons/home.png'),
-          }}
+          options={{ title: '课表' }}
         />
         <Tabs.Screen
           name="profile"
-          options={{
-            title: '我的',
-            sceneStyle: { backgroundColor: 'transparent', paddingBottom: glass ? reserve : 0 },
-            tabBarIcon: () => require('@/assets/images/tabIcons/person.png'),
-          }}
+          options={{ title: '我的' }}
         />
       </Tabs>
       {glass && <GlassTabBar />}
