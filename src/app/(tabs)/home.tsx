@@ -238,7 +238,7 @@ export default function PortalScreen() {
       {/* 墨夜背景: 深空渐变 + 顶部辉光(绝对定位铺满, 原版模式不渲染) */}
       {night && <NightGlowBackground>{null}</NightGlowBackground>}
       <ScrollView
-        contentContainerStyle={[styles.content, uiMode === 'glass' && { paddingBottom: 124 }]}
+        contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled">
         <Text style={[styles.title, { color: colors.text }]}>综合管理平台</Text>
 

@@ -54,7 +54,6 @@ function GlassTabBar() {
 
   const x = useRef(new Animated.Value(0)).current;
   const stretch = useRef(new Animated.Value(0)).current;
-  const barPop = useRef(new Animated.Value(1)).current;
   const lastX = useRef(0);
   const dragStart = useRef(0);
 
@@ -73,7 +72,6 @@ function GlassTabBar() {
         if (!w) return;
         const max = (ITEMS.length - 1) * w;
         x.setValue(Math.min(max, Math.max(0, dragStart.current + g.dx)));
-        barPop.setValue(1.015);
       },
       onPanResponderRelease: (_, g) => {
         const w = itemWRef.current;
@@ -85,13 +83,11 @@ function GlassTabBar() {
         Animated.parallel([
           Animated.spring(x, { toValue: idx * w, friction: 5, tension: 140, useNativeDriver: true }),
           Animated.spring(stretch, { toValue: 0, friction: 4, tension: 90, useNativeDriver: true }),
-          Animated.spring(barPop, { toValue: 1, friction: 4, tension: 140, useNativeDriver: true }),
         ]).start();
         if (idx !== activeRef.current) router.navigate(ITEMS[idx].route as never);
       },
       onPanResponderTerminate: () => {
         Animated.spring(stretch, { toValue: 0, friction: 4, useNativeDriver: true }).start();
-        Animated.spring(barPop, { toValue: 1, friction: 4, useNativeDriver: true }).start();
       },
     }),
   ).current;
@@ -108,12 +104,8 @@ function GlassTabBar() {
         Animated.spring(stretch, { toValue: 0, friction: 4, tension: 90, useNativeDriver: true }),
       ]),
     ]).start();
-    Animated.sequence([
-      Animated.timing(barPop, { toValue: 1.025, duration: 100, useNativeDriver: true }),
-      Animated.spring(barPop, { toValue: 1, friction: 4, tension: 140, useNativeDriver: true }),
-    ]).start();
     lastX.current = to;
-  }, [activeIndex, itemW, x, stretch, barPop]);
+  }, [activeIndex, itemW, x, stretch]);
 
   // 指示器只做位移, 不做形变, 上下左右等宽
   const stretchOpacity = stretch.interpolate({ inputRange: [0, 1], outputRange: [1, 0.9] });
@@ -155,8 +147,12 @@ function GlassTabBar() {
   const glassBar = look.seeThrough && blurOn;
 
   return (
-    <View pointerEvents="box-none" style={[styles.host, { bottom: Math.max(insets.bottom, 10) }]}>
-      <Animated.View style={[styles.shadow, { transform: [{ scale: barPop }] }]}>
+    <View
+      style={[
+        styles.host,
+        { marginBottom: Math.max(insets.bottom, 10) },
+      ]}>
+      <View style={styles.shadow}>
         {glassBar ? (
           <BlurView
             intensity={70}
@@ -181,49 +177,45 @@ function GlassTabBar() {
             {content}
           </View>
         )}
-      </Animated.View>
+      </View>
     </View>
   );
 }
 
 export default function NightTabs() {
   const mode = useUiMode();
-  const insets = useSafeAreaInsets();
   const glass = mode === 'glass' || mode === 'night';
-  // 为悬浮底栏预留高度, 避免课表底部周次条等内容被盖住
-  const reserve = glass ? 72 + Math.max(insets.bottom, 10) + 8 : 0;
   return (
     <View style={{ flex: 1 }}>
-      <Tabs
-        tabBarHidden={glass}
-        translucent={glass}
-        hapticFeedbackEnabled={true}
-        sidebarAdaptable={false}>
-        <Tabs.Screen
-          name="home"
-          options={{
-            title: '主站',
-            sceneStyle: { backgroundColor: 'transparent', paddingBottom: reserve },
-            tabBarIcon: () => require('@/assets/images/tabIcons/explore.png'),
-          }}
-        />
-        <Tabs.Screen
-          name="timetable"
-          options={{
-            title: '课表',
-            sceneStyle: { backgroundColor: 'transparent', paddingBottom: reserve },
-            tabBarIcon: () => require('@/assets/images/tabIcons/home.png'),
-          }}
-        />
-        <Tabs.Screen
-          name="profile"
-          options={{
-            title: '我的',
-            sceneStyle: { backgroundColor: 'transparent', paddingBottom: reserve },
-            tabBarIcon: () => require('@/assets/images/tabIcons/person.png'),
-          }}
-        />
-      </Tabs>
+      {/* 底栏改为占位布局(不再绝对定位): 页面内容到胶囊上沿就结束, 永远不会被压住 */}
+      <View style={{ flex: 1 }}>
+        <Tabs tabBarHidden={glass} translucent={glass} hapticFeedbackEnabled={true} sidebarAdaptable={false}>
+          <Tabs.Screen
+            name="home"
+            options={{
+              title: '主站',
+              sceneStyle: { backgroundColor: 'transparent' },
+              tabBarIcon: () => require('@/assets/images/tabIcons/explore.png'),
+            }}
+          />
+          <Tabs.Screen
+            name="timetable"
+            options={{
+              title: '课表',
+              sceneStyle: { backgroundColor: 'transparent' },
+              tabBarIcon: () => require('@/assets/images/tabIcons/home.png'),
+            }}
+          />
+          <Tabs.Screen
+            name="profile"
+            options={{
+              title: '我的',
+              sceneStyle: { backgroundColor: 'transparent' },
+              tabBarIcon: () => require('@/assets/images/tabIcons/person.png'),
+            }}
+          />
+        </Tabs>
+      </View>
       {glass && <GlassTabBar />}
     </View>
   );
@@ -231,9 +223,8 @@ export default function NightTabs() {
 
 const styles = StyleSheet.create({
   host: {
-    position: 'absolute',
-    left: 18,
-    right: 18,
+    marginHorizontal: 18,
+    marginTop: 6,
     zIndex: 100,
   },
   shadow: {

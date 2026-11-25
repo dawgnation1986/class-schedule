@@ -655,7 +655,7 @@ export default function ProfileScreen() {
       {night && <NightGlowBackground>{null}</NightGlowBackground>}
       <ScrollView
         ref={scrollRef}
-        contentContainerStyle={[styles.content, uiMode === 'glass' && { paddingBottom: 124 }]}
+        contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled">
         <View style={styles.headerRow}>
           {section ? (
