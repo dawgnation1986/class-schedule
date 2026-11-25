@@ -5,25 +5,28 @@
  * 稳定性说明: 动画使用 RN 内置 Animated(JS 线程驱动), 不用 reanimated worklet
  */
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { useTheme } from '@/hooks/use-theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useNightGlassDisabled } from '@/hooks/use-night-glass';
 import { saveUiMode, type UiMode } from '@/lib/ui-mode';
+import { setNightGlassDisabled } from '@/lib/night-glass';
 import { useBgSetting } from '@/lib/background';
 import { NightCard, NightTint } from '@/components/night-kit';
 
 const OPTIONS: { value: UiMode; label: string; hint: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { value: 'original', label: '原版界面', hint: '经典样式, 清晰直白', icon: 'square' },
-  { value: 'night', label: '墨夜主题', hint: '深邃夜空 · 蓝紫辉光', icon: 'moon' },
+  { value: 'night', label: '墨夜主题', hint: 'iOS 26 液态玻璃 · 深空', icon: 'moon' },
 ];
 
 export function UiModePicker() {
   const mode = useUiMode();
   const colors = useTheme();
   const scheme = useColorScheme();
+  const glassDisabled = useNightGlassDisabled();
   const bgSetting = useBgSetting();
   const glass = !!bgSetting.ctrl;
   const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
@@ -112,6 +115,25 @@ export function UiModePicker() {
           })}
         </View>
       </View>
+
+      {/* 调试/兼容开关: 关闭后墨夜主题回退为实色面板, 防止个别机型卡顿或花屏 */}
+      {night && (
+        <View style={[styles.glassRow, { borderColor: NightTint.line }]}>
+          <Ionicons name="sparkles-outline" size={16} color={activeColor} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>液态玻璃效果</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 10.5, marginTop: 2 }}>
+              iOS 26 风格毛玻璃；如遇卡顿、花屏或崩溃可关闭
+            </Text>
+          </View>
+          <Switch
+            value={!glassDisabled}
+            onValueChange={(v) => void setNightGlassDisabled(!v)}
+            trackColor={{ true: '#4C8DFF', false: 'rgba(255,255,255,0.18)' }}
+            thumbColor="#FFFFFF"
+          />
+        </View>
+      )}
     </>
   );
 
@@ -147,4 +169,14 @@ const styles = StyleSheet.create({
   opt: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 14 },
   ind: { position: 'absolute', top: 4, bottom: 4, left: 4, width: '50%', borderRadius: 13 },
   drop: { position: 'absolute', top: 8, left: 4, width: 9, height: 9, borderRadius: 4.5 },
+  glassRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
 });

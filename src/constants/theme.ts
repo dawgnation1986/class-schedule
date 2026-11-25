@@ -40,16 +40,16 @@ export type Palette = {
 };
 
 /**
- * 墨夜主题配色: 深邃夜空底色, 高对比文字, 蓝紫点缀。
- * 全部控件在墨夜模式下重绘(night-kit), 不使用半透明磨砂。
+ * 墨夜主题配色: iOS 26 液态玻璃风格 —— 深空底色 + 半透明玻璃面板 + 高对比文字。
+ * 控件在墨夜模式下由 night-kit 重绘; 玻璃效果可在界面设置里关闭(兼容模式)。
  */
 export const NightColors: Palette = {
-  text: '#E8EEF9',
-  background: '#0B0E17',
-  backgroundElement: '#151B2B',
-  backgroundSelected: 'rgba(91,140,255,0.16)',
-  textSecondary: '#8A94AC',
-  primary: '#2563eb',
+  text: '#F3F6FF',
+  background: '#070A12',
+  backgroundElement: 'rgba(255,255,255,0.10)',
+  backgroundSelected: 'rgba(255,255,255,0.17)',
+  textSecondary: '#A7B2CC',
+  primary: '#4C8DFF',
 };
 
 /** 护眼米黄预设: 暖米色纸感底色, 低刺激适合长时间阅读 */
