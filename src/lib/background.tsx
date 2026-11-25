@@ -195,15 +195,15 @@ export function GlassWallpaper() {
       <View style={[styles.wBlob, dark ? styles.wVioletDark : styles.wVioletLight]} />
       <View style={[styles.wBlob, dark ? styles.wPinkDark : styles.wPinkLight]} />
       <View style={[styles.wBlob, dark ? styles.wCyanDark : styles.wCyanLight]} />
-      {/* 全屏模糊: 把上面的彩色光斑揉开, 形成柔和的磨砂壁纸 */}
+      {/* 轻度模糊: 保留光斑轮廓, 让上层玻璃卡片自己的模糊能看出层次 */}
       <BlurView
-        intensity={dark ? 55 : 70}
+        intensity={dark ? 30 : 22}
         tint={dark ? 'dark' : 'light'}
         blurMethod="dimezisBlurView"
         style={StyleSheet.absoluteFill}
       />
       <LinearGradient
-        colors={dark ? ['rgba(255,255,255,0.10)', 'transparent'] : ['rgba(255,255,255,0.55)', 'transparent']}
+        colors={dark ? ['rgba(255,255,255,0.10)', 'transparent'] : ['rgba(255,255,255,0.30)', 'transparent']}
         style={styles.wTopSheen}
       />
     </View>
@@ -212,10 +212,10 @@ export function GlassWallpaper() {
 
 const styles = StyleSheet.create({
   wBlob: { position: 'absolute', borderRadius: 999 },
-  wBlueLight: { width: 620, height: 620, top: -240, left: -220, backgroundColor: 'rgba(70,140,255,0.35)' },
-  wVioletLight: { width: 520, height: 520, top: 160, right: -240, backgroundColor: 'rgba(150,100,255,0.28)' },
-  wPinkLight: { width: 460, height: 460, bottom: -180, left: 30, backgroundColor: 'rgba(255,120,190,0.24)' },
-  wCyanLight: { width: 420, height: 420, bottom: 120, right: -160, backgroundColor: 'rgba(80,220,255,0.22)' },
+  wBlueLight: { width: 620, height: 620, top: -240, left: -220, backgroundColor: 'rgba(70,140,255,0.48)' },
+  wVioletLight: { width: 520, height: 520, top: 160, right: -240, backgroundColor: 'rgba(150,100,255,0.38)' },
+  wPinkLight: { width: 460, height: 460, bottom: -180, left: 30, backgroundColor: 'rgba(255,120,190,0.32)' },
+  wCyanLight: { width: 420, height: 420, bottom: 120, right: -160, backgroundColor: 'rgba(80,220,255,0.30)' },
   wBlueDark: { width: 620, height: 620, top: -240, left: -220, backgroundColor: 'rgba(40,100,255,0.38)' },
   wVioletDark: { width: 520, height: 520, top: 160, right: -240, backgroundColor: 'rgba(130,70,255,0.32)' },
   wPinkDark: { width: 460, height: 460, bottom: -180, left: 30, backgroundColor: 'rgba(255,70,150,0.22)' },

@@ -54,8 +54,6 @@ function GlassTabBar() {
 
   const x = useRef(new Animated.Value(0)).current;
   const stretch = useRef(new Animated.Value(0)).current;
-  const x2 = useRef(new Animated.Value(0)).current;
-  const op2 = useRef(new Animated.Value(0)).current;
   const barPop = useRef(new Animated.Value(1)).current;
   const lastX = useRef(0);
   const dragStart = useRef(0);
@@ -102,31 +100,23 @@ function GlassTabBar() {
     if (!itemW) return;
     const to = activeIndex * itemW;
     if (to === lastX.current) return;
-    op2.setValue(0.7);
-    x2.setValue(lastX.current);
     Animated.parallel([
       Animated.spring(x, { toValue: to, friction: 6, tension: 130, useNativeDriver: true }),
-      // 先拉长再弹回: duang 的水滴形变
+      // 轻微回弹, 保持 duang 的手感; 不做缩放, 胶囊宽度始终一致
       Animated.sequence([
-        Animated.timing(stretch, { toValue: 1, duration: 110, useNativeDriver: true }),
+        Animated.timing(stretch, { toValue: 1, duration: 100, useNativeDriver: true }),
         Animated.spring(stretch, { toValue: 0, friction: 4, tension: 90, useNativeDriver: true }),
       ]),
-      // 拖尾水珠: 慢一拍跟上来, 落定后淡出
-      Animated.sequence([
-        Animated.spring(x2, { toValue: to, friction: 8, tension: 45, useNativeDriver: true, delay: 70 }),
-        Animated.timing(op2, { toValue: 0, duration: 260, useNativeDriver: true }),
-      ]),
     ]).start();
-    // 整条胶囊轻微回弹, 增强 duang 的手感
     Animated.sequence([
-      Animated.timing(barPop, { toValue: 1.035, duration: 110, useNativeDriver: true }),
+      Animated.timing(barPop, { toValue: 1.025, duration: 100, useNativeDriver: true }),
       Animated.spring(barPop, { toValue: 1, friction: 4, tension: 140, useNativeDriver: true }),
     ]).start();
     lastX.current = to;
-  }, [activeIndex, itemW, x, stretch, x2, op2, barPop]);
+  }, [activeIndex, itemW, x, stretch, barPop]);
 
-  const scaleX = stretch.interpolate({ inputRange: [0, 1], outputRange: [1, 1.18] });
-  const scaleY = stretch.interpolate({ inputRange: [0, 1], outputRange: [1, 0.90] });
+  // 指示器只做位移, 不做形变, 上下左右等宽
+  const stretchOpacity = stretch.interpolate({ inputRange: [0, 1], outputRange: [1, 0.9] });
 
   const content = (
     <>
@@ -135,29 +125,17 @@ function GlassTabBar() {
         style={[styles.sheen, { backgroundColor: dark ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.95)' }]}
       />
       <View style={styles.row} onLayout={(e) => setRowW(e.nativeEvent.layout.width)} {...pan.panHandlers}>
-        {/* 拖尾水珠 */}
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.trail,
-            {
-              width: Math.max(0, itemW - 8),
-              opacity: op2,
-              transform: [{ translateX: x2 }],
-              backgroundColor: withAlpha(dark ? '#7FB2FF' : '#78BEFF', 0.5),
-            },
-          ]}
-        />
         {/* 水滴指示器 */}
         <Animated.View
           pointerEvents="none"
           style={[
             styles.indicator,
             {
-              width: Math.max(0, itemW - 8),
-              backgroundColor: dark ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.66)',
-              borderColor: dark ? 'rgba(255,255,255,0.26)' : 'rgba(255,255,255,0.95)',
-              transform: [{ translateX: x }, { scaleX }, { scaleY }],
+              width: Math.max(0, itemW - 24),
+              opacity: stretchOpacity,
+              backgroundColor: dark ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.62)',
+              borderColor: dark ? 'rgba(255,255,255,0.24)' : 'rgba(255,255,255,0.92)',
+              transform: [{ translateX: x }],
             },
           ]}
         />
@@ -257,15 +235,9 @@ const styles = StyleSheet.create({
     left: 18,
     right: 18,
     zIndex: 100,
-    elevation: 30,
   },
   shadow: {
     borderRadius: 31,
-    shadowColor: '#3B6FD4',
-    shadowOpacity: 0.22,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 24,
   },
   pill: {
     height: 72,
@@ -296,26 +268,13 @@ const styles = StyleSheet.create({
   },
   indicator: {
     position: 'absolute',
-    left: 4,
-    top: 5,
-    bottom: 5,
-    borderRadius: 31,
-    backgroundColor: 'rgba(255,255,255,0.85)',
+    left: 12,
+    top: 8,
+    bottom: 8,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.62)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.98)',
-    shadowColor: '#2563EB',
-    shadowOpacity: 0.14,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-  trail: {
-    position: 'absolute',
-    left: 4,
-    top: 19,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(120,190,255,0.55)',
+    borderColor: 'rgba(255,255,255,0.92)',
   },
   label: { fontSize: 11, fontWeight: '700' },
 });

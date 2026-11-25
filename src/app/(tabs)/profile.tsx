@@ -19,12 +19,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
 
 import { MaxContentWidth, Spacing, type Palette } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { usePageBackground, useBgSetting } from '@/lib/background';
+import { useNightGlassDisabled } from '@/hooks/use-night-glass';
 import { NightGlowBackground, NightCard } from '@/components/night-kit';
 import { getThemeMode, saveThemeMode, subscribeTheme, themeModeLabel, type ThemeMode } from '@/lib/theme';
 import { getWeatherCity, setWeatherCity } from '@/lib/weather';
@@ -272,6 +274,21 @@ function JsonImportModal({
   );
 }
 
+/** 液态玻璃卡片: 原生模糊 + 半透明染色 + 顶部高光, 接近 iOS 26 标准玻璃 */
+function GlassCard({ style, children }: { style?: StyleProp<ViewStyle>; children: React.ReactNode }) {
+  const blurOff = useNightGlassDisabled();
+  return (
+    <View style={[style, { overflow: 'hidden' }]}>
+      {!blurOff && (
+        <BlurView intensity={55} tint="light" blurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+      )}
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.14)' }]} />
+      <View pointerEvents="none" style={styles.glassSheen} />
+      {children}
+    </View>
+  );
+}
+
 export default function ProfileScreen() {
   const scheme = useColorScheme();
   const colors = useTheme(); // 墨夜模式下返回深色配色
@@ -284,8 +301,8 @@ export default function ProfileScreen() {
     glass ? { borderWidth: 1, borderColor: active ? 'rgba(37,99,235,0.55)' : glassLine } : null;
   const uiMode = useUiMode();
   const night = uiMode === 'night';
-  // 墨夜模式: 分组卡片交给 NightCard 重绘, 去掉原背景/玻璃描边, 保留圆角与内边距
-  const CardWrap: ElementType = night ? NightCard : View;
+  // 液态玻璃: 卡片底部垫一层原生模糊, 才是真正的 iOS 毛玻璃而不只是半透明
+  const CardWrap: ElementType = night ? NightCard : uiMode === 'glass' ? GlassCard : View;
   const cardStyle = (base: ViewStyle | ViewStyle[]): StyleProp<ViewStyle> =>
     night ? base : [base, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }];
   const router = useRouter();
@@ -636,7 +653,10 @@ export default function ProfileScreen() {
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
       {/* 墨夜背景: 深空渐变 + 顶部辉光(绝对定位铺满, 原版模式不渲染) */}
       {night && <NightGlowBackground>{null}</NightGlowBackground>}
-      <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={[styles.content, uiMode === 'glass' && { paddingBottom: 124 }]}
+        keyboardShouldPersistTaps="handled">
         <View style={styles.headerRow}>
           {section ? (
             <Pressable onPress={() => setSection(null)} style={styles.headerBack} hitSlop={8}>
@@ -1718,6 +1738,7 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  glassSheen: { position: 'absolute', top: 0, left: 16, right: 16, height: 1, backgroundColor: 'rgba(255,255,255,0.9)' },
   safe: { flex: 1 },
   content: { padding: Spacing.three, maxWidth: MaxContentWidth, width: '100%', alignSelf: 'center', paddingBottom: 40 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.three, minHeight: 34 },
