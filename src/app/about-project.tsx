@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Constants from 'expo-constants';
 
+import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useUiMode } from '@/hooks/use-ui-mode';
@@ -36,7 +37,7 @@ export default function AboutProjectScreen() {
   const pageBg = usePageBackground(colors);
   const bgSetting = useBgSetting();
   const glass = !!bgSetting.ctrl;
-  const glassLine = night ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
+  const glassLine = GLASS_LINE;
   const version = Constants.expoConfig?.version ?? '1.0.0';
 
   const CardWrap = night ? NightCard : View;
@@ -58,6 +59,7 @@ export default function AboutProjectScreen() {
 
         {/* 项目标识 */}
         <CardWrap style={cardStyle(styles.hero)}>
+          <GlassSurface radius={16} />
           <View style={[styles.heroIcon, glass ? { borderWidth: 1, borderColor: glassLine } : { backgroundColor: colors.backgroundElement }]}>
             <Ionicons name="logo-github" size={40} color={colors.text} />
           </View>
@@ -70,6 +72,7 @@ export default function AboutProjectScreen() {
 
         {/* 链接 */}
         <CardWrap style={cardStyle(styles.card)}>
+          <GlassSurface radius={16} />
           <Text style={[styles.cardTitle, { color: colors.text }]}>项目链接</Text>
           {LINKS.map((l, i) => (
             <Pressable
@@ -95,6 +98,7 @@ export default function AboutProjectScreen() {
 
         {/* 项目信息 */}
         <CardWrap style={cardStyle(styles.card)}>
+          <GlassSurface radius={16} />
           <Text style={[styles.cardTitle, { color: colors.text }]}>项目信息</Text>
           <View style={styles.infoRow}>
             <Text style={{ color: colors.textSecondary, fontSize: 13 }}>技术栈</Text>
@@ -112,6 +116,7 @@ export default function AboutProjectScreen() {
 
         {/* 主要功能 */}
         <CardWrap style={cardStyle(styles.card)}>
+          <GlassSurface radius={16} />
           <Text style={[styles.cardTitle, { color: colors.text }]}>主要功能</Text>
           {FEATURES.map((f) => (
             <View key={f} style={styles.featureRow}>

@@ -7,6 +7,7 @@ import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { PageBackdrop, usePageBackground, useBgSetting } from '@/lib/background';
 import { PickerField } from '@/components/picker-field';
+import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
 import {
   loadInitial,
   selectDepartment,
@@ -31,7 +32,7 @@ export default function TempQueryScreen() {
   // 控件全透明模式: 设了背景图且开启开关 → 按钮只留文字 + 1px 外轮廓
   const bgSetting = useBgSetting();
   const glass = !!bgSetting.ctrl;
-  const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
+  const glassLine = GLASS_LINE;
   const glassBorder = (active = false) =>
     glass ? { borderWidth: 1, borderColor: active ? 'rgba(37,99,235,0.55)' : glassLine } : null;
   const router = useRouter();
@@ -186,6 +187,7 @@ export default function TempQueryScreen() {
                       : colors.backgroundElement,
                 },
               ]}>
+              <GlassSurface radius={10} />
               <Text style={{ color: queryType === t.value && !glass ? '#fff' : colors.text, fontSize: 13 }}>
                 {t.label}
               </Text>
@@ -200,6 +202,7 @@ export default function TempQueryScreen() {
             glassBorder(!!ready),
             { backgroundColor: glass ? (ready ? 'rgba(37,99,235,0.15)' : 'transparent') : ready ? colors.primary : colors.backgroundElement },
           ]}>
+          <GlassSurface radius={12} />
           <Text style={{ color: ready ? (glass ? colors.text : '#fff') : colors.textSecondary, fontWeight: '700' }}>
             {ready ? '查询该班级课表' : '请先选择系部 / 专业 / 班级'}
           </Text>

@@ -17,6 +17,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 
+import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { PageBackdrop, usePageBackground } from '@/lib/background';
@@ -176,6 +177,7 @@ export default function TimetableOcrScreen() {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
+          <GlassSurface radius={14} />
           <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800' }}>怎么用</Text>
           <Text style={[styles.hint, { color: colors.textSecondary }]}>
             1. 选择一张课表截图（教务系统、班级群里的都行）{'\n'}
@@ -188,6 +190,7 @@ export default function TimetableOcrScreen() {
         </View>
 
         <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
+          <GlassSurface radius={14} />
           {imageUri ? (
             <Image source={{ uri: imageUri }} style={styles.preview} resizeMode="contain" />
           ) : (
@@ -320,6 +323,7 @@ export default function TimetableOcrScreen() {
               onPress={onImport}
               disabled={importing}
               style={[styles.importBtn, { opacity: importing ? 0.6 : 1 }]}>
+              <GlassSurface radius={12} />
               {importing && <ActivityIndicator size="small" color="#fff" />}
               <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' }}>
                 {importing ? '正在导入…' : '导入到课表'}

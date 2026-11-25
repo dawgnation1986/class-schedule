@@ -9,19 +9,18 @@ import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useTheme } from '@/hooks/use-theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { useBgSetting, PageBackdrop, usePageBackground } from '@/lib/background';
 import { NightCard, NightGlowBackground } from '@/components/night-kit';
+import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
 import { fetchSponsor, sponsorPageUrl, type SponsorInfo } from '@/lib/sponsor';
 
 export default function SponsorScreen() {
-  const scheme = useColorScheme();
   const colors = useTheme();
   const pageBg = usePageBackground(colors);
   const bgSetting = useBgSetting();
   const glass = !!bgSetting.ctrl;
-  const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
+  const glassLine = GLASS_LINE;
   const uiMode = useUiMode();
   const night = uiMode === 'night';
   const router = useRouter();
@@ -53,6 +52,7 @@ export default function SponsorScreen() {
         <Text style={[styles.title, { color: colors.text }]}>支持开发者</Text>
 
         <Card style={[styles.card, !night && glass && { backgroundColor: 'transparent', borderWidth: 1, borderColor: glassLine }, !night && !glass && { backgroundColor: colors.backgroundElement }]}>
+          <GlassSurface radius={12} />
           <Text style={{ color: colors.text, lineHeight: 21, fontSize: 13.5 }}>
             这个 App 完全免费、无广告。如果它帮到了你，可以请开发者喝杯奶茶，感谢每一份支持！
           </Text>
@@ -98,6 +98,7 @@ export default function SponsorScreen() {
           <Pressable
             onPress={() => void sponsorPageUrl().then((u) => Linking.openURL(u))}
             style={[styles.webBtn, glass && { borderWidth: 1, borderColor: glassLine, backgroundColor: 'transparent' }, !glass && { backgroundColor: night ? 'rgba(91,140,255,0.14)' : colors.backgroundSelected }]}>
+            <GlassSurface radius={10} />
             <Ionicons name="globe-outline" size={15} color={colors.primary} />
             <Text style={{ color: colors.text, fontSize: 12.5, fontWeight: '700' }}>在网页查看</Text>
           </Pressable>

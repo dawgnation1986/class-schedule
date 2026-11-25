@@ -17,6 +17,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { setWeatherCity, type DayForecast, type WeatherFull } from '@/lib/weather';
+import { GlassSurface } from '@/components/glass-surface';
 
 const WEEK = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
@@ -96,6 +97,7 @@ export function WeatherModal({
 
         {/* 底部面板 */}
         <Animated.View style={[styles.sheet, { backgroundColor: sheetBg, transform: [{ translateY: sheetY }] }]}>
+          <GlassSurface radius={22} />
           <View style={styles.grabber} />
           <View style={styles.sheetHeader}>
             <View style={{ flex: 1 }}>
@@ -170,6 +172,7 @@ export function WeatherModal({
         <Modal visible={cityOpen} transparent animationType="fade" onRequestClose={() => setCityOpen(false)}>
           <Pressable style={styles.cityMask} onPress={() => setCityOpen(false)}>
             <Pressable style={[styles.cityBox, { backgroundColor: sheetBg }]} onPress={() => {}}>
+              <GlassSurface radius={18} />
               <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800' }}>切换天气城市</Text>
               <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 4, lineHeight: 18 }}>
                 输入城市名（如：长沙、儋州、海口），留空保存恢复自动定位

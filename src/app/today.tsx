@@ -9,6 +9,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { PageBackdrop, usePageBackground } from '@/lib/background';
+import { GlassSurface } from '@/components/glass-surface';
 import {
   beijingNow,
   fetchTimetable,
@@ -163,6 +164,7 @@ export default function TodayScreen() {
                   isNext && st === 1 && { borderWidth: 2, borderColor: colors.primary },
                   st < 0 && { opacity: 0.55 },
                 ]}>
+                <GlassSurface radius={14} />
                 <View style={[styles.timeCol, { backgroundColor: st === 0 ? '#16a34a' : isNext ? colors.primary : 'rgba(128,128,128,0.25)' }]}>
                   <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>{it.period}</Text>
                   {!!it.time && <Text style={styles.timeText}>{it.time[0]}</Text>}

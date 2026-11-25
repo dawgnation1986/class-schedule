@@ -13,6 +13,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { useBgSetting, PageBackdrop, usePageBackground } from '@/lib/background';
 import { NightCard, NightGlowBackground } from '@/components/night-kit';
+import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
 import { fetchNoticeList, getNoticeReadIds, type NoticeInfo } from '@/lib/notice';
 
 export default function NoticesScreen() {
@@ -21,7 +22,7 @@ export default function NoticesScreen() {
   const pageBg = usePageBackground(colors);
   const bgSetting = useBgSetting();
   const glass = !!bgSetting.ctrl;
-  const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
+  const glassLine = glass ? GLASS_LINE : scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
   const uiMode = useUiMode();
   const night = uiMode === 'night';
   const router = useRouter();
@@ -68,6 +69,7 @@ export default function NoticesScreen() {
         <Pressable
           onPress={() => router.back()}
           style={[styles.backBtn, glass && { borderWidth: 1, borderColor: glassLine }, { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
+          <GlassSurface radius={10} />
           <Text style={{ color: colors.text, fontSize: 14 }}>← 返回</Text>
         </Pressable>
         <Text style={[styles.title, { color: colors.text }]}>公告</Text>
@@ -76,6 +78,7 @@ export default function NoticesScreen() {
 
         {err && list !== null && list.length === 0 && (
           <Card style={[styles.card, !night && glass && { backgroundColor: 'transparent', borderWidth: 1, borderColor: glassLine }, !night && !glass && { backgroundColor: colors.backgroundElement }]}>
+            <GlassSurface radius={12} />
             <View style={{ alignItems: 'center', paddingVertical: 18, gap: 10 }}>
               <Ionicons name="megaphone-outline" size={34} color={colors.textSecondary} />
               <Text style={{ color: colors.textSecondary, fontSize: 13 }}>{err}</Text>
@@ -97,6 +100,7 @@ export default function NoticesScreen() {
                   !night && glass && { backgroundColor: 'transparent', borderWidth: 1, borderColor: glassLine },
                   !night && !glass && { backgroundColor: colors.backgroundElement },
                 ]}>
+                <GlassSurface radius={12} />
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <Ionicons name="megaphone-outline" size={16} color={colors.primary} />
                   <Text style={{ color: colors.text, fontWeight: '700', fontSize: 15, flexShrink: 1 }} numberOfLines={open ? undefined : 1}>

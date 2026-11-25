@@ -23,6 +23,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { usePageBackground, useBgSetting } from '@/lib/background';
 import { NightGlowBackground, NightCard, NightPrimaryButton } from '@/components/night-kit';
+import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
 import { AboutGithub } from '@/components/about-github';
 import { PORTAL_SITE, clearSession, loadLoginPage, submitLogin, tryRestoreSession, type LoginState, type PortalApp } from '@/lib/portal';
 import { loadAccount, saveAccount } from '@/lib/account';
@@ -42,11 +43,16 @@ export default function PortalScreen() {
   const bgSetting = useBgSetting();
   // 控件全透明模式: 设了背景图且开启开关 → 按钮/卡片/输入框只留文字 + 1px 外轮廓
   const glass = !!bgSetting.ctrl;
-  const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
-  const glassBorder = (active = false) =>
-    glass ? { borderWidth: 1, borderColor: active ? 'rgba(37,99,235,0.55)' : glassLine } : null;
   const uiMode = useUiMode();
   const night = uiMode === 'night';
+  const glassLine =
+    uiMode === 'glass'
+      ? GLASS_LINE
+      : scheme === 'dark'
+        ? 'rgba(255,255,255,0.40)'
+        : 'rgba(0,0,0,0.30)';
+  const glassBorder = (active = false) =>
+    glass ? { borderWidth: 1, borderColor: active ? 'rgba(37,99,235,0.55)' : glassLine } : null;
   // 墨夜模式: 卡片容器交给 NightCard 重绘, 去掉原背景/玻璃描边, 保留圆角与内边距
   const CardWrap: ElementType = night ? NightCard : View;
   const cardStyle = (base: ViewStyle): StyleProp<ViewStyle> =>
@@ -338,6 +344,7 @@ export default function PortalScreen() {
                   glassBorder(!!(username && password && captcha)),
                   { backgroundColor: glass ? (username && password && captcha ? 'rgba(37,99,235,0.15)' : 'transparent') : username && password && captcha ? colors.primary : colors.backgroundElement },
                 ]}>
+                <GlassSurface radius={12} />
                 {loggingIn ? (
                   <ActivityIndicator color={colors.text} />
                 ) : (
@@ -377,6 +384,7 @@ export default function PortalScreen() {
               会话过期后需重新输入验证码登录。
             </Text>
             <CardWrap style={cardStyle(styles.searchWrap)}>
+              <GlassSurface radius={12} />
               <Ionicons name="search" size={16} color={colors.textSecondary} />
               <TextInput
                 value={keyword}

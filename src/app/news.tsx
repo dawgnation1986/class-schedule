@@ -25,6 +25,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { PageBackdrop, useBgSetting, usePageBackground } from '@/lib/background';
 import { NightCard, NightGlowBackground } from '@/components/night-kit';
+import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
 import { fetchDailyNews, fetchNewsArticle, type NewsArticle, type NewsItem } from '@/lib/news';
 
 export default function NewsScreen() {
@@ -33,7 +34,7 @@ export default function NewsScreen() {
   const pageBg = usePageBackground(colors);
   const bgSetting = useBgSetting();
   const glass = !!bgSetting.ctrl;
-  const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
+  const glassLine = glass ? GLASS_LINE : scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
   const uiMode = useUiMode();
   const night = uiMode === 'night';
   const router = useRouter();
@@ -121,6 +122,7 @@ export default function NewsScreen() {
             glass && { borderWidth: 1, borderColor: glassLine },
             { backgroundColor: glass ? 'transparent' : colors.backgroundElement },
           ]}>
+          <GlassSurface radius={10} />
           <Text style={{ color: colors.text, fontSize: 14 }}>← 返回</Text>
         </Pressable>
 
@@ -157,6 +159,7 @@ export default function NewsScreen() {
 
         {list !== null && list.length === 0 && (
           <Card style={[styles.card, !night && cardBg]}>
+            <GlassSurface radius={14} />
             <View style={{ alignItems: 'center', paddingVertical: 24, gap: 10 }}>
               <Ionicons name="newspaper-outline" size={34} color={colors.textSecondary} />
               <Text style={{ color: colors.textSecondary, fontSize: 13 }}>暂无新闻，下拉刷新试试</Text>
@@ -284,6 +287,7 @@ export default function NewsScreen() {
             )}
 
             <Pressable onPress={() => reader && void openLink(reader.link)} style={styles.detailBtn}>
+              <GlassSurface radius={11} />
               <Ionicons name="open-outline" size={16} color="#fff" />
               <Text style={{ color: '#fff', fontSize: 14, fontWeight: '800' }}>阅读原文</Text>
             </Pressable>

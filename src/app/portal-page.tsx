@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import type { WebViewNavigation } from 'react-native-webview';
 
+import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { fetchPortalHtml, getPortalCookie, PORTAL_SITE } from '@/lib/portal';
@@ -744,6 +745,7 @@ export default function PortalPageScreen() {
         <View style={[styles.center, { gap: Spacing.two, padding: Spacing.three }]}>
           <Text style={{ color: colors.textSecondary, textAlign: 'center' }}>会话已失效，请到“主站”重新登录后再进入此页面。</Text>
           <Pressable onPress={() => router.navigate('/home')} style={[styles.loginBtn, { backgroundColor: colors.primary }]}>
+            <GlassSurface radius={10} />
             <Text style={{ color: '#fff', fontSize: 14 }}>去主站登录</Text>
           </Pressable>
         </View>
@@ -754,6 +756,7 @@ export default function PortalPageScreen() {
         <View style={[styles.center, { gap: Spacing.two, padding: Spacing.three }]}>
           <Text style={{ color: '#ef4444' }}>{loadError}</Text>
           <Pressable onPress={reload} style={[styles.loginBtn, { backgroundColor: colors.backgroundElement }]}>
+            <GlassSurface radius={10} />
             <Text style={{ color: colors.text, fontSize: 14 }}>重试</Text>
           </Pressable>
         </View>
@@ -807,6 +810,7 @@ export default function PortalPageScreen() {
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.backgroundElement }]}>
+          <GlassSurface radius={8} />
           <Text style={{ color: colors.text, fontSize: 14 }}>← 返回</Text>
         </Pressable>
         <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>

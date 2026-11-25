@@ -10,6 +10,7 @@ import * as Sharing from 'expo-sharing';
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { PageBackdrop, usePageBackground } from '@/lib/background';
+import { GlassSurface } from '@/components/glass-surface';
 import {
   getGradesStat,
   gradeKey,
@@ -179,11 +180,13 @@ export default function GpaScreen() {
           {/* 总览 */}
           <View style={styles.overview}>
             <View style={[styles.overCard, { backgroundColor: colors.backgroundElement }]}>
+              <GlassSurface radius={14} />
               <Text style={[styles.overLabel, { color: colors.textSecondary }]}>总平均分</Text>
               <Text style={[styles.overValue, { color: colors.primary }]}>{stat.overallAvg}</Text>
               <Text style={[styles.overSub, { color: colors.textSecondary }]}>等权平均</Text>
             </View>
             <View style={[styles.overCard, { backgroundColor: colors.backgroundElement }]}>
+              <GlassSurface radius={14} />
               <Text style={[styles.overLabel, { color: colors.textSecondary }]}>
                 {overall.credited ? '加权绩点' : '平均绩点'}
               </Text>
@@ -193,6 +196,7 @@ export default function GpaScreen() {
               </Text>
             </View>
             <View style={[styles.overCard, { backgroundColor: colors.backgroundElement }]}>
+              <GlassSurface radius={14} />
               <Text style={[styles.overLabel, { color: colors.textSecondary }]}>课程数</Text>
               <Text style={[styles.overValue, { color: colors.text }]}>{stat.count}</Text>
               <Text style={[styles.overSub, { color: colors.textSecondary }]}>已出成绩</Text>
@@ -201,6 +205,7 @@ export default function GpaScreen() {
 
           {/* 学分 / 目标 GPA */}
           <View style={[styles.goalCard, { backgroundColor: colors.backgroundElement }]}>
+            <GlassSurface radius={14} />
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons name="flag-outline" size={16} color={colors.primary} />
               <Text style={{ color: colors.text, fontWeight: '800', fontSize: 15 }}>学分与目标 GPA</Text>
@@ -261,6 +266,7 @@ export default function GpaScreen() {
                 borderColor: failing.length ? 'rgba(239,68,68,0.35)' : 'transparent',
               },
             ]}>
+            <GlassSurface radius={14} />
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons
                 name={failing.length ? 'alert-circle' : 'checkmark-circle'}
@@ -290,6 +296,7 @@ export default function GpaScreen() {
 
           {/* 学期趋势(条形) */}
           <View style={[styles.trend, { backgroundColor: colors.backgroundElement }]}>
+            <GlassSurface radius={14} />
             <Text style={[styles.sectionTitle, { color: colors.text }]}>学期平均分</Text>
             {stat.terms.map((t) => (
               <View key={t.term} style={styles.barRow}>
@@ -313,6 +320,7 @@ export default function GpaScreen() {
             const termGpa = termW.credited ? termW.gpa : t.gpa;
             return (
               <View key={t.term} style={[styles.termCard, { backgroundColor: colors.backgroundElement }]}>
+                <GlassSurface radius={14} />
                 <Pressable
                   style={styles.termHead}
                   onPress={() => setOpenTerm(openTerm === t.term ? null : t.term)}>
@@ -398,6 +406,7 @@ export default function GpaScreen() {
           <Pressable
             style={[styles.modalCard, { backgroundColor: colors.background }]}
             onPress={() => {}}>
+            <GlassSurface radius={18} />
             <Text style={{ color: colors.text, fontWeight: '800', fontSize: 16 }} numberOfLines={1}>
               {editing?.name}
             </Text>
@@ -427,14 +436,17 @@ export default function GpaScreen() {
               <Pressable
                 onPress={() => saveCredit(null)}
                 style={[styles.modalBtn, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
+                <GlassSurface radius={10} />
                 <Text style={{ color: '#ef4444', fontWeight: '700', fontSize: 13 }}>清除</Text>
               </Pressable>
               <Pressable onPress={() => setEditing(null)} style={[styles.modalBtn, { backgroundColor: 'rgba(128,128,128,0.12)' }]}>
+                <GlassSurface radius={10} />
                 <Text style={{ color: colors.text, fontSize: 13 }}>取消</Text>
               </Pressable>
               <Pressable
                 onPress={() => saveCredit(editing?.value ?? '')}
                 style={[styles.modalBtn, { backgroundColor: colors.primary }]}>
+                <GlassSurface radius={10} />
                 <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>保存</Text>
               </Pressable>
             </View>

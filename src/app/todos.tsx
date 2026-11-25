@@ -18,6 +18,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { PageBackdrop, usePageBackground, useBgSetting } from '@/lib/background';
+import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
 import { addTodo, clearDone, loadTodos, removeTodo, toggleTodo, type Todo } from '@/lib/todos';
 
 const DAY_NAMES = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
@@ -31,7 +32,7 @@ export default function TodosScreen() {
   const bgSetting = useBgSetting();
   // 控件全透明模式: 与其他页面一致, 卡片只留文字 + 1px 外轮廓
   const glass = !!bgSetting.ctrl;
-  const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
+  const glassLine = GLASS_LINE;
   const cardStyle = glass
     ? { borderWidth: 1, borderColor: glassLine, backgroundColor: 'transparent' as const }
     : { backgroundColor: colors.backgroundElement };
@@ -168,6 +169,7 @@ export default function TodosScreen() {
 
       {/* 添加卡: 多行输入 + 关联选择 + 添加按钮 */}
       <View style={[styles.compose, cardStyle]}>
+        <GlassSurface radius={14} />
         <TextInput
           value={text}
           onChangeText={setText}
@@ -206,6 +208,7 @@ export default function TodosScreen() {
               !glass && { backgroundColor: canSubmit ? colors.primary : colors.backgroundSelected },
               !canSubmit && { opacity: 0.5 },
             ]}>
+            <GlassSurface radius={12} />
             <Ionicons name="add" size={20} color={glass && canSubmit ? colors.primary : !glass && canSubmit ? '#fff' : colors.textSecondary} />
             <Text style={{ color: glass && canSubmit ? colors.primary : !glass && canSubmit ? '#fff' : colors.textSecondary, fontSize: 13, fontWeight: '700' }}>添加</Text>
           </Pressable>

@@ -19,6 +19,7 @@ import { saveUiMode, type UiMode } from '@/lib/ui-mode';
 import { setNightGlassDisabled } from '@/lib/night-glass';
 import { setTabBarLook, TAB_BAR_COLORS } from '@/lib/tab-bar-style';
 import { useBgSetting } from '@/lib/background';
+import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
 
 type PickerVal = Extract<UiMode, 'original' | 'glass'>;
 
@@ -42,7 +43,8 @@ export function UiModePicker() {
   };
   const glassActive = mode === 'glass';
   const transparent = glassActive || !!bgSetting.ctrl;
-  const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
+  const glassLine =
+    scheme === 'dark' ? 'rgba(255,255,255,0.40)' : glassActive ? GLASS_LINE : 'rgba(0,0,0,0.30)';
 
   const current: PickerVal = glassActive ? 'glass' : 'original';
   const [draft, setDraft] = useState<PickerVal>(current);
@@ -102,6 +104,7 @@ export function UiModePicker() {
       <View
         style={[styles.segWrap, transparent && styles.segWrapGlass, { borderColor: glassLine }]}
         onLayout={(e) => setSegW(e.nativeEvent.layout.width / OPTIONS.length)}>
+        <GlassSurface radius={16} />
         {/* 拖尾小水珠 */}
         <Animated.View
           pointerEvents="none"
@@ -131,6 +134,7 @@ export function UiModePicker() {
       {/* 调试/兼容开关: 关闭后液态玻璃回退为无原生模糊的半透明面板 */}
       {glassActive && (
         <View style={[styles.glassRow, { borderColor: glassLine }]}>
+          <GlassSurface radius={12} />
           <Ionicons name="sparkles-outline" size={16} color={activeColor} />
           <View style={{ flex: 1 }}>
             <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>原生毛玻璃</Text>
@@ -198,6 +202,7 @@ export function UiModePicker() {
   if (transparent) {
     return (
       <View style={[styles.card, { backgroundColor: 'transparent', borderWidth: 1, borderColor: glassLine }]}>
+        <GlassSurface radius={12} />
         {body}
       </View>
     );

@@ -7,6 +7,7 @@ import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
+import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { PageBackdrop, usePageBackground, useBgSetting } from '@/lib/background';
@@ -52,6 +53,7 @@ function Section({
           borderWidth: 1,
         },
       ]}>
+      <GlassSurface radius={14} />
       <Pressable style={styles.cardHead} onPress={() => setOpen((o) => !o)} hitSlop={6}>
         <Ionicons name={icon} size={16} color={color ?? '#2563eb'} />
         <Text style={{ color: color ?? colors.text, fontWeight: '700', fontSize: 14, flex: 1 }}>{title}</Text>
@@ -91,6 +93,7 @@ function Btn({
           : { backgroundColor: solid ?? colors.backgroundSelected },
         disabled && { opacity: 0.5 },
       ]}>
+      <GlassSurface radius={10} />
       <Text style={{ color: !glass && solid ? '#fff' : colors.text, fontSize: 13, fontWeight: '600' }}>{label}</Text>
     </Pressable>
   );
@@ -103,7 +106,7 @@ export default function DevScreen() {
   const bgSetting = useBgSetting();
   // 控件全透明模式: 与其他页一致, 只留文字 + 1px 轮廓
   const glass = !!bgSetting.ctrl;
-  const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
+  const glassLine = GLASS_LINE;
   const router = useRouter();
 
   const [logs, setLogs] = useState<LogLine[]>([]);

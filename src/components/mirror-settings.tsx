@@ -12,6 +12,7 @@ import {
   toggleBuiltinMirror,
   type Mirror,
 } from '@/lib/gh-mirrors';
+import { GlassSurface } from '@/components/glass-surface';
 
 export function MirrorSettings({
   visible,
@@ -88,6 +89,7 @@ export function MirrorSettings({
         {/* 背景遮罩单独一层: 不用 Pressable 包住内容, 否则会抢走列表的拖动手势 */}
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={[styles.box, { backgroundColor: colors.background }]}>
+          <GlassSurface radius={16} />
           <Text style={[styles.title, { color: colors.text }]}>下载镜像设置</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
             下载时自动测速，从快到慢依次尝试
@@ -133,9 +135,11 @@ export function MirrorSettings({
               disabled={testing}
               onPress={() => void testAll()}
               style={[styles.btn, { backgroundColor: colors.backgroundElement }]}>
+              <GlassSurface radius={12} />
               <Text style={{ color: colors.text, fontSize: 14 }}>{testing ? '测试中…' : '测试连接性'}</Text>
             </Pressable>
             <Pressable onPress={onClose} style={[styles.btn, { backgroundColor: colors.primary }]}>
+              <GlassSurface radius={12} />
               <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>完成</Text>
             </Pressable>
           </View>

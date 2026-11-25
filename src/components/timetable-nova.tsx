@@ -9,6 +9,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useUiMode } from '@/hooks/use-ui-mode';
 import { usePageBackground, useBgSetting } from '@/lib/background';
 import {
   beijingNow,
@@ -22,6 +23,7 @@ import { scheduleClassReminders } from '@/lib/notifications';
 import { confirmTimetableExport } from '@/lib/calendar-export';
 import { clearImportedTimetable, loadImportedTimetable } from '@/lib/timetable-ocr';
 import { semesterWeekNo, weekRangeText } from '@/lib/week';
+import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
 
 const WEEK_NAMES = ['日', '一', '二', '三', '四', '五', '六'];
 const PERIOD_ORDER = ['1-2', '3-4', '中午', '5-6', '7-8', '9-10'];
@@ -58,7 +60,9 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
   const bgSetting = useBgSetting();
   // 控件全透明模式: 只留文字 + 1px 外轮廓
   const glass = !!bgSetting.ctrl;
-  const glassLine = isDark ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
+  const uiMode = useUiMode();
+  const glassLine =
+    uiMode === 'glass' ? GLASS_LINE : isDark ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
   const router = useRouter();
 
   const [className, setClassName] = useState('');
@@ -228,18 +232,21 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
           disabled={calBusy}
           onPress={() => confirmTimetableExport(timetable, setCalBusy)}
           style={[styles.headerBtn, glass ? { backgroundColor: 'transparent', borderWidth: 1, borderColor: glassLine } : null, { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
+          <GlassSurface radius={10} />
           <Ionicons name="calendar-outline" size={14} color={colors.text} />
           <Text style={{ color: colors.text, fontSize: 12 }}>{calBusy ? '导出中…' : '日历'}</Text>
         </Pressable>
         <Pressable
           onPress={() => router.push('/timetable-ocr' as never)}
           style={[styles.headerBtn, glass ? { backgroundColor: 'transparent', borderWidth: 1, borderColor: glassLine } : null, { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
+          <GlassSurface radius={10} />
           <Ionicons name="scan-outline" size={14} color={colors.text} />
           <Text style={{ color: colors.text, fontSize: 12 }}>导入</Text>
         </Pressable>
         <Pressable
           onPress={() => void switchUI('classic')}
           style={[styles.headerBtn, glass ? { backgroundColor: 'transparent', borderWidth: 1, borderColor: glassLine } : null, { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
+          <GlassSurface radius={10} />
           <Ionicons name="grid-outline" size={14} color={colors.text} />
           <Text style={{ color: colors.text, fontSize: 12 }}>经典</Text>
         </Pressable>
@@ -274,6 +281,7 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
           glass ? { backgroundColor: 'transparent', borderWidth: 1, borderColor: glassLine } : null,
           { backgroundColor: glass ? 'transparent' : colors.backgroundElement },
         ]}>
+        <GlassSurface radius={14} />
         {weekDays.map((d, i) => {
           const active = sameDay(d, selected);
           const today = sameDay(d, now);
@@ -397,6 +405,7 @@ export function NovaTimetable({ onSwitchUI }: { onSwitchUI: (ui: TimetableUI) =>
               ? { backgroundColor: 'transparent', borderWidth: 1, borderColor: glassLine }
               : { backgroundColor: colors.backgroundElement },
           ]}>
+          <GlassSurface radius={14} />
           <Pressable onPress={() => gotoWeek(-7)} hitSlop={10} accessibilityLabel="上一周" style={styles.weekArrow}>
             <Ionicons name="chevron-back" size={22} color={colors.text} />
           </Pressable>

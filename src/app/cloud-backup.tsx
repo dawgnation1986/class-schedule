@@ -23,6 +23,7 @@ import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { NightCard, NightGlowBackground } from '@/components/night-kit';
+import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
 import { useBgSetting, usePageBackground } from '@/lib/background';
 import { loadProfile, type UserProfile } from '@/lib/profile';
 import { BACKUP_SECTIONS, exportBackup, importBackup } from '@/lib/backup';
@@ -56,7 +57,7 @@ export default function CloudBackupScreen() {
   const bgSetting = useBgSetting();
   // 跟随「控件透明」设置: 与其他页面一致, 卡片只留 1px 描边并透出背景图
   const glass = !!bgSetting.ctrl;
-  const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
+  const glassLine = glass ? GLASS_LINE : scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
   const uiMode = useUiMode();
   const night = uiMode === 'night';
   const CardWrap: ElementType = night ? NightCard : View;
@@ -338,6 +339,7 @@ export default function CloudBackupScreen() {
 
             {!session ? (
               <CardWrap style={cardStyle(styles.card)}>
+                <GlassSurface radius={14} />
                 <View style={styles.cardTitleRow}>
                   <Ionicons name="cloud-outline" size={18} color={colors.primary} />
                   <Text style={[styles.cardTitle, { color: colors.text }]}>登录后使用云端备份</Text>
@@ -437,6 +439,7 @@ export default function CloudBackupScreen() {
                       opacity: busy ? 0.6 : 1,
                     },
                   ]}>
+                  <GlassSurface radius={12} />
                   {busy ? (
                     <ActivityIndicator color="#fff" size="small" />
                   ) : (
@@ -458,6 +461,7 @@ export default function CloudBackupScreen() {
               <>
                 {/* 账号信息 */}
                 <CardWrap style={cardStyle(styles.card)}>
+                  <GlassSurface radius={14} />
                   <View style={styles.cardTitleRow}>
                     <View style={[styles.avatar, glass ? { borderWidth: 1, borderColor: glassLine } : { backgroundColor: colors.background }]}>
                       {profile?.avatar ? (
@@ -502,6 +506,7 @@ export default function CloudBackupScreen() {
 
                 {/* 备份内容 */}
                 <CardWrap style={cardStyle(styles.card)}>
+                  <GlassSurface radius={14} />
                   <View style={styles.cardTitleRow}>
                     <Ionicons name="options-outline" size={18} color={colors.primary} />
                     <Text style={[styles.cardTitle, { color: colors.text, flex: 1 }]}>备份内容</Text>
@@ -554,6 +559,7 @@ export default function CloudBackupScreen() {
                     disabled={busy}
                     onPress={() => void doBackup()}
                     style={[styles.primaryBtn, { backgroundColor: colors.primary, opacity: busy ? 0.6 : 1 }]}>
+                    <GlassSurface radius={12} />
                     {busy ? (
                       <ActivityIndicator color="#fff" size="small" />
                     ) : (
@@ -567,6 +573,7 @@ export default function CloudBackupScreen() {
 
                 {/* 备份列表 */}
                 <CardWrap style={cardStyle(styles.card)}>
+                  <GlassSurface radius={14} />
                   <View style={styles.cardTitleRow}>
                     <Ionicons name="archive-outline" size={18} color={colors.primary} />
                     <Text style={[styles.cardTitle, { color: colors.text, flex: 1 }]}>我的备份（{backups.length}）</Text>
@@ -612,6 +619,7 @@ export default function CloudBackupScreen() {
                               disabled={busy}
                               onPress={() => doRestore(b)}
                               style={[styles.smallBtn, { backgroundColor: colors.primary }]}>
+                              <GlassSurface radius={8} />
                               <Ionicons name="download-outline" size={14} color="#fff" />
                               <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>一键恢复</Text>
                             </Pressable>

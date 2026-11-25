@@ -3,9 +3,11 @@ import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'r
 
 import { type Palette } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useUiMode } from '@/hooks/use-ui-mode';
 import { useBgSetting } from '@/lib/background';
 import { ApkDownload } from '@/components/download-view';
 import { MirrorSettings } from '@/components/mirror-settings';
+import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
 import { checkUpdate, currentVersion, RELEASES_PAGE, type UpdateInfo } from '@/lib/updates';
 
 /** 检查更新卡片: 显示当前版本 + 自动/手动查询 GitHub Releases + 内置下载 APK */
@@ -14,7 +16,13 @@ export function UpdateCard({ colors }: { colors: Palette }) {
   const bgSetting = useBgSetting();
   // 控件全透明模式: 与各页面一致, 卡片只留文字 + 1px 外轮廓
   const glass = !!bgSetting.ctrl;
-  const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
+  const uiMode = useUiMode();
+  const glassLine =
+    uiMode === 'glass'
+      ? GLASS_LINE
+      : scheme === 'dark'
+        ? 'rgba(255,255,255,0.40)'
+        : 'rgba(0,0,0,0.30)';
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
   const [checking, setChecking] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -40,6 +48,7 @@ export function UpdateCard({ colors }: { colors: Palette }) {
         glass ? { borderWidth: 1, borderColor: glassLine } : null,
         { backgroundColor: glass ? 'transparent' : colors.backgroundElement },
       ]}>
+      <GlassSurface radius={12} />
       <View style={styles.row}>
         <Text style={{ color: colors.text, fontWeight: '700' }}>当前版本 v{currentVersion()}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Spacing, type Palette } from '@/constants/theme';
+import { GlassSurface } from '@/components/glass-surface';
 import type { Option } from '@/lib/timetable';
 
 /** 简单的选择器: 按钮 + 弹出选项列表 (设置页/临时查询页共用)
@@ -40,6 +41,7 @@ export function PickerField({
           { backgroundColor: glass ? 'transparent' : colors.backgroundElement, opacity: disabled ? 0.5 : 1 },
           glass && glassLine ? { borderWidth: 1, borderColor: glassLine } : null,
         ]}>
+        <GlassSurface radius={10} />
         <Text style={{ color: current ? colors.text : colors.textSecondary }} numberOfLines={1}>
           {current ? current.label : placeholder}
         </Text>

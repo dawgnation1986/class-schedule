@@ -26,6 +26,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { PageBackdrop, useBgSetting, usePageBackground } from '@/lib/background';
 import { NightCard, NightGlowBackground } from '@/components/night-kit';
+import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
 import { fetchRandomRecord, type BbhjRecord } from '@/lib/bbhj';
 
 const SITE = 'https://baobeihuijia.com/bbhj/';
@@ -69,7 +70,7 @@ export default function WelfareScreen() {
   const pageBg = usePageBackground(colors);
   const bgSetting = useBgSetting();
   const glass = !!bgSetting.ctrl;
-  const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
+  const glassLine = glass ? GLASS_LINE : scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
   const uiMode = useUiMode();
   const night = uiMode === 'night';
   const router = useRouter();
@@ -192,6 +193,7 @@ export default function WelfareScreen() {
           <>
             {/* 帮宝贝回家 */}
             <Card style={cardStyle}>
+              <GlassSurface radius={14} />
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                 <View style={[styles.introIcon, { backgroundColor: 'rgba(239,68,68,0.10)' }]}>
                   <Ionicons name="heart" size={22} color="#ef4444" />
@@ -207,6 +209,7 @@ export default function WelfareScreen() {
 
             {/* 随机寻亲卡片 */}
             <Card style={cardStyle}>
+              <GlassSurface radius={14} />
               {!record && recLoading && (
                 <View style={{ alignItems: 'center', paddingVertical: 46, gap: 10 }}>
                   <ActivityIndicator color={colors.primary} />
@@ -322,6 +325,7 @@ export default function WelfareScreen() {
 
                   <View style={styles.actions}>
                     <Pressable onPress={() => void openUrl(record.detailUrl)} style={styles.detailBtn}>
+                      <GlassSurface radius={10} />
                       <Ionicons name="document-text-outline" size={16} color="#fff" />
                       <Text style={{ color: '#fff', fontSize: 14, fontWeight: '800' }}>
                         {record.restricted ? '前往官网查看' : '查看详情'}
@@ -368,6 +372,7 @@ export default function WelfareScreen() {
                 儿童失踪请立即报警，不需要等待 24 小时。越早报警，找回的希望越大。
               </Text>
               <Pressable onPress={() => void call('110')} style={styles.policeBtn}>
+                <GlassSurface radius={12} />
                 <Ionicons name="call" size={18} color="#fff" />
                 <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>立即拨打 110</Text>
               </Pressable>
@@ -416,6 +421,7 @@ export default function WelfareScreen() {
             {/* 寻亲流程 */}
             <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>寻亲流程</Text>
             <Card style={cardStyle}>
+              <GlassSurface radius={14} />
               {STEPS.map((s, i) => (
                 <View key={s.title} style={[styles.stepRow, i > 0 && { marginTop: 12 }]}>
                   <View style={[styles.stepNo, { backgroundColor: colors.primary }]}>
@@ -431,6 +437,7 @@ export default function WelfareScreen() {
 
             {/* 公安部团圆行动 */}
             <Card style={cardStyle}>
+              <GlassSurface radius={14} />
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Ionicons name="shield-checkmark-outline" size={18} color={colors.primary} />
                 <Text style={{ color: colors.text, fontSize: 15, fontWeight: '800' }}>公安部「团圆」行动</Text>
@@ -477,6 +484,7 @@ export default function WelfareScreen() {
 
             {/* 举报与求助 */}
             <Card style={cardStyle}>
+              <GlassSurface radius={14} />
               <Text style={{ color: colors.text, fontSize: 15, fontWeight: '800' }}>举报与求助渠道</Text>
               {[
                 { icon: 'call-outline' as const, label: '报警求助', value: '110', tel: '110' },
@@ -511,6 +519,7 @@ export default function WelfareScreen() {
           <>
             {/* 捐赠 / 支持 */}
             <Card style={cardStyle}>
+              <GlassSurface radius={14} />
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <View style={[styles.introIcon, { backgroundColor: 'rgba(239,68,68,0.10)' }]}>
                   <Ionicons name="heart" size={24} color="#ef4444" />
@@ -562,6 +571,7 @@ export default function WelfareScreen() {
               },
             ].map((item) => (
               <Card key={item.title} style={cardStyle}>
+                <GlassSurface radius={14} />
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                   <View style={[styles.supportIcon, { backgroundColor: 'rgba(37,99,235,0.10)' }]}>
                     <Ionicons name={item.icon} size={18} color={colors.primary} />
@@ -587,6 +597,7 @@ export default function WelfareScreen() {
             </View>
 
             <Card style={cardStyle}>
+              <GlassSurface radius={14} />
               <Text style={{ color: colors.text, fontSize: 15, fontWeight: '800' }}>官方联系方式</Text>
               {[
                 { icon: 'call-outline' as const, label: '工作日热线', value: '0435-3338090', run: () => void call('04353338090') },
@@ -609,6 +620,7 @@ export default function WelfareScreen() {
             </Card>
 
             <Card style={cardStyle}>
+              <GlassSurface radius={14} />
               <Text style={{ color: colors.text, fontSize: 15, fontWeight: '800', marginBottom: 2 }}>官方链接</Text>
               {[
                 { label: '宝贝回家官网', value: 'baobeihuijia.com', url: SITE },

@@ -5,8 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
+import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { useBgSetting, usePageBackground } from '@/lib/background';
@@ -20,13 +20,12 @@ import { setPendingProfileSection } from '@/lib/nav-intent';
 
 export default function ProfileEditScreen() {
   const router = useRouter();
-  const scheme = useColorScheme();
   const colors = useTheme();
   const pageBg = usePageBackground(colors);
   const bgSetting = useBgSetting();
   // 控件全透明模式: 与「我的」页一致, 卡片只留 1px 描边
   const glass = !!bgSetting.ctrl;
-  const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
+  const glassLine = GLASS_LINE;
   const uiMode = useUiMode();
   const night = uiMode === 'night';
   const CardWrap: ElementType = night ? NightCard : View;
@@ -128,6 +127,7 @@ export default function ProfileEditScreen() {
 
         {/* 头像 */}
         <CardWrap style={cardStyle(styles.card)}>
+          <GlassSurface radius={16} />
           <View
             style={[
               styles.avatarWrap,
@@ -147,6 +147,7 @@ export default function ProfileEditScreen() {
 
         {/* 昵称与 QQ */}
         <CardWrap style={cardStyle(styles.card)}>
+          <GlassSurface radius={16} />
           <Text style={[styles.cardTitle, { color: colors.text }]}>昵称与 QQ</Text>
           <Text style={[styles.label, { color: colors.textSecondary }]}>昵称</Text>
           <TextInput
@@ -171,6 +172,7 @@ export default function ProfileEditScreen() {
 
         {/* 云账户联动 */}
         <CardWrap style={cardStyle(styles.card)}>
+          <GlassSurface radius={16} />
           <Text style={[styles.cardTitle, { color: colors.text }]}>云账户</Text>
           {cloudUser ? (
             <>
@@ -228,6 +230,7 @@ export default function ProfileEditScreen() {
 
         {/* 学号 / 班级(来自主站账号, 点击学号可去设置) */}
         <CardWrap style={cardStyle(styles.card)}>
+          <GlassSurface radius={16} />
           <Pressable
             onPress={() => {
               setPendingProfileSection('account');
@@ -257,6 +260,7 @@ export default function ProfileEditScreen() {
               ? { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(37,99,235,0.6)' }
               : { backgroundColor: colors.primary },
           ]}>
+          <GlassSurface radius={12} />
           <Text style={[styles.saveText, glass && { color: colors.primary }]}>保存</Text>
         </Pressable>
 

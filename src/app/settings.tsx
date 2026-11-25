@@ -29,6 +29,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { PageBackdrop, usePageBackground, useBgSetting } from '@/lib/background';
 import { NightGlowBackground, NightCard, NightPrimaryButton, NightSectionHeader } from '@/components/night-kit';
+import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
 import { PickerField } from '@/components/picker-field';
 import { UiModePicker } from '@/components/ui-mode-picker';
 import { ThemePresetPicker } from '@/components/theme-preset-picker';
@@ -53,10 +54,11 @@ export default function SettingsScreen() {
   // 控件全透明模式: 设了背景图且开启开关 → 按钮/卡片只留文字 + 1px 外轮廓
   const bgSetting = useBgSetting();
   const glass = !!bgSetting.ctrl;
-  const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
+  const uiMode = useUiMode();
+  const glassLine =
+    scheme === 'dark' ? 'rgba(255,255,255,0.40)' : uiMode === 'glass' ? GLASS_LINE : 'rgba(0,0,0,0.30)';
   const glassBorder = (active = false) =>
     glass ? { borderWidth: 1, borderColor: active ? 'rgba(37,99,235,0.55)' : glassLine } : null;
-  const uiMode = useUiMode();
   const night = uiMode === 'night';
   // 墨夜模式: 卡片容器交给 NightCard 重绘, 去掉原背景/玻璃描边, 保留圆角与内边距
   const CardWrap: ElementType = night ? NightCard : View;
@@ -229,6 +231,7 @@ export default function SettingsScreen() {
                       : colors.backgroundElement,
                 },
               ]}>
+              <GlassSurface radius={10} />
               <Text style={{ color: colors.text, fontWeight: queryType === t.value ? '700' : '400' }}>
                 {t.label}
               </Text>
@@ -253,6 +256,7 @@ export default function SettingsScreen() {
               glassBorder(!!ready),
               { backgroundColor: glass ? (ready ? 'rgba(37,99,235,0.15)' : 'transparent') : ready ? colors.primary : colors.backgroundElement },
             ]}>
+            <GlassSurface radius={12} />
             {busy ? (
               <ActivityIndicator color={colors.text} />
             ) : (
@@ -272,6 +276,7 @@ export default function SettingsScreen() {
         {/* 教程设置(常驻): 交互式新手引导 + 图文教程 */}
         <TourTarget id="st.guide">
         <CardWrap style={cardStyle(styles.guideCard)}>
+          <GlassSurface radius={12} />
           {night ? (
             <NightSectionHeader title="教程设置" />
           ) : (
@@ -306,6 +311,7 @@ export default function SettingsScreen() {
 
         {/* 检查更新 */}
         <CardWrap style={cardStyle(styles.updateCard)}>
+          <GlassSurface radius={12} />
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Text style={{ color: colors.text, fontWeight: '700' }}>
               当前版本 v{currentVersion()}

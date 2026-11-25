@@ -10,6 +10,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '@/hooks/use-theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { NightCard, NightTint } from '@/components/night-kit';
+import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
 import { usePresetId } from '@/hooks/use-preset-id';
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { useBgSetting } from '@/lib/background';
@@ -52,7 +53,8 @@ export function ThemePresetPicker() {
   const night = uiMode === 'night';
   const bgSetting = useBgSetting();
   const glass = !!bgSetting.ctrl;
-  const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
+  const glassLine =
+    scheme === 'dark' ? 'rgba(255,255,255,0.40)' : uiMode === 'glass' ? GLASS_LINE : 'rgba(0,0,0,0.30)';
   const presetId = usePresetId();
   const [open, setOpen] = useState(false);
   const [paletteId, setPaletteId] = useState<CustomPaletteId>(() => getCustomPaletteId());
@@ -458,6 +460,7 @@ export function ThemePresetPicker() {
                 !night && !glass && { backgroundColor: colors.backgroundSelected },
                 !night && glass && { borderWidth: 1, borderColor: glassLine },
               ]}>
+              <GlassSurface radius={10} />
               <Ionicons name="cloud-upload-outline" size={15} color={colors.primary} />
               <Text style={{ color: colors.text, fontSize: 12.5, fontWeight: '700' }}>导出主题</Text>
             </Pressable>
@@ -473,6 +476,7 @@ export function ThemePresetPicker() {
                 !night && !glass && { backgroundColor: colors.backgroundSelected },
                 !night && glass && { borderWidth: 1, borderColor: glassLine },
               ]}>
+              <GlassSurface radius={10} />
               <Ionicons name="cloud-download-outline" size={15} color={colors.primary} />
               <Text style={{ color: colors.text, fontSize: 12.5, fontWeight: '700' }}>导入主题</Text>
             </Pressable>
@@ -487,9 +491,15 @@ export function ThemePresetPicker() {
       {night ? (
         <NightCard style={styles.nightCard}>{body}</NightCard>
       ) : glass ? (
-        <View style={[styles.card, { backgroundColor: 'transparent', borderWidth: 1, borderColor: glassLine }]}>{body}</View>
+        <View style={[styles.card, { backgroundColor: 'transparent', borderWidth: 1, borderColor: glassLine }]}>
+          <GlassSurface radius={12} />
+          {body}
+        </View>
       ) : (
-        <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>{body}</View>
+        <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
+          <GlassSurface radius={12} />
+          {body}
+        </View>
       )}
 
       {/* 导出主题 */}
