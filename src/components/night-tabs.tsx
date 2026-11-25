@@ -9,13 +9,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { withLayoutContext, usePathname, useRouter } from 'expo-router';
 import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { useNightGlass } from '@/hooks/use-night-glass';
+import { useTabBarLook } from '@/hooks/use-tab-bar-look';
+import { luminance, withAlpha } from '@/lib/tab-bar-style';
 
 const { Navigator } = createNativeBottomTabNavigator();
 const Tabs = withLayoutContext(Navigator);
@@ -32,6 +34,11 @@ function GlassTabBar() {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const blurOn = useNightGlass();
+  const look = useTabBarLook();
+  const dark = luminance(look.color) < 0.5;
+  const fg = dark ? '#F4F7FF' : '#1E293B';
+  const fgDim = dark ? 'rgba(255,255,255,0.55)' : 'rgba(30,41,59,0.50)';
+  const fgActive = dark ? '#9CC8FF' : '#2563EB';
   const activeIndex = Math.max(
     0,
     ITEMS.findIndex((i) => pathname === i.route || pathname.startsWith(`${i.route}/`)),
@@ -40,6 +47,10 @@ function GlassTabBar() {
   // 段宽实测, 指示器按像素滑动
   const [rowW, setRowW] = useState(0);
   const itemW = rowW / ITEMS.length;
+  const itemWRef = useRef(0);
+  itemWRef.current = itemW;
+  const activeRef = useRef(activeIndex);
+  activeRef.current = activeIndex;
 
   const x = useRef(new Animated.Value(0)).current;
   const stretch = useRef(new Animated.Value(0)).current;
@@ -47,6 +58,45 @@ function GlassTabBar() {
   const op2 = useRef(new Animated.Value(0)).current;
   const barPop = useRef(new Animated.Value(1)).current;
   const lastX = useRef(0);
+  const dragStart = useRef(0);
+
+  // 按住底栏左右拖动: 水滴跟手, 松手吸附最近的一档并切换
+  const pan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 6 && Math.abs(g.dx) > Math.abs(g.dy),
+      onPanResponderGrant: () => {
+        x.stopAnimation((v) => {
+          dragStart.current = v;
+        });
+        stretch.setValue(0.5);
+      },
+      onPanResponderMove: (_, g) => {
+        const w = itemWRef.current;
+        if (!w) return;
+        const max = (ITEMS.length - 1) * w;
+        x.setValue(Math.min(max, Math.max(0, dragStart.current + g.dx)));
+        barPop.setValue(1.015);
+      },
+      onPanResponderRelease: (_, g) => {
+        const w = itemWRef.current;
+        if (!w) return;
+        const max = (ITEMS.length - 1) * w;
+        const raw = Math.min(max, Math.max(0, dragStart.current + g.dx));
+        const idx = Math.min(ITEMS.length - 1, Math.max(0, Math.round(raw / w)));
+        lastX.current = idx * w;
+        Animated.parallel([
+          Animated.spring(x, { toValue: idx * w, friction: 5, tension: 140, useNativeDriver: true }),
+          Animated.spring(stretch, { toValue: 0, friction: 4, tension: 90, useNativeDriver: true }),
+          Animated.spring(barPop, { toValue: 1, friction: 4, tension: 140, useNativeDriver: true }),
+        ]).start();
+        if (idx !== activeRef.current) router.navigate(ITEMS[idx].route as never);
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(stretch, { toValue: 0, friction: 4, useNativeDriver: true }).start();
+        Animated.spring(barPop, { toValue: 1, friction: 4, useNativeDriver: true }).start();
+      },
+    }),
+  ).current;
 
   useEffect(() => {
     if (!itemW) return;
@@ -80,14 +130,22 @@ function GlassTabBar() {
 
   const content = (
     <>
-      <View pointerEvents="none" style={styles.sheen} />
-      <View style={styles.row} onLayout={(e) => setRowW(e.nativeEvent.layout.width)}>
+      <View
+        pointerEvents="none"
+        style={[styles.sheen, { backgroundColor: dark ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.95)' }]}
+      />
+      <View style={styles.row} onLayout={(e) => setRowW(e.nativeEvent.layout.width)} {...pan.panHandlers}>
         {/* 拖尾水珠 */}
         <Animated.View
           pointerEvents="none"
           style={[
             styles.trail,
-            { width: Math.max(0, itemW - 8), opacity: op2, transform: [{ translateX: x2 }] },
+            {
+              width: Math.max(0, itemW - 8),
+              opacity: op2,
+              transform: [{ translateX: x2 }],
+              backgroundColor: withAlpha(dark ? '#7FB2FF' : '#78BEFF', 0.5),
+            },
           ]}
         />
         {/* 水滴指示器 */}
@@ -95,15 +153,20 @@ function GlassTabBar() {
           pointerEvents="none"
           style={[
             styles.indicator,
-            { width: Math.max(0, itemW - 8), transform: [{ translateX: x }, { scaleX }, { scaleY }] },
+            {
+              width: Math.max(0, itemW - 8),
+              backgroundColor: dark ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.85)',
+              borderColor: dark ? 'rgba(255,255,255,0.26)' : 'rgba(255,255,255,0.98)',
+              transform: [{ translateX: x }, { scaleX }, { scaleY }],
+            },
           ]}
         />
         {ITEMS.map((item, i) => {
           const on = i === activeIndex;
           return (
             <Pressable key={item.route} onPress={() => router.navigate(item.route as never)} style={styles.item}>
-              <Ionicons name={(on ? item.active : item.icon) as never} size={20} color={on ? '#2563EB' : 'rgba(30,41,59,0.50)'} />
-              <Text style={[styles.label, { color: on ? '#2563EB' : 'rgba(30,41,59,0.50)' }]}>{item.label}</Text>
+              <Ionicons name={(on ? item.active : item.icon) as never} size={22} color={on ? fgActive : fgDim} />
+              <Text style={[styles.label, { color: on ? fgActive : fgDim }]}>{item.label}</Text>
             </Pressable>
           );
         })}
@@ -111,15 +174,34 @@ function GlassTabBar() {
     </>
   );
 
+  const glassBar = look.seeThrough && blurOn;
+
   return (
     <View pointerEvents="box-none" style={[styles.host, { bottom: Math.max(insets.bottom, 10) }]}>
       <Animated.View style={[styles.shadow, { transform: [{ scale: barPop }] }]}>
-        {blurOn ? (
-          <BlurView intensity={70} tint="light" blurMethod="dimezisBlurView" style={styles.pill}>
+        {glassBar ? (
+          <BlurView
+            intensity={70}
+            tint="light"
+            blurMethod="dimezisBlurView"
+            style={[styles.pill, { borderColor: 'rgba(255,255,255,0.95)' }]}>
+            <View
+              pointerEvents="none"
+              style={[StyleSheet.absoluteFill, { backgroundColor: withAlpha(look.color, 0.32) }]}
+            />
             {content}
           </BlurView>
         ) : (
-          <View style={[styles.pill, styles.pillFallback]}>{content}</View>
+          <View
+            style={[
+              styles.pill,
+              {
+                backgroundColor: look.seeThrough ? withAlpha(look.color, 0.92) : look.color,
+                borderColor: dark ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.95)',
+              },
+            ]}>
+            {content}
+          </View>
         )}
       </Animated.View>
     </View>
@@ -131,7 +213,7 @@ export default function NightTabs() {
   const insets = useSafeAreaInsets();
   const glass = mode === 'glass' || mode === 'night';
   // 为悬浮底栏预留高度, 避免课表底部周次条等内容被盖住
-  const reserve = glass ? 62 + Math.max(insets.bottom, 10) + 8 : 0;
+  const reserve = glass ? 72 + Math.max(insets.bottom, 10) + 8 : 0;
   return (
     <View style={{ flex: 1 }}>
       <Tabs
@@ -188,8 +270,8 @@ const styles = StyleSheet.create({
     elevation: 24,
   },
   pill: {
-    height: 62,
-    borderRadius: 31,
+    height: 72,
+    borderRadius: 36,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.95)',
     flexDirection: 'row',
@@ -197,7 +279,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     overflow: 'hidden',
   },
-  pillFallback: { backgroundColor: 'rgba(255,255,255,0.88)' },
   sheen: {
     position: 'absolute',
     top: 0,
@@ -209,19 +290,19 @@ const styles = StyleSheet.create({
   row: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   item: {
     flex: 1,
-    height: 48,
-    borderRadius: 24,
+    height: 58,
+    borderRadius: 29,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
+    gap: 3,
   },
   indicator: {
     position: 'absolute',
     left: 4,
     top: 7,
     bottom: 7,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.78)',
+    borderRadius: 29,
+    backgroundColor: 'rgba(255,255,255,0.85)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.98)',
     shadowColor: '#2563EB',
@@ -233,10 +314,10 @@ const styles = StyleSheet.create({
   trail: {
     position: 'absolute',
     left: 4,
-    top: 14,
-    height: 34,
+    top: 18,
+    height: 36,
     borderRadius: 18,
     backgroundColor: 'rgba(120,190,255,0.55)',
   },
-  label: { fontSize: 10.5, fontWeight: '700' },
+  label: { fontSize: 11, fontWeight: '700' },
 });

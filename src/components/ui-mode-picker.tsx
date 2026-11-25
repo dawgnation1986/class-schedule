@@ -7,15 +7,17 @@
  * 稳定性说明: 动画使用 RN 内置 Animated(JS 线程驱动), 不用 reanimated worklet
  */
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { useTheme } from '@/hooks/use-theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useNightGlassDisabled } from '@/hooks/use-night-glass';
+import { useTabBarLook } from '@/hooks/use-tab-bar-look';
 import { saveUiMode, type UiMode } from '@/lib/ui-mode';
 import { setNightGlassDisabled } from '@/lib/night-glass';
+import { setTabBarLook, TAB_BAR_COLORS } from '@/lib/tab-bar-style';
 import { useBgSetting } from '@/lib/background';
 
 type PickerVal = Extract<UiMode, 'original' | 'glass'>;
@@ -31,6 +33,13 @@ export function UiModePicker() {
   const scheme = useColorScheme();
   const glassDisabled = useNightGlassDisabled();
   const bgSetting = useBgSetting();
+  const look = useTabBarLook();
+  const [hex, setHex] = useState(look.color);
+  useEffect(() => setHex(look.color), [look.color]);
+  const commitHex = () => {
+    if (/^#[0-9a-fA-F]{6}$/.test(hex)) void setTabBarLook({ color: hex.toUpperCase() });
+    else setHex(look.color);
+  };
   const glassActive = mode === 'glass';
   const transparent = glassActive || !!bgSetting.ctrl;
   const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
@@ -137,6 +146,52 @@ export function UiModePicker() {
           />
         </View>
       )}
+
+      {/* 底栏外观: 颜色 + 透字模式 */}
+      {glassActive && (
+        <View style={styles.barBlock}>
+          <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13 }}>底栏颜色</Text>
+          <View style={styles.swatchRow}>
+            {TAB_BAR_COLORS.map((c) => (
+              <Pressable
+                key={c.value}
+                onPress={() => void setTabBarLook({ color: c.value })}
+                style={[
+                  styles.swatch,
+                  { backgroundColor: c.value },
+                  look.color === c.value && { borderWidth: 2, borderColor: activeColor },
+                ]}>
+                {look.color === c.value && <Ionicons name="checkmark" size={14} color={look.color === '#20242E' ? '#fff' : '#2563EB'} />}
+              </Pressable>
+            ))}
+          </View>
+          <TextInput
+            value={hex}
+            onChangeText={setHex}
+            onBlur={commitHex}
+            onSubmitEditing={commitHex}
+            placeholder="#F7F3EA"
+            placeholderTextColor={colors.textSecondary}
+            autoCapitalize="characters"
+            maxLength={7}
+            style={[styles.hexInput, { color: colors.text, borderColor: glassLine }]}
+          />
+          <View style={styles.barRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13 }}>透字模式</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 10.5, marginTop: 2 }}>
+                开启后底栏透出模糊壁纸；关闭为奶白实底
+              </Text>
+            </View>
+            <Switch
+              value={look.seeThrough}
+              onValueChange={(v) => void setTabBarLook({ seeThrough: v })}
+              trackColor={{ true: '#2563EB', false: 'rgba(128,128,128,0.35)' }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+        </View>
+      )}
     </>
   );
 
@@ -175,4 +230,25 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
   },
+  barBlock: { marginTop: 14, gap: 6 },
+  swatchRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 2 },
+  swatch: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(128,128,128,0.28)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hexInput: {
+    marginTop: 4,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 13,
+    letterSpacing: 1,
+  },
+  barRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 },
 });

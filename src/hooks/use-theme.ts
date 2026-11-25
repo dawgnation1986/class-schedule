@@ -39,9 +39,9 @@ export function useTheme() {
   if (mode === 'glass') {
     return {
       ...Colors.light,
-      background: 'rgba(246,250,255,0.30)',
-      backgroundElement: 'rgba(255,255,255,0.55)',
-      backgroundSelected: 'rgba(255,255,255,0.78)',
+      background: 'rgba(247,250,255,0.22)',
+      backgroundElement: 'rgba(255,255,255,0.60)',
+      backgroundSelected: 'rgba(255,255,255,0.82)',
       primary: getAccentColor(),
     };
   }
