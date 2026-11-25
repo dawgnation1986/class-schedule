@@ -60,6 +60,15 @@ jobs:
             --output class-schedule.apk
           ls -la class-schedule.apk
 
+      # 无论 Release 是否创建成功, 都先把 APK 存成 Actions 产物,
+      # 避免 GitHub Releases API 抽风(HTTP 500)时 20 分钟的构建白跑
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: class-schedule-apk
+          path: class-schedule.apk
+          retention-days: 14
+
       - name: Create GitHub Release and upload APK
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -93,5 +102,19 @@ jobs:
           case "$TAG" in
             *-*) PRERELEASE_FLAG="--prerelease" ;;
           esac
-          gh release create "$TAG" "$APK_NAME" --title "$TITLE" --notes "$NOTES" $PRERELEASE_FLAG \
-            || gh release upload "$TAG" "$APK_NAME" --clobber
+          # GitHub Releases API 偶发 HTTP 500: 重试 5 次, 失败也只告警不判失败,
+          # APK 已在上一步存为 Actions 产物, 不会丢失
+          ok=0
+          for i in 1 2 3 4 5; do
+            if gh release create "$TAG" "$APK_NAME" --title "$TITLE" --notes "$NOTES" $PRERELEASE_FLAG; then
+              ok=1; break
+            fi
+            if gh release view "$TAG" >/dev/null 2>&1 && gh release upload "$TAG" "$APK_NAME" --clobber; then
+              ok=1; break
+            fi
+            echo "创建 Release 失败(第 $i 次), 20 秒后重试..."
+            sleep 20
+          done
+          if [ "$ok" != "1" ]; then
+            echo "::warning::GitHub Releases API 持续失败, 本版 APK 请到本次 Actions 运行的 Artifacts 下载"
+          fi
