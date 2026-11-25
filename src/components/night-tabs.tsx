@@ -8,7 +8,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { withLayoutContext, usePathname, useRouter } from 'expo-router';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
 import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -19,7 +19,7 @@ import { useNightGlass } from '@/hooks/use-night-glass';
 import { useTabBarLook } from '@/hooks/use-tab-bar-look';
 import { luminance, withAlpha } from '@/lib/tab-bar-style';
 
-const { Navigator } = createBottomTabNavigator();
+const { Navigator } = createNativeBottomTabNavigator();
 const Tabs = withLayoutContext(Navigator);
 
 const ITEMS = [
@@ -125,8 +125,8 @@ function GlassTabBar() {
     lastX.current = to;
   }, [activeIndex, itemW, x, stretch, x2, op2, barPop]);
 
-  const scaleX = stretch.interpolate({ inputRange: [0, 1], outputRange: [1, 1.34] });
-  const scaleY = stretch.interpolate({ inputRange: [0, 1], outputRange: [1, 0.78] });
+  const scaleX = stretch.interpolate({ inputRange: [0, 1], outputRange: [1, 1.18] });
+  const scaleY = stretch.interpolate({ inputRange: [0, 1], outputRange: [1, 0.90] });
 
   const content = (
     <>
@@ -155,8 +155,8 @@ function GlassTabBar() {
             styles.indicator,
             {
               width: Math.max(0, itemW - 8),
-              backgroundColor: dark ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.85)',
-              borderColor: dark ? 'rgba(255,255,255,0.26)' : 'rgba(255,255,255,0.98)',
+              backgroundColor: dark ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.66)',
+              borderColor: dark ? 'rgba(255,255,255,0.26)' : 'rgba(255,255,255,0.95)',
               transform: [{ translateX: x }, { scaleX }, { scaleY }],
             },
           ]}
@@ -217,26 +217,33 @@ export default function NightTabs() {
   return (
     <View style={{ flex: 1 }}>
       <Tabs
-        // JS 版导航器不渲染任何原生/Material 底栏: 该白药丸不再透出
-        tabBar={() => null}
-        screenLayout={({ children }) => (
-          <View style={{ flex: 1, paddingBottom: reserve, backgroundColor: 'transparent' }}>{children}</View>
-        )}
-        screenOptions={{
-          headerShown: false,
-          sceneStyle: { backgroundColor: 'transparent' },
-        }}>
+        tabBarHidden={glass}
+        translucent={glass}
+        hapticFeedbackEnabled={true}
+        sidebarAdaptable={false}>
         <Tabs.Screen
           name="home"
-          options={{ title: '主站' }}
+          options={{
+            title: '主站',
+            sceneStyle: { backgroundColor: 'transparent', paddingBottom: reserve },
+            tabBarIcon: () => require('@/assets/images/tabIcons/explore.png'),
+          }}
         />
         <Tabs.Screen
           name="timetable"
-          options={{ title: '课表' }}
+          options={{
+            title: '课表',
+            sceneStyle: { backgroundColor: 'transparent', paddingBottom: reserve },
+            tabBarIcon: () => require('@/assets/images/tabIcons/home.png'),
+          }}
         />
         <Tabs.Screen
           name="profile"
-          options={{ title: '我的' }}
+          options={{
+            title: '我的',
+            sceneStyle: { backgroundColor: 'transparent', paddingBottom: reserve },
+            tabBarIcon: () => require('@/assets/images/tabIcons/person.png'),
+          }}
         />
       </Tabs>
       {glass && <GlassTabBar />}
@@ -290,9 +297,9 @@ const styles = StyleSheet.create({
   indicator: {
     position: 'absolute',
     left: 4,
-    top: 7,
-    bottom: 7,
-    borderRadius: 29,
+    top: 5,
+    bottom: 5,
+    borderRadius: 31,
     backgroundColor: 'rgba(255,255,255,0.85)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.98)',
@@ -305,9 +312,9 @@ const styles = StyleSheet.create({
   trail: {
     position: 'absolute',
     left: 4,
-    top: 18,
-    height: 36,
-    borderRadius: 18,
+    top: 19,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: 'rgba(120,190,255,0.55)',
   },
   label: { fontSize: 11, fontWeight: '700' },
