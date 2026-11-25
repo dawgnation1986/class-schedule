@@ -1,8 +1,9 @@
-﻿/**
- * 界面设置: 原版界面 / 墨夜主题 / 液态玻璃
- * 液态玻璃与墨夜共用同一套布局, 只是把面板换成 iOS 26 原生毛玻璃 + 彩色流光背景
- * 选择器带水滴动效: 指示器拉伸滑到目标档位, 一颗小水珠拖尾跟来, 落定收拢
+/**
+ * 界面设置: 原版界面 / 液态玻璃
+ * 液态玻璃沿用原版界面的布局与配色, 只在最底层加一层模糊流光壁纸,
+ * 并把卡片/按钮变成半透明玻璃(复用现有透明控件样式)。
  *
+ * 选择器带水滴动效: 指示器拉伸滑到目标档位, 一颗小水珠拖尾跟来, 落定收拢
  * 稳定性说明: 动画使用 RN 内置 Animated(JS 线程驱动), 不用 reanimated worklet
  */
 import { useEffect, useRef, useState } from 'react';
@@ -13,19 +14,15 @@ import { useUiMode } from '@/hooks/use-ui-mode';
 import { useTheme } from '@/hooks/use-theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useNightGlassDisabled } from '@/hooks/use-night-glass';
-import { useGlassSkin } from '@/hooks/use-glass-skin';
 import { saveUiMode, type UiMode } from '@/lib/ui-mode';
-import { setGlassSkin } from '@/lib/glass-skin';
 import { setNightGlassDisabled } from '@/lib/night-glass';
 import { useBgSetting } from '@/lib/background';
-import { NightCard, NightTint } from '@/components/night-kit';
 
-type PickerVal = UiMode | 'glass';
+type PickerVal = Extract<UiMode, 'original' | 'glass'>;
 
 const OPTIONS: { value: PickerVal; label: string; hint: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { value: 'original', label: '原版界面', hint: '经典样式 · 清晰', icon: 'square' },
-  { value: 'night', label: '墨夜主题', hint: '实色深色面板', icon: 'moon' },
-  { value: 'glass', label: '液态玻璃', hint: 'iOS 26 毛玻璃', icon: 'sparkles' },
+  { value: 'glass', label: '液态玻璃', hint: 'iOS 26 · 毛玻璃', icon: 'sparkles' },
 ];
 
 export function UiModePicker() {
@@ -33,15 +30,16 @@ export function UiModePicker() {
   const colors = useTheme();
   const scheme = useColorScheme();
   const glassDisabled = useNightGlassDisabled();
-  const glassSkin = useGlassSkin();
   const bgSetting = useBgSetting();
-  const glass = !!bgSetting.ctrl;
+  const glassActive = mode === 'glass';
+  const transparent = glassActive || !!bgSetting.ctrl;
   const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
-  const current: PickerVal = mode === 'night' ? (glassSkin ? 'glass' : 'night') : 'original';
+
+  const current: PickerVal = glassActive ? 'glass' : 'original';
   const [draft, setDraft] = useState<PickerVal>(current);
   useEffect(() => setDraft(current), [current]);
 
-  // 三档布局: 指示器按像素平移(段宽 onLayout 实测)
+  // 两档布局: 指示器按像素平移(段宽 onLayout 实测)
   const [segW, setSegW] = useState(0);
 
   const x = useRef(new Animated.Value(OPTIONS.findIndex((o) => o.value === current) * segW)).current;
@@ -73,30 +71,16 @@ export function UiModePicker() {
   const scaleX = stretch.interpolate({ inputRange: [0, 1], outputRange: [1, 1.5] });
   const scaleY = stretch.interpolate({ inputRange: [0, 1], outputRange: [1, 0.78] });
 
-  const night = mode === 'night';
-  const glassActive = night && glassSkin;
   const indBg = glassActive
     ? 'rgba(120,190,255,0.26)'
-    : night
-      ? 'rgba(91,140,255,0.22)'
-      : glass
-        ? 'rgba(37,99,235,0.20)'
-        : colors.background === '#000000'
-          ? 'rgba(255,255,255,0.20)'
-          : 'rgba(37,99,235,0.12)';
-  const activeColor = night ? (glassActive ? '#8FD0FF' : '#5B8CFF') : colors.primary;
+    : colors.background === '#000000'
+      ? 'rgba(255,255,255,0.20)'
+      : 'rgba(37,99,235,0.12)';
+  const activeColor = glassActive ? (scheme === 'dark' ? '#8FD0FF' : '#2563EB') : colors.primary;
 
   const pick = (v: PickerVal) => {
     setDraft(v);
-    if (v === 'glass') {
-      void setGlassSkin(true);
-      void saveUiMode('night');
-    } else if (v === 'night') {
-      void setGlassSkin(false);
-      void saveUiMode('night');
-    } else {
-      void saveUiMode('original');
-    }
+    void saveUiMode(v);
   };
 
   const body = (
@@ -107,7 +91,7 @@ export function UiModePicker() {
       </Text>
 
       <View
-        style={[styles.segWrap, glass && !night && styles.segWrapGlass]}
+        style={[styles.segWrap, transparent && styles.segWrapGlass, { borderColor: glassLine }]}
         onLayout={(e) => setSegW(e.nativeEvent.layout.width / OPTIONS.length)}>
         {/* 拖尾小水珠 */}
         <Animated.View
@@ -137,7 +121,7 @@ export function UiModePicker() {
 
       {/* 调试/兼容开关: 关闭后液态玻璃回退为无原生模糊的半透明面板 */}
       {glassActive && (
-        <View style={[styles.glassRow, { borderColor: 'rgba(255,255,255,0.18)' }]}>
+        <View style={[styles.glassRow, { borderColor: glassLine }]}>
           <Ionicons name="sparkles-outline" size={16} color={activeColor} />
           <View style={{ flex: 1 }}>
             <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>原生毛玻璃</Text>
@@ -148,7 +132,7 @@ export function UiModePicker() {
           <Switch
             value={!glassDisabled}
             onValueChange={(v) => void setNightGlassDisabled(!v)}
-            trackColor={{ true: '#4C8DFF', false: 'rgba(255,255,255,0.18)' }}
+            trackColor={{ true: '#2563EB', false: 'rgba(128,128,128,0.35)' }}
             thumbColor="#FFFFFF"
           />
         </View>
@@ -156,10 +140,7 @@ export function UiModePicker() {
     </>
   );
 
-  if (night) {
-    return <NightCard style={styles.nightCard}>{body}</NightCard>;
-  }
-  if (glass) {
+  if (transparent) {
     return (
       <View style={[styles.card, { backgroundColor: 'transparent', borderWidth: 1, borderColor: glassLine }]}>
         {body}
@@ -171,22 +152,18 @@ export function UiModePicker() {
 
 const styles = StyleSheet.create({
   card: { borderRadius: 12, padding: 16, marginTop: 24, gap: 4 },
-  nightCard: { padding: 16, marginTop: 24, gap: 4 },
   segWrap: {
     flexDirection: 'row',
     marginTop: 10,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: NightTint.line,
     overflow: 'hidden',
     backgroundColor: 'rgba(91,140,255,0.06)',
   },
-  segWrapGlass: {
-    backgroundColor: 'transparent',
-  },
+  segWrapGlass: { backgroundColor: 'transparent' },
   row: { flex: 1, flexDirection: 'row' },
   opt: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 14 },
-  ind: { position: 'absolute', top: 4, bottom: 4, left: 4, width: '33.3333%', borderRadius: 13 },
+  ind: { position: 'absolute', top: 4, bottom: 4, left: 4, width: '50%', borderRadius: 13 },
   drop: { position: 'absolute', top: 8, left: 4, width: 9, height: 9, borderRadius: 4.5 },
   glassRow: {
     flexDirection: 'row',

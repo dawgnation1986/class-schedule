@@ -31,7 +31,6 @@ export const PRESETS: PresetDef[] = [
   { id: 'custom', name: '自定义', desc: '自己搭配的界面与背景', swatch: ['#2563eb', '#93C5FD'], icon: 'color-palette-outline', uiMode: 'original', scheme: 'light' },
   { id: 'pure-white', name: '纯白', desc: '经典白底, 清晰直白', swatch: ['#FFFFFF', '#F0F0F3'], icon: 'sunny-outline', uiMode: 'original', scheme: 'light' },
   { id: 'pure-black', name: '纯黑', desc: '纯黑底色, 省电护眼', swatch: ['#000000', '#212225'], icon: 'moon-outline', uiMode: 'original', scheme: 'dark' },
-  { id: 'night', name: '墨夜', desc: '深邃夜空 · 蓝紫辉光', swatch: ['#0B0E17', '#151B2B'], icon: 'moon', uiMode: 'night', scheme: 'dark' },
   { id: 'sepia', name: '护眼米黄', desc: '暖米纸感, 长时间阅读不累', swatch: ['#F7F1E3', '#EFE7D3'], icon: 'book-outline', uiMode: 'original', scheme: 'light', palette: 'sepia' },
   { id: 'azure', name: '淡雅蓝', desc: '浅蓝清爽, 蓝色点缀', swatch: ['#F3F8FD', '#E4EEF8'], icon: 'water-outline', uiMode: 'original', scheme: 'light', palette: 'azure' },
 ];
@@ -348,7 +347,7 @@ export async function listThemeFiles(): Promise<PresetFile[]> {
 export async function applyThemeFile(item: PresetFile): Promise<void> {
   const exp = item.data;
   if (cache.presetId === 'custom') await snapshotCustom();
-  await saveUiMode(exp.uiMode === 'night' ? 'night' : 'original');
+  await saveUiMode(exp.uiMode);
   await saveThemeMode(exp.scheme === 'dark' ? 'dark' : exp.scheme === 'light' ? 'light' : 'light');
   let bg: BgSetting = { uri: null, opacity: exp.bgOpacity, ctrl: exp.bgCtrl };
   if (exp.bgFile) {

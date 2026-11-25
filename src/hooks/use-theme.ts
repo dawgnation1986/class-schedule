@@ -35,6 +35,8 @@ export function useTheme() {
   useThemeTick();
 
   if (mode === 'night') return NightColors;
+  // 液态玻璃固定使用明亮配色, 保证玻璃卡片上的深色文字清晰
+  if (mode === 'glass') return { ...Colors.light, primary: getAccentColor() };
   if (presetId === 'sepia') return SepiaColors;
   if (presetId === 'azure') return AzureColors;
   const base =

@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
-import { useGlassSkin } from '@/hooks/use-glass-skin';
+import { useUiMode } from '@/hooks/use-ui-mode';
 import { useNightGlass } from '@/hooks/use-night-glass';
 
 const { Navigator } = createNativeBottomTabNavigator();
@@ -30,24 +30,32 @@ function GlassTabBar() {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const blurOn = useNightGlass();
+  const dark = false; // 液态玻璃固定明亮风格
+  const fg = dark ? '#EAF3FF' : '#1E293B';
+  const fgDim = dark ? 'rgba(255,255,255,0.62)' : 'rgba(30,41,59,0.52)';
+  const itemBg = dark ? 'rgba(255,255,255,0.17)' : 'rgba(255,255,255,0.70)';
+  const itemBorder = dark ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.95)';
   const activeIndex = ITEMS.findIndex((i) => pathname === i.route || pathname.startsWith(`${i.route}/`));
 
   const content = (
     <>
-      <View pointerEvents="none" style={styles.sheen} />
+      <View
+        pointerEvents="none"
+        style={[styles.sheen, { backgroundColor: dark ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.95)' }]}
+      />
       {ITEMS.map((item, i) => {
         const on = i === activeIndex;
         return (
           <Pressable
             key={item.route}
             onPress={() => router.navigate(item.route as never)}
-            style={[styles.item, on && styles.itemActive]}>
+            style={[styles.item, on && { backgroundColor: itemBg, borderWidth: 1, borderColor: itemBorder }]}>
             <Ionicons
               name={(on ? item.active : item.icon) as never}
               size={20}
-              color={on ? '#EAF3FF' : 'rgba(255,255,255,0.62)'}
+              color={on ? (dark ? fg : '#2563EB') : fgDim}
             />
-            <Text style={[styles.label, { color: on ? '#EAF3FF' : 'rgba(255,255,255,0.62)' }]}>{item.label}</Text>
+            <Text style={[styles.label, { color: on ? (dark ? fg : '#2563EB') : fgDim }]}>{item.label}</Text>
           </Pressable>
         );
       })}
@@ -58,11 +66,24 @@ function GlassTabBar() {
     <View pointerEvents="box-none" style={[styles.host, { bottom: Math.max(insets.bottom, 10) }]}>
       <View style={styles.shadow}>
         {blurOn ? (
-          <BlurView intensity={65} tint="dark" blurMethod="dimezisBlurView" style={styles.pill}>
+          <BlurView
+            intensity={65}
+            tint={dark ? 'dark' : 'light'}
+            blurMethod="dimezisBlurView"
+            style={[styles.pill, { borderColor: dark ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.95)' }]}>
             {content}
           </BlurView>
         ) : (
-          <View style={[styles.pill, styles.pillFallback]}>{content}</View>
+          <View
+            style={[
+              styles.pill,
+              {
+                backgroundColor: dark ? 'rgba(24,31,52,0.86)' : 'rgba(255,255,255,0.88)',
+                borderColor: dark ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.95)',
+              },
+            ]}>
+            {content}
+          </View>
         )}
       </View>
     </View>
@@ -70,7 +91,11 @@ function GlassTabBar() {
 }
 
 export default function NightTabs() {
-  const glass = useGlassSkin();
+  const mode = useUiMode();
+  const insets = useSafeAreaInsets();
+  const glass = mode === 'glass' || mode === 'night';
+  // 为悬浮底栏预留高度, 避免课表底部周次条等内容被盖住
+  const reserve = glass ? 62 + Math.max(insets.bottom, 10) + 8 : 0;
   return (
     <View style={{ flex: 1 }}>
       <Tabs
@@ -84,6 +109,7 @@ export default function NightTabs() {
           name="home"
           options={{
             title: '主站',
+            sceneStyle: { backgroundColor: 'transparent', paddingBottom: glass ? reserve : 0 },
             tabBarIcon: () => require('@/assets/images/tabIcons/explore.png'),
           }}
         />
@@ -91,6 +117,7 @@ export default function NightTabs() {
           name="timetable"
           options={{
             title: '课表',
+            sceneStyle: { backgroundColor: 'transparent', paddingBottom: glass ? reserve : 0 },
             tabBarIcon: () => require('@/assets/images/tabIcons/home.png'),
           }}
         />
@@ -98,6 +125,7 @@ export default function NightTabs() {
           name="profile"
           options={{
             title: '我的',
+            sceneStyle: { backgroundColor: 'transparent', paddingBottom: glass ? reserve : 0 },
             tabBarIcon: () => require('@/assets/images/tabIcons/person.png'),
           }}
         />

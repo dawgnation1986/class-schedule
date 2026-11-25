@@ -4,8 +4,11 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { AppState, Image, StyleSheet, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { type Palette } from '@/constants/theme';
+import { useUiMode } from '@/hooks/use-ui-mode';
 import { toDisplayUri } from '@/lib/class-folder';
 
 export type BgSetting = { uri: string | null; opacity: number; ctrl?: boolean };
@@ -99,18 +102,20 @@ export async function setControlsTransparent(ctrl: boolean): Promise<void> {
   await persist({ ...cache, ctrl });
 }
 
-/** 读取完整背景设置(订阅变化) */
+/** 读取完整背景设置(订阅变化); 液态玻璃模式下强制开启半透明控件 */
 export function useBgSetting(): BgSetting {
   const [bg, setBg] = useState<BgSetting>(() => cache);
+  const mode = useUiMode();
   useEffect(() => subscribeBackground(() => setBg({ ...cache })), []);
-  return bg;
+  return mode === 'glass' ? { ...bg, ctrl: true } : bg;
 }
 
-/** 页面背景色: 有自定义背景时页面透明露出底层图, 否则用主题色 */
+/** 页面背景色: 有自定义背景或液态玻璃时页面透明露出底层图, 否则用主题色 */
 export function usePageBackground(colors: Palette): string {
   const [bg, setBg] = useState<BgSetting>(() => cache);
+  const mode = useUiMode();
   useEffect(() => subscribeBackground(() => setBg({ ...cache })), []);
-  return bg.uri ? 'transparent' : colors.background;
+  return mode === 'glass' || bg.uri ? 'transparent' : colors.background;
 }
 
 /** 背景持久化 uri(私有目录/class:// 虚拟路径/file://)→ Image 可展示的真实 uri; 解析失败自动重试(权限状态可能稍后才就绪) */
@@ -168,3 +173,52 @@ export function PageBackdrop() {
     </View>
   );
 }
+
+/**
+ * 液态玻璃底图: 在根布局最底层铺一层彩色流光, 再做一次全屏原生模糊。
+ * 页面背景透明后, 这张「已经模糊的壁纸」就是所有玻璃卡片的折射来源。
+ * 没有自定义背景时显示; 自定义背景优先(BackgroundLayer 在其之上)。
+ */
+export function GlassWallpaper() {
+  const mode = useUiMode();
+  if (mode !== 'glass') return null;
+  const dark = false; // 液态玻璃固定明亮风格
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <LinearGradient
+        colors={dark ? ['#0A0F20', '#16204A', '#241238', '#0C1830'] : ['#EAF2FF', '#E2E9FF', '#FBEFF8', '#EDF6FF']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={[styles.wBlob, dark ? styles.wBlueDark : styles.wBlueLight]} />
+      <View style={[styles.wBlob, dark ? styles.wVioletDark : styles.wVioletLight]} />
+      <View style={[styles.wBlob, dark ? styles.wPinkDark : styles.wPinkLight]} />
+      <View style={[styles.wBlob, dark ? styles.wCyanDark : styles.wCyanLight]} />
+      {/* 全屏模糊: 把上面的彩色光斑揉开, 形成柔和的磨砂壁纸 */}
+      <BlurView
+        intensity={dark ? 55 : 70}
+        tint={dark ? 'dark' : 'light'}
+        blurMethod="dimezisBlurView"
+        style={StyleSheet.absoluteFill}
+      />
+      <LinearGradient
+        colors={dark ? ['rgba(255,255,255,0.10)', 'transparent'] : ['rgba(255,255,255,0.55)', 'transparent']}
+        style={styles.wTopSheen}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  wBlob: { position: 'absolute', borderRadius: 999 },
+  wBlueLight: { width: 620, height: 620, top: -240, left: -220, backgroundColor: 'rgba(70,140,255,0.35)' },
+  wVioletLight: { width: 520, height: 520, top: 160, right: -240, backgroundColor: 'rgba(150,100,255,0.28)' },
+  wPinkLight: { width: 460, height: 460, bottom: -180, left: 30, backgroundColor: 'rgba(255,120,190,0.24)' },
+  wCyanLight: { width: 420, height: 420, bottom: 120, right: -160, backgroundColor: 'rgba(80,220,255,0.22)' },
+  wBlueDark: { width: 620, height: 620, top: -240, left: -220, backgroundColor: 'rgba(40,100,255,0.38)' },
+  wVioletDark: { width: 520, height: 520, top: 160, right: -240, backgroundColor: 'rgba(130,70,255,0.32)' },
+  wPinkDark: { width: 460, height: 460, bottom: -180, left: 30, backgroundColor: 'rgba(255,70,150,0.22)' },
+  wCyanDark: { width: 420, height: 420, bottom: 120, right: -160, backgroundColor: 'rgba(0,200,255,0.18)' },
+  wTopSheen: { position: 'absolute', top: 0, left: 0, right: 0, height: 300 },
+});

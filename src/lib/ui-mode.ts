@@ -1,10 +1,12 @@
-/** 界面模式管理: 原版界面 / 墨夜主题, AsyncStorage 持久化 + 订阅通知 */
+/** 界面模式管理: 原版界面 / 液态玻璃, AsyncStorage 持久化 + 订阅通知
+ *  夜墨黑已下线: 旧数据里的 night/glass 统一迁移为液态玻璃
+ */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type UiMode = 'original' | 'night';
+export type UiMode = 'original' | 'glass' | 'night';
 
 const KEY = 'ui-mode-v1';
-const LABELS: Record<UiMode, string> = { original: '原版界面', night: '墨夜主题' };
+const LABELS: Record<UiMode, string> = { original: '原版界面', glass: '液态玻璃', night: '液态玻璃' };
 
 let cache: UiMode | null = null;
 const subs = new Set<() => void>();
@@ -13,12 +15,12 @@ function notify() {
   subs.forEach((cb) => cb());
 }
 
-/** 启动预热(_layout 调用); 旧版"glass"值自动迁移为 night */
+/** 启动预热(_layout 调用); 旧的 night 值迁移为液态玻璃 */
 export async function primeUiMode(): Promise<void> {
   if (cache) return;
   try {
     const raw = await AsyncStorage.getItem(KEY);
-    cache = raw === 'glass' || raw === 'night' ? 'night' : 'original';
+    cache = raw === 'night' || raw === 'glass' ? 'glass' : 'original';
   } catch {
     cache = 'original';
   }
@@ -40,7 +42,8 @@ export function subscribeUiMode(cb: () => void): () => void {
 }
 
 export async function saveUiMode(mode: UiMode): Promise<void> {
-  cache = mode;
-  await AsyncStorage.setItem(KEY, mode).catch(() => {});
+  const next: UiMode = mode === 'night' ? 'glass' : mode;
+  cache = next;
+  await AsyncStorage.setItem(KEY, next).catch(() => {});
   notify();
 }

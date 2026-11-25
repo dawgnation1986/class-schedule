@@ -553,7 +553,7 @@ export function ThemePresetPicker() {
                   <Pressable onPress={() => doImport(item)} style={{ flex: 1 }}>
                     <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>{item.data.name}</Text>
                     <Text style={{ color: colors.textSecondary, fontSize: 11 }}>
-                      {item.data.uiMode === 'night' ? '墨夜' : item.data.scheme === 'dark' ? '深色' : '浅色'} · {item.data.at.slice(0, 10)}
+                      {item.data.uiMode === 'night' || item.data.uiMode === 'glass' ? '液态玻璃' : item.data.scheme === 'dark' ? '深色' : '浅色'} · {item.data.at.slice(0, 10)}
                     </Text>
                   </Pressable>
                   <Pressable

@@ -12,7 +12,7 @@ import { CoachTour, startCoachTour, shouldShowTour } from '@/components/tour';
 import { OnboardingModal, shouldShowOnboarding } from '@/components/onboarding';
 import { AgreementModal, shouldShowAgreement } from '@/components/agreement';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { BackgroundLayer, primeBackground } from '@/lib/background';
+import { BackgroundLayer, GlassWallpaper, primeBackground } from '@/lib/background';
 import { primeScheduleTimes } from '@/lib/schedule-times';
 import { primeThemeMode } from '@/lib/theme';
 import { primeUiMode } from '@/lib/ui-mode';
@@ -90,6 +90,8 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <AnimatedSplashOverlay />
+      {/* 液态玻璃: 最底层模糊流光壁纸(无自定义背景时显示) */}
+      <GlassWallpaper />
       {/* 自定义背景图层(页面背景透明时露出) */}
       <BackgroundLayer />
       <UpdatePrompt />

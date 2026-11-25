@@ -52,8 +52,8 @@ function NativeTabsFallback() {
 export default function AppTabs() {
   const uiMode = useUiMode();
 
-  // 墨夜模式: 原生标签栏(水滴动效指示器由系统提供)
-  if (uiMode === 'night') {
+  // 液态玻璃: 隐藏原生栏, 使用悬浮胶囊玻璃底栏
+  if (uiMode === 'glass' || uiMode === 'night') {
     return <NightTabsBoundary><NightTabs /></NightTabsBoundary>;
   }
 

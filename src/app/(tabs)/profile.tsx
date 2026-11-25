@@ -401,10 +401,10 @@ export default function ProfileScreen() {
     setTimeout(() => (toBottom ? goBottom() : goTop()), 0);
   };
   const SEARCH_ITEMS = [
-    { title: '主题预设 (纯白/纯黑/墨夜/护眼米黄/淡雅蓝/自定义)', kw: '主题 预设 纯白 纯黑 墨夜 护眼 米黄 淡雅 蓝 皮肤 配色 导出 导入 主题文件', hint: '外观与个性化', icon: 'color-palette-outline' as const, go: () => goSection('appearance') },
+    { title: '主题预设 (纯白/纯黑/护眼米黄/淡雅蓝/自定义)', kw: '主题 预设 纯白 纯黑 护眼 米黄 淡雅 蓝 皮肤 配色 导出 导入 主题文件', hint: '外观与个性化', icon: 'color-palette-outline' as const, go: () => goSection('appearance') },
     { title: '自定义配色 / 自定义颜色 (调色板)', kw: '自定义 配色 颜色 调色板 色卡 hex 底色 卡片 文字', hint: '外观与个性化', icon: 'options-outline' as const, go: () => goSection('appearance') },
     { title: '控件主色 (按钮/链接颜色)', kw: '主色 控件 按钮 链接 颜色 accent', hint: '外观与个性化', icon: 'brush-outline' as const, go: () => goSection('appearance') },
-    { title: '界面设置 (原版界面/墨夜主题)', kw: '界面 设置 墨夜 原版 主题 模式 切换', hint: '外观与个性化', icon: 'contrast-outline' as const, go: () => goSection('appearance') },
+    { title: '界面设置 (原版界面/液态玻璃)', kw: '界面 设置 液态玻璃 毛玻璃 原版 主题 模式 切换', hint: '外观与个性化', icon: 'contrast-outline' as const, go: () => goSection('appearance') },
     { title: '外观模式 (跟随系统/浅色/深色)', kw: '外观 模式 浅色 深色 跟随 系统 亮色 暗色', hint: '外观与个性化', icon: 'sunny-outline' as const, go: () => goSection('appearance') },
     { title: '自定义背景图 (背景/壁纸/透明度/控件透明)', kw: '背景 壁纸 图片 透明度 控件 全透明 毛玻璃', hint: '外观与个性化', icon: 'image-outline' as const, go: () => goSection('appearance') },
     { title: '班级课表设置 (系部/专业/班级)', kw: '班级 课表 系部 专业 设置 校园 数据', hint: '课表与学习', icon: 'school-outline' as const, go: () => { goSection('schedule'); router.push('/settings' as never); } },
