@@ -35,8 +35,16 @@ export function useTheme() {
   useThemeTick();
 
   if (mode === 'night') return NightColors;
-  // 液态玻璃固定使用明亮配色, 保证玻璃卡片上的深色文字清晰
-  if (mode === 'glass') return { ...Colors.light, primary: getAccentColor() };
+  // 液态玻璃固定使用明亮配色, 并把面板色变成半透明玻璃, 全站控件统一透出壁纸
+  if (mode === 'glass') {
+    return {
+      ...Colors.light,
+      background: 'rgba(246,250,255,0.30)',
+      backgroundElement: 'rgba(255,255,255,0.55)',
+      backgroundSelected: 'rgba(255,255,255,0.78)',
+      primary: getAccentColor(),
+    };
+  }
   if (presetId === 'sepia') return SepiaColors;
   if (presetId === 'azure') return AzureColors;
   const base =
