@@ -23,6 +23,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { usePageBackground, useBgSetting } from '@/lib/background';
 import { NightGlowBackground, NightCard, NightPrimaryButton } from '@/components/night-kit';
+import { useGlassTabReserve } from '@/components/night-tabs';
 import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
 import { AboutGithub } from '@/components/about-github';
 import { PORTAL_SITE, clearSession, loadLoginPage, submitLogin, tryRestoreSession, type LoginState, type PortalApp } from '@/lib/portal';
@@ -44,6 +45,7 @@ export default function PortalScreen() {
   // 控件全透明模式: 设了背景图且开启开关 → 按钮/卡片/输入框只留文字 + 1px 外轮廓
   const glass = !!bgSetting.ctrl;
   const uiMode = useUiMode();
+  const glassReserve = useGlassTabReserve();
   const night = uiMode === 'night';
   const glassLine =
     uiMode === 'glass'
@@ -238,7 +240,7 @@ export default function PortalScreen() {
       {/* 墨夜背景: 深空渐变 + 顶部辉光(绝对定位铺满, 原版模式不渲染) */}
       {night && <NightGlowBackground>{null}</NightGlowBackground>}
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, glassReserve > 0 && { paddingBottom: glassReserve + 16 }]}
         keyboardShouldPersistTaps="handled">
         <Text style={[styles.title, { color: colors.text }]}>综合管理平台</Text>
 

@@ -27,6 +27,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { usePageBackground, useBgSetting, PageBackdrop } from '@/lib/background';
 import { NightGlowBackground, NightCard } from '@/components/night-kit';
+import { useGlassTabReserve } from '@/components/night-tabs';
 import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
 import {
   beijingNow,
@@ -367,6 +368,7 @@ function ClassicScreen() {
   // 控件全透明模式: 设了背景图且开启开关 → 按钮/卡片/表格只留文字 + 1px 外轮廓
   const glass = !!bgSetting.ctrl;
   const uiMode = useUiMode();
+  const glassReserve = useGlassTabReserve();
   const night = uiMode === 'night';
   const glassLine =
     uiMode === 'glass'
@@ -673,7 +675,7 @@ function ClassicScreen() {
 
   if (!settings) {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }, glassReserve > 0 && { paddingBottom: glassReserve }]} edges={['top']}>
         {/* 墨夜背景: 深空渐变 + 顶部辉光(绝对定位铺满, 原版模式不渲染) */}
         {night && <NightGlowBackground>{null}</NightGlowBackground>}
         <PageBackdrop />

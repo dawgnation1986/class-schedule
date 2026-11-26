@@ -27,6 +27,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { usePageBackground, useBgSetting } from '@/lib/background';
 import { useNightGlassDisabled } from '@/hooks/use-night-glass';
+import { useGlassTabReserve } from '@/components/night-tabs';
 import { NightGlowBackground, NightCard } from '@/components/night-kit';
 import { getThemeMode, saveThemeMode, subscribeTheme, themeModeLabel, type ThemeMode } from '@/lib/theme';
 import { getWeatherCity, setWeatherCity } from '@/lib/weather';
@@ -300,6 +301,7 @@ export default function ProfileScreen() {
   const glassBorder = (active = false) =>
     glass ? { borderWidth: 1, borderColor: active ? 'rgba(37,99,235,0.55)' : glassLine } : null;
   const uiMode = useUiMode();
+  const glassReserve = useGlassTabReserve();
   const night = uiMode === 'night';
   // 液态玻璃: 卡片底部垫一层原生模糊, 才是真正的 iOS 毛玻璃而不只是半透明
   const CardWrap: ElementType = night ? NightCard : uiMode === 'glass' ? GlassCard : View;
@@ -655,7 +657,7 @@ export default function ProfileScreen() {
       {night && <NightGlowBackground>{null}</NightGlowBackground>}
       <ScrollView
         ref={scrollRef}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, glassReserve > 0 && { paddingBottom: glassReserve + 16 }]}
         keyboardShouldPersistTaps="handled">
         <View style={styles.headerRow}>
           {section ? (

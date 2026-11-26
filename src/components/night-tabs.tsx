@@ -12,6 +12,7 @@ import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
 import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useUiMode } from '@/hooks/use-ui-mode';
@@ -135,7 +136,7 @@ function GlassTabBar() {
           const on = i === activeIndex;
           return (
             <Pressable key={item.route} onPress={() => router.navigate(item.route as never)} style={styles.item}>
-              <Ionicons name={(on ? item.active : item.icon) as never} size={22} color={on ? fgActive : fgDim} />
+              <Ionicons name={(on ? item.active : item.icon) as never} size={24} color={on ? fgActive : fgDim} />
               <Text style={[styles.label, { color: on ? fgActive : fgDim }]}>{item.label}</Text>
             </Pressable>
           );
@@ -148,33 +149,49 @@ function GlassTabBar() {
 
   return (
     <View
-      style={[
-        styles.host,
-        { marginBottom: Math.max(insets.bottom, 10) },
-      ]}>
+      pointerEvents="box-none"
+      style={[styles.host, { bottom: Math.max(insets.bottom, 10) }]}>
       <View style={styles.shadow}>
         {glassBar ? (
           <BlurView
-            intensity={70}
+            intensity={80}
             tint="light"
             blurMethod="dimezisBlurView"
-            style={[styles.pill, { borderColor: 'rgba(255,255,255,0.95)' }]}>
+            style={[
+              styles.pill,
+              { borderColor: 'rgba(255,255,255,0.95)', backgroundColor: withAlpha(look.color, 0.82) },
+            ]}>
             <View
               pointerEvents="none"
-              style={[StyleSheet.absoluteFill, { backgroundColor: withAlpha(look.color, 0.32) }]}
+              style={[StyleSheet.absoluteFill, { backgroundColor: withAlpha(look.color, 0.22) }]}
+            />
+            {/* 水感高光: 上缘亮、中部透、下缘再提亮, 模拟玻璃边缘的折射 */}
+            <LinearGradient
+              colors={['rgba(255,255,255,0.42)', 'rgba(255,255,255,0.04)', 'rgba(255,255,255,0.20)']}
+              locations={[0, 0.45, 1]}
+              style={StyleSheet.absoluteFill}
+              pointerEvents="none"
             />
             {content}
+            <View pointerEvents="none" style={styles.bottomSheen} />
           </BlurView>
         ) : (
           <View
             style={[
               styles.pill,
               {
-                backgroundColor: look.seeThrough ? withAlpha(look.color, 0.92) : look.color,
+                backgroundColor: withAlpha(look.color, 0.98),
                 borderColor: dark ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.95)',
               },
             ]}>
+            <LinearGradient
+              colors={['rgba(255,255,255,0.34)', 'rgba(255,255,255,0.02)', 'rgba(255,255,255,0.16)']}
+              locations={[0, 0.5, 1]}
+              style={StyleSheet.absoluteFill}
+              pointerEvents="none"
+            />
             {content}
+            <View pointerEvents="none" style={styles.bottomSheen} />
           </View>
         )}
       </View>
@@ -182,40 +199,47 @@ function GlassTabBar() {
   );
 }
 
+/** 液态玻璃悬浮底栏为页面内容预留的底部高度(不含页面自身 padding) */
+export function useGlassTabReserve(): number {
+  const mode = useUiMode();
+  const insets = useSafeAreaInsets();
+  return mode === 'glass' || mode === 'night' ? 80 + Math.max(insets.bottom, 10) + 16 : 0;
+}
+
 export default function NightTabs() {
   const mode = useUiMode();
+  const insets = useSafeAreaInsets();
   const glass = mode === 'glass' || mode === 'night';
+  // 悬浮底栏为页面内容预留的高度: 胶囊 + 底部间距 + 安全区
+  const reserve = glass ? 80 + Math.max(insets.bottom, 10) + 12 : 0;
   return (
     <View style={{ flex: 1 }}>
-      {/* 底栏改为占位布局(不再绝对定位): 页面内容到胶囊上沿就结束, 永远不会被压住 */}
-      <View style={{ flex: 1 }}>
-        <Tabs tabBarHidden={glass} translucent={glass} hapticFeedbackEnabled={true} sidebarAdaptable={false}>
-          <Tabs.Screen
-            name="home"
-            options={{
-              title: '主站',
-              sceneStyle: { backgroundColor: 'transparent' },
-              tabBarIcon: () => require('@/assets/images/tabIcons/explore.png'),
-            }}
-          />
-          <Tabs.Screen
-            name="timetable"
-            options={{
-              title: '课表',
-              sceneStyle: { backgroundColor: 'transparent' },
-              tabBarIcon: () => require('@/assets/images/tabIcons/home.png'),
-            }}
-          />
-          <Tabs.Screen
-            name="profile"
-            options={{
-              title: '我的',
-              sceneStyle: { backgroundColor: 'transparent' },
-              tabBarIcon: () => require('@/assets/images/tabIcons/person.png'),
-            }}
-          />
-        </Tabs>
-      </View>
+      <Tabs tabBarHidden={glass} translucent={glass} hapticFeedbackEnabled={true} sidebarAdaptable={false}>
+        <Tabs.Screen
+          name="home"
+          options={{
+            title: '主站',
+            sceneStyle: { backgroundColor: 'transparent', paddingBottom: reserve },
+            tabBarIcon: () => require('@/assets/images/tabIcons/explore.png'),
+          }}
+        />
+        <Tabs.Screen
+          name="timetable"
+          options={{
+            title: '课表',
+            sceneStyle: { backgroundColor: 'transparent', paddingBottom: reserve },
+            tabBarIcon: () => require('@/assets/images/tabIcons/home.png'),
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: '我的',
+            sceneStyle: { backgroundColor: 'transparent', paddingBottom: reserve },
+            tabBarIcon: () => require('@/assets/images/tabIcons/person.png'),
+          }}
+        />
+      </Tabs>
       {glass && <GlassTabBar />}
     </View>
   );
@@ -223,16 +247,17 @@ export default function NightTabs() {
 
 const styles = StyleSheet.create({
   host: {
-    marginHorizontal: 18,
-    marginTop: 6,
+    position: 'absolute',
+    left: 18,
+    right: 18,
     zIndex: 100,
   },
   shadow: {
-    borderRadius: 31,
+    borderRadius: 40,
   },
   pill: {
-    height: 72,
-    borderRadius: 36,
+    height: 80,
+    borderRadius: 40,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.95)',
     flexDirection: 'row',
@@ -248,21 +273,29 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: 'rgba(255,255,255,0.95)',
   },
+  bottomSheen: {
+    position: 'absolute',
+    bottom: 0,
+    left: 20,
+    right: 20,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.38)',
+  },
   row: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   item: {
     flex: 1,
-    height: 58,
-    borderRadius: 29,
+    height: 66,
+    borderRadius: 33,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
+    gap: 4,
   },
   indicator: {
     position: 'absolute',
     left: 12,
-    top: 8,
-    bottom: 8,
-    borderRadius: 28,
+    top: 10,
+    bottom: 10,
+    borderRadius: 30,
     backgroundColor: 'rgba(255,255,255,0.62)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.92)',

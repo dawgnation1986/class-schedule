@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { BlurView } from 'expo-blur';
 
 import { useTheme } from '@/hooks/use-theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -505,7 +506,9 @@ export function ThemePresetPicker() {
       {/* 导出主题 */}
       <Modal visible={expOpen} transparent animationType="fade" onRequestClose={() => setExpOpen(false)}>
         <Pressable style={styles.mask} onPress={() => setExpOpen(false)}>
-          <Pressable style={[styles.box, { backgroundColor: colors.background }]} onPress={() => {}}>
+          <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
+          <Pressable style={[styles.box, { backgroundColor: night ? 'rgba(18,24,40,0.60)' : 'rgba(255,255,255,0.55)' }]} onPress={() => {}}>
+            <GlassSurface radius={16} intensity={60} />
             <Text style={[styles.boxTitle, { color: colors.text }]}>导出当前主题</Text>
             <Text style={{ color: colors.textSecondary, fontSize: 12.5, lineHeight: 19 }}>
               把当前界面模式、亮/深配色与背景参数打包保存到手机 /Class/主题预设 文件夹（背景图一并保存），可分享给别人导入。
@@ -535,7 +538,9 @@ export function ThemePresetPicker() {
       {/* 导入主题 */}
       <Modal visible={impOpen} transparent animationType="fade" onRequestClose={() => setImpOpen(false)}>
         <Pressable style={styles.mask} onPress={() => setImpOpen(false)}>
-          <Pressable style={[styles.box, { backgroundColor: colors.background }]} onPress={() => {}}>
+          <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
+          <Pressable style={[styles.box, { backgroundColor: night ? 'rgba(18,24,40,0.60)' : 'rgba(255,255,255,0.55)' }]} onPress={() => {}}>
+            <GlassSurface radius={16} intensity={60} />
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Text style={[styles.boxTitle, { color: colors.text }]}>导入主题</Text>
               <Pressable hitSlop={10} onPress={loadFiles}>
