@@ -17,7 +17,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { setWeatherCity, type DayForecast, type WeatherFull } from '@/lib/weather';
-import { GlassSurface } from '@/components/glass-surface';
+import { GlassSurface, useBlurTarget } from '@/components/glass-surface';
 import { BlurView } from 'expo-blur';
 
 const WEEK = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
@@ -40,6 +40,7 @@ export function WeatherModal({
 }) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const blurTarget = useBlurTarget();
 
   const [detail, setDetail] = useState<DetailTarget | null>(null);
   const [cityOpen, setCityOpen] = useState(false);
@@ -92,7 +93,7 @@ export function WeatherModal({
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <View style={StyleSheet.absoluteFill}>
         {/* 背景: 先模糊整屏, 再压一层暗色, 保证弹窗文字清晰 */}
-        <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
+        <BlurView blurTarget={blurTarget ?? undefined} intensity={20} tint="dark" blurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} pointerEvents="none" />
         <Animated.View style={[StyleSheet.absoluteFill, { opacity: backdrop }]}>
           <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(15,23,42,0.45)' }]} onPress={onClose} />
         </Animated.View>
@@ -173,7 +174,7 @@ export function WeatherModal({
         {/* 城市输入弹窗 */}
         <Modal visible={cityOpen} transparent animationType="fade" onRequestClose={() => setCityOpen(false)}>
           <Pressable style={styles.cityMask} onPress={() => setCityOpen(false)}>
-            <BlurView intensity={26} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
+            <BlurView blurTarget={blurTarget ?? undefined} intensity={26} tint="dark" blurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} pointerEvents="none" />
             <Pressable style={[styles.cityBox, { backgroundColor: sheetBg }]} onPress={() => {}}>
               <GlassSurface radius={18} />
               <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800' }}>切换天气城市</Text>

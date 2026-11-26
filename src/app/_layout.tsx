@@ -1,11 +1,13 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { AppState, Platform } from 'react-native';
+import { AppState, Platform, type View } from 'react-native';
 import { Stack } from 'expo-router';
+import { BlurTargetView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SplashScreen from 'expo-splash-screen';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { BlurTargetProvider } from '@/components/glass-surface';
 import { UpdatePrompt } from '@/components/update-prompt';
 import { NoticePrompt } from '@/components/notice-prompt';
 import { CoachTour, startCoachTour, shouldShowTour } from '@/components/tour';
@@ -28,6 +30,8 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  // expo-blur 57: Android 的 BlurView 必须指向一个 BlurTargetView 才会真的模糊
+  const blurTargetRef = useRef<View>(null);
   // 首次启动三步流程: 图文教程 → 用户协议 → 交互式新手引导
   const [flow, setFlow] = useState<'onboarding' | 'agreement' | null>(null);
 
@@ -91,53 +95,58 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      {/* 液态玻璃: 最底层模糊流光壁纸(无自定义背景时显示) */}
-      <GlassWallpaper />
-      {/* 自定义背景图层(页面背景透明时露出) */}
-      <BackgroundLayer />
-      <UpdatePrompt />
-      <NoticePrompt />
-      {/* 交互式新手引导(全屏遮罩层, 首次启动自动/教程设置手动) */}
-      <CoachTour />
-      {/* 首次启动: 图文教程 → 用户协议 */}
-      <OnboardingModal visible={flow === 'onboarding'} onClose={() => setFlow('agreement')} />
-      <AgreementModal
-        visible={flow === 'agreement'}
-        mode="gate"
-        onAccepted={() => {
-          setFlow(null);
-          // 等协议弹窗完全关闭后再启动引导, 否则两个 Modal 叠加会把引导步骤顶掉
-          setTimeout(() => {
-            void shouldShowTour().then((f) => f && startCoachTour());
-          }, 450);
-        }}
-      />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: 'transparent' },
-          // 页面切换过渡: 右侧滑入 + 返回手势, 全平台统一
-          animation: 'slide_from_right',
-          animationDuration: 220,
-          gestureEnabled: true,
-        }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="settings" />
-        <Stack.Screen name="sponsor" />
-        <Stack.Screen name="notices" />
-        <Stack.Screen name="news" />
-        <Stack.Screen name="welfare" />
-        <Stack.Screen name="temp-query" />
-        <Stack.Screen name="portal-page" />
-        <Stack.Screen name="todos" />
-        <Stack.Screen name="gpa" />
-        <Stack.Screen name="timetable-ocr" />
-        <Stack.Screen name="profile-edit" />
-        <Stack.Screen name="cloud-backup" />
-        <Stack.Screen name="about-project" />
-        <Stack.Screen name="today" />
-      </Stack>
+      <BlurTargetProvider target={blurTargetRef}>
+        {/* 背景 + 页面内容作为模糊源(底栏/弹窗的玻璃从这里面取景) */}
+        <BlurTargetView ref={blurTargetRef} style={{ flex: 1 }}>
+          {/* 液态玻璃: 最底层模糊流光壁纸(无自定义背景时显示) */}
+          <GlassWallpaper />
+          {/* 自定义背景图层(页面背景透明时露出) */}
+          <BackgroundLayer />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: 'transparent' },
+              // 页面切换过渡: 右侧滑入 + 返回手势, 全平台统一
+              animation: 'slide_from_right',
+              animationDuration: 220,
+              gestureEnabled: true,
+            }}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="settings" />
+            <Stack.Screen name="sponsor" />
+            <Stack.Screen name="notices" />
+            <Stack.Screen name="news" />
+            <Stack.Screen name="welfare" />
+            <Stack.Screen name="temp-query" />
+            <Stack.Screen name="portal-page" />
+            <Stack.Screen name="todos" />
+            <Stack.Screen name="gpa" />
+            <Stack.Screen name="timetable-ocr" />
+            <Stack.Screen name="profile-edit" />
+            <Stack.Screen name="cloud-backup" />
+            <Stack.Screen name="about-project" />
+            <Stack.Screen name="today" />
+          </Stack>
+        </BlurTargetView>
+        <AnimatedSplashOverlay />
+        <UpdatePrompt />
+        <NoticePrompt />
+        {/* 交互式新手引导(全屏遮罩层, 首次启动自动/教程设置手动) */}
+        <CoachTour />
+        {/* 首次启动: 图文教程 → 用户协议 */}
+        <OnboardingModal visible={flow === 'onboarding'} onClose={() => setFlow('agreement')} />
+        <AgreementModal
+          visible={flow === 'agreement'}
+          mode="gate"
+          onAccepted={() => {
+            setFlow(null);
+            // 等协议弹窗完全关闭后再启动引导, 否则两个 Modal 叠加会把引导步骤顶掉
+            setTimeout(() => {
+              void shouldShowTour().then((f) => f && startCoachTour());
+            }, 450);
+          }}
+        />
+      </BlurTargetProvider>
     </ThemeProvider>
   );
 }

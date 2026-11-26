@@ -4,7 +4,8 @@
  * - 白色半透明染色 + 顶部 1px 高光 + 白色细描边
  * 只在「液态玻璃」模式且未关闭原生毛玻璃时渲染, 其他模式完全不占位、不影响布局。
  */
-import type { ReactNode } from 'react';
+import type { ReactNode, RefObject } from 'react';
+import { createContext, useContext } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { BlurView } from 'expo-blur';
 
@@ -12,15 +13,43 @@ import { useUiMode } from '@/hooks/use-ui-mode';
 import { useNightGlassDisabled } from '@/hooks/use-night-glass';
 
 /**
+ * expo-blur 57 起, Android 必须给 BlurView 传 blurTarget(指向一个 BlurTargetView),
+ * 否则原生直接回退成「不模糊」。这里用 context 把根布局的 BlurTargetView 传下去。
+ */
+const BlurTargetContext = createContext<RefObject<View | null> | null>(null);
+
+export function BlurTargetProvider({
+  target,
+  children,
+}: {
+  target: RefObject<View | null>;
+  children: ReactNode;
+}) {
+  return <BlurTargetContext.Provider value={target}>{children}</BlurTargetContext.Provider>;
+}
+
+export function useBlurTarget(): RefObject<View | null> | null {
+  return useContext(BlurTargetContext);
+}
+
+/**
  * 弹窗遮罩的整屏模糊: 液态玻璃模式下让背后的页面"糊掉", 文字不再和弹窗抢焦点。
  * 放在 Modal 遮罩层里当第一个子节点。
  */
-export function MaskBlur({ intensity = 20, tint = 'dark' }: { intensity?: number; tint?: 'light' | 'dark' | 'default' }) {
+export function MaskBlur({ intensity = 26, tint = 'light' }: { intensity?: number; tint?: 'light' | 'dark' | 'default' }) {
   const mode = useUiMode();
   const blurOff = useNightGlassDisabled();
+  const target = useBlurTarget();
   if (mode !== 'glass' || blurOff) return null;
   return (
-    <BlurView intensity={intensity} tint={tint} blurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} pointerEvents="none" />
+    <BlurView
+      blurTarget={target ?? undefined}
+      intensity={intensity}
+      tint={tint}
+      blurMethod="dimezisBlurView"
+      style={StyleSheet.absoluteFill}
+      pointerEvents="none"
+    />
   );
 }
 
@@ -46,6 +75,7 @@ export function AcrylicPanel({
 }) {
   const mode = useUiMode();
   const blurOff = useNightGlassDisabled();
+  const target = useBlurTarget();
   const on = mode === 'glass' && !blurOff;
   const merged = [
     style,
@@ -59,7 +89,21 @@ export function AcrylicPanel({
   ];
   const inner = (
     <>
-      {on && <GlassSurface radius={radius} intensity={intensity} />}
+      {on && (
+        <View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, { borderRadius: radius, overflow: 'hidden' }]}>
+          <BlurView
+            blurTarget={target ?? undefined}
+            intensity={intensity}
+            tint="light"
+            blurMethod="dimezisBlurView"
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.10)' }]} />
+          <View style={styles.sheen} />
+        </View>
+      )}
       {children}
     </>
   );

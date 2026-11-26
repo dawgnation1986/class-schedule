@@ -17,9 +17,10 @@ import { useNightGlassDisabled } from '@/hooks/use-night-glass';
 import { useTabBarLook } from '@/hooks/use-tab-bar-look';
 import { saveUiMode, type UiMode } from '@/lib/ui-mode';
 import { setNightGlassDisabled } from '@/lib/night-glass';
-import { setTabBarLook, TAB_BAR_COLORS } from '@/lib/tab-bar-style';
+import { previewTabBarLook, setTabBarLook, TAB_BAR_COLORS } from '@/lib/tab-bar-style';
 import { useBgSetting } from '@/lib/background';
 import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
+import { GlassSlider } from '@/components/glass-slider';
 
 type PickerVal = Extract<UiMode, 'original' | 'glass'>;
 
@@ -190,6 +191,44 @@ export function UiModePicker() {
             <Switch
               value={look.seeThrough}
               onValueChange={(v) => void setTabBarLook({ seeThrough: v })}
+              trackColor={{ true: '#2563EB', false: 'rgba(128,128,128,0.35)' }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+
+          {/* 透字浓度: 自己拖动调节, 实时预览 */}
+          {look.seeThrough && (
+            <View style={{ marginTop: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ flex: 1, color: colors.text, fontWeight: '700', fontSize: 12.5 }}>透字浓度</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 11 }}>{Math.round(look.alpha * 100)}%</Text>
+              </View>
+              <GlassSlider
+                value={look.alpha}
+                min={0.02}
+                max={0.9}
+                activeColor={activeColor}
+                trackColor={glassLine}
+                onChange={(v) => previewTabBarLook({ alpha: v })}
+                onComplete={(v) => void setTabBarLook({ alpha: v })}
+              />
+              <Text style={{ color: colors.textSecondary, fontSize: 10.5 }}>
+                往左更透（能看见底下的毛玻璃色块），往右更接近实底
+              </Text>
+            </View>
+          )}
+
+          {/* 液态模式: 实心白玻璃胶囊 + 液态折射边 */}
+          <View style={styles.barRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13 }}>液态模式</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 10.5, marginTop: 2 }}>
+                选中项变成实心白玻璃珠 + 液态折射边，更接近 iOS 26
+              </Text>
+            </View>
+            <Switch
+              value={look.liquid}
+              onValueChange={(v) => void setTabBarLook({ liquid: v })}
               trackColor={{ true: '#2563EB', false: 'rgba(128,128,128,0.35)' }}
               thumbColor="#FFFFFF"
             />

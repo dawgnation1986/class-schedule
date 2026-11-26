@@ -29,7 +29,7 @@ import { usePageBackground, useBgSetting } from '@/lib/background';
 import { useNightGlassDisabled } from '@/hooks/use-night-glass';
 import { useGlassTabReserve } from '@/components/night-tabs';
 import { NightGlowBackground, NightCard } from '@/components/night-kit';
-import { AcrylicPanel, MaskBlur } from '@/components/glass-surface';
+import { AcrylicPanel, MaskBlur, useBlurTarget } from '@/components/glass-surface';
 import { getThemeMode, saveThemeMode, subscribeTheme, themeModeLabel, type ThemeMode } from '@/lib/theme';
 import { getWeatherCity, setWeatherCity } from '@/lib/weather';
 import { addCountdown, loadCountdowns, removeCountdown, subscribeCountdowns, type Countdown } from '@/lib/countdowns';
@@ -281,10 +281,11 @@ function JsonImportModal({
 /** 液态玻璃卡片: 原生模糊 + 半透明染色 + 顶部高光, 接近 iOS 26 标准玻璃 */
 function GlassCard({ style, children }: { style?: StyleProp<ViewStyle>; children: React.ReactNode }) {
   const blurOff = useNightGlassDisabled();
+  const blurTarget = useBlurTarget();
   return (
     <View style={[style, { overflow: 'hidden' }]}>
       {!blurOff && (
-        <BlurView intensity={55} tint="light" blurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+        <BlurView blurTarget={blurTarget ?? undefined} intensity={55} tint="light" blurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
       )}
       <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.14)' }]} />
       <View pointerEvents="none" style={styles.glassSheen} />

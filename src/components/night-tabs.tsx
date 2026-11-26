@@ -6,12 +6,12 @@
  * 底栏选中态是一颗会拉伸、回弹的「水滴」: 切换时先拉长再弹回,
  * 后面跟一颗延迟的拖尾水珠, 形成 duang 的流体感。
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { withLayoutContext, usePathname, useRouter } from 'expo-router';
 import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
 import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
+import { BlurTargetView, BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
@@ -36,7 +36,7 @@ export const GLASS_BAR_MARGIN = 18;
 const INDICATOR_INSET = 9;
 
 /** 悬浮胶囊玻璃底栏: 毛玻璃 + 高光描边 + 水滴滑动指示器 */
-function GlassTabBar() {
+function GlassTabBar({ blurTarget }: { blurTarget?: RefObject<View | null> }) {
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
@@ -135,11 +135,14 @@ function GlassTabBar() {
               backgroundColor: glassBar
                 ? dark
                   ? 'rgba(255,255,255,0.16)'
-                  : 'rgba(255,255,255,0.50)'
+                  : look.liquid
+                    ? 'rgba(255,255,255,0.97)'
+                    : 'rgba(255,255,255,0.50)'
                 : dark
                   ? 'rgba(255,255,255,0.22)'
                   : 'rgba(255,255,255,0.94)',
               borderColor: dark ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.96)',
+              borderWidth: look.liquid ? 1.5 : 1,
               transform: [{ translateX: x }],
             },
           ]}>
@@ -175,19 +178,22 @@ function GlassTabBar() {
                 borderColor: dark ? 'rgba(255,255,255,0.34)' : 'rgba(255,255,255,0.90)',
               },
             ]}>
-            {/* 真·透字模式: 强模糊 + 很淡的染色, 壁纸能从底栏里透出来 */}
+            {/* 真正的毛玻璃: 指向页面的 BlurTargetView, 背后内容被糊掉后从底栏透出来 */}
             <BlurView
+              blurTarget={blurTarget ?? undefined}
               intensity={100}
-              tint={dark ? 'dark' : 'light'}
+              tint={dark ? 'dark' : 'extraLight'}
               blurMethod="dimezisBlurView"
+              blurReductionFactor={3}
               style={StyleSheet.absoluteFill}
             />
+            {/* 玻璃染色(拖动条调节浓度): 越低越透, 越高越接近奶白 */}
             <View
               pointerEvents="none"
-              style={[StyleSheet.absoluteFill, { backgroundColor: withAlpha(look.color, 0.26) }]}
+              style={[StyleSheet.absoluteFill, { backgroundColor: withAlpha(look.color, look.alpha) }]}
             />
             <LinearGradient
-              colors={['rgba(255,255,255,0.36)', 'rgba(255,255,255,0.02)', 'rgba(255,255,255,0.16)']}
+              colors={['rgba(255,255,255,0.30)', 'rgba(255,255,255,0.02)', 'rgba(255,255,255,0.16)']}
               locations={[0, 0.45, 1]}
               style={StyleSheet.absoluteFill}
               pointerEvents="none"
@@ -241,41 +247,45 @@ export function useGlassTabReserve(): number {
 export default function NightTabs() {
   const mode = useUiMode();
   const glass = mode === 'glass' || mode === 'night';
+  // 底栏模糊取景: 只包住三个页面, 底栏自己不在取景范围内(否则会糊到自己)
+  const sceneTarget = useRef<View>(null);
   return (
     <View style={{ flex: 1 }}>
-      <Tabs
-        tabBarHidden={glass}
-        translucent={glass}
-        tabBarStyle={glass ? { backgroundColor: 'transparent' } : undefined}
-        activeIndicatorColor={glass ? 'transparent' : undefined}
-        hapticFeedbackEnabled={true}
-        sidebarAdaptable={false}>
-        <Tabs.Screen
-          name="home"
-          options={{
-            title: '主站',
-            sceneStyle: { backgroundColor: 'transparent' },
-            tabBarIcon: () => require('@/assets/images/tabIcons/explore.png'),
-          }}
-        />
-        <Tabs.Screen
-          name="timetable"
-          options={{
-            title: '课表',
-            sceneStyle: { backgroundColor: 'transparent' },
-            tabBarIcon: () => require('@/assets/images/tabIcons/home.png'),
-          }}
-        />
-        <Tabs.Screen
-          name="profile"
-          options={{
-            title: '我的',
-            sceneStyle: { backgroundColor: 'transparent' },
-            tabBarIcon: () => require('@/assets/images/tabIcons/person.png'),
-          }}
-        />
-      </Tabs>
-      {glass && <GlassTabBar />}
+      <BlurTargetView ref={sceneTarget} style={{ flex: 1 }}>
+        <Tabs
+          tabBarHidden={glass}
+          translucent={glass}
+          tabBarStyle={glass ? { backgroundColor: 'transparent' } : undefined}
+          activeIndicatorColor={glass ? 'transparent' : undefined}
+          hapticFeedbackEnabled={true}
+          sidebarAdaptable={false}>
+          <Tabs.Screen
+            name="home"
+            options={{
+              title: '主站',
+              sceneStyle: { backgroundColor: 'transparent' },
+              tabBarIcon: () => require('@/assets/images/tabIcons/explore.png'),
+            }}
+          />
+          <Tabs.Screen
+            name="timetable"
+            options={{
+              title: '课表',
+              sceneStyle: { backgroundColor: 'transparent' },
+              tabBarIcon: () => require('@/assets/images/tabIcons/home.png'),
+            }}
+          />
+          <Tabs.Screen
+            name="profile"
+            options={{
+              title: '我的',
+              sceneStyle: { backgroundColor: 'transparent' },
+              tabBarIcon: () => require('@/assets/images/tabIcons/person.png'),
+            }}
+          />
+        </Tabs>
+      </BlurTargetView>
+      {glass && <GlassTabBar blurTarget={sceneTarget} />}
     </View>
   );
 }

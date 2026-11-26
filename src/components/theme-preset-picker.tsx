@@ -11,7 +11,7 @@ import { BlurView } from 'expo-blur';
 import { useTheme } from '@/hooks/use-theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { NightCard, NightTint } from '@/components/night-kit';
-import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
+import { GlassSurface, GLASS_LINE, useBlurTarget } from '@/components/glass-surface';
 import { usePresetId } from '@/hooks/use-preset-id';
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { useBgSetting } from '@/lib/background';
@@ -51,6 +51,7 @@ export function ThemePresetPicker() {
   const colors = useTheme();
   const scheme = useColorScheme();
   const uiMode = useUiMode();
+  const blurTarget = useBlurTarget();
   const night = uiMode === 'night';
   const bgSetting = useBgSetting();
   const glass = !!bgSetting.ctrl;
@@ -506,7 +507,7 @@ export function ThemePresetPicker() {
       {/* 导出主题 */}
       <Modal visible={expOpen} transparent animationType="fade" onRequestClose={() => setExpOpen(false)}>
         <Pressable style={styles.mask} onPress={() => setExpOpen(false)}>
-          <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
+          <BlurView blurTarget={blurTarget ?? undefined} intensity={24} tint="dark" blurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} pointerEvents="none" />
           <Pressable style={[styles.box, { backgroundColor: night ? 'rgba(18,24,40,0.60)' : 'rgba(255,255,255,0.55)' }]} onPress={() => {}}>
             <GlassSurface radius={16} intensity={60} />
             <Text style={[styles.boxTitle, { color: colors.text }]}>导出当前主题</Text>
@@ -538,7 +539,7 @@ export function ThemePresetPicker() {
       {/* 导入主题 */}
       <Modal visible={impOpen} transparent animationType="fade" onRequestClose={() => setImpOpen(false)}>
         <Pressable style={styles.mask} onPress={() => setImpOpen(false)}>
-          <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
+          <BlurView blurTarget={blurTarget ?? undefined} intensity={24} tint="dark" blurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} pointerEvents="none" />
           <Pressable style={[styles.box, { backgroundColor: night ? 'rgba(18,24,40,0.60)' : 'rgba(255,255,255,0.55)' }]} onPress={() => {}}>
             <GlassSurface radius={16} intensity={60} />
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>

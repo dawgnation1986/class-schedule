@@ -1,4 +1,4 @@
-/** 液态玻璃底栏外观: 颜色 + 是否透字(毛玻璃) */
+/** 液态玻璃底栏外观: 颜色 + 是否透字(毛玻璃) + 透字浓度 + 液态模式 */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type TabBarLook = {
@@ -6,6 +6,10 @@ export type TabBarLook = {
   color: string;
   /** true = 透字毛玻璃; false = 奶白/纯色实底 */
   seeThrough: boolean;
+  /** 透字模式染色浓度 0.02~0.98(越小越透) */
+  alpha: number;
+  /** 液态模式: 实心白玻璃胶囊 + 液态折射边 */
+  liquid: boolean;
 };
 
 const KEY = 'tabbar-look-v1';
@@ -19,7 +23,7 @@ export const TAB_BAR_COLORS = [
   { name: '深空', value: '#20242E' },
 ] as const;
 
-let look: TabBarLook = { color: '#F7F3EA', seeThrough: false };
+let look: TabBarLook = { color: '#F7F3EA', seeThrough: false, alpha: 0.3, liquid: false };
 let primed = false;
 const subs = new Set<() => void>();
 
@@ -35,6 +39,8 @@ export async function primeTabBarLook(): Promise<void> {
       const p = JSON.parse(raw) as Partial<TabBarLook>;
       if (typeof p.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(p.color)) look.color = p.color;
       if (typeof p.seeThrough === 'boolean') look.seeThrough = p.seeThrough;
+      if (typeof p.alpha === 'number' && p.alpha >= 0.02 && p.alpha <= 0.98) look.alpha = p.alpha;
+      if (typeof p.liquid === 'boolean') look.liquid = p.liquid;
     }
   } catch {
     // 用默认值
@@ -56,6 +62,12 @@ export async function setTabBarLook(patch: Partial<TabBarLook>): Promise<void> {
   look = { ...look, ...patch };
   primed = true;
   await AsyncStorage.setItem(KEY, JSON.stringify(look)).catch(() => {});
+  notify();
+}
+
+/** 拖动调节时的实时预览(只改内存, 不写盘; 松手再 setTabBarLook 落盘) */
+export function previewTabBarLook(patch: Partial<TabBarLook>): void {
+  look = { ...look, ...patch };
   notify();
 }
 
