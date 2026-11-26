@@ -128,9 +128,10 @@ export default function RootLayout() {
             <Stack.Screen name="about-project" />
             <Stack.Screen name="today" />
           </Stack>
+          {/* 悬浮玻璃底栏: 必须是 BlurTargetView 的后代(Dimezis BlurTarget 会自动把模糊视图本身排除在快照外),
+              才能采样到真正的壁纸 + 页面内容; 放在外面时采样坐标失效, 只剩白膜 = 灰白板 */}
+          <GlassTabBarOverlay />
         </BlurTargetView>
-        {/* 悬浮玻璃底栏: 必须在 BlurTargetView 之外, 才能真正采样到壁纸 + 页面内容 */}
-        <GlassTabBarOverlay />
         <AnimatedSplashOverlay />
         <UpdatePrompt />
         <NoticePrompt />
