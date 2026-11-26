@@ -196,8 +196,7 @@ export function UiModePicker() {
             />
           </View>
 
-          {/* 透字浓度: 自己拖动调节, 实时预览 */}
-          {look.seeThrough && (
+          {/* 透字浓度: 自己拖动调节, 实时预览 */}          {look.seeThrough && (
             <View style={{ marginTop: 8 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Text style={{ flex: 1, color: colors.text, fontWeight: '700', fontSize: 12.5 }}>透字浓度</Text>
@@ -221,9 +220,9 @@ export function UiModePicker() {
           {/* 液态模式: 实心白玻璃胶囊 + 液态折射边 */}
           <View style={styles.barRow}>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13 }}>液态模式</Text>
+              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13 }}>液态玻璃胶囊</Text>
               <Text style={{ color: colors.textSecondary, fontSize: 10.5, marginTop: 2 }}>
-                选中项变成实心白玻璃珠 + 液态折射边，更接近 iOS 26
+                选中项是独立的浅蓝玻璃胶囊；关闭则用纯白胶囊
               </Text>
             </View>
             <Switch

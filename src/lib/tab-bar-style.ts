@@ -23,7 +23,7 @@ export const TAB_BAR_COLORS = [
   { name: '深空', value: '#20242E' },
 ] as const;
 
-let look: TabBarLook = { color: '#F7F3EA', seeThrough: false, alpha: 0.3, liquid: false };
+let look: TabBarLook = { color: '#F7F3EA', seeThrough: false, alpha: 0.16, liquid: true };
 let primed = false;
 const subs = new Set<() => void>();
 
