@@ -107,7 +107,7 @@ function GlassTabBar({ blurTarget }: { blurTarget?: RefObject<View | null> }) {
     lastX.current = to;
   }, [activeIndex, itemW, x]);
 
-  const glassBar = look.seeThrough && blurOn;
+  const glassBar = blurOn;
 
   const content = (
     <>
@@ -136,18 +136,18 @@ function GlassTabBar({ blurTarget }: { blurTarget?: RefObject<View | null> }) {
           {glassBar && (
             <BlurView
               blurTarget={blurTarget ?? undefined}
-              intensity={50}
-              tint="light"
+              intensity={30}
+              tint="default"
               blurMethod="dimezisBlurView"
-              blurReductionFactor={4}
+              blurReductionFactor={3}
               style={StyleSheet.absoluteFill}
             />
           )}
           <LinearGradient
             colors={
               look.liquid
-                ? ['rgba(191,219,254,0.46)', 'rgba(96,165,250,0.10)', 'rgba(147,197,253,0.28)']
-                : ['rgba(255,255,255,0.70)', 'rgba(255,255,255,0.10)', 'rgba(255,255,255,0.40)']
+                ? ['rgba(191,219,254,0.34)', 'rgba(96,165,250,0.06)', 'rgba(147,197,253,0.20)']
+                : ['rgba(255,255,255,0.40)', 'rgba(255,255,255,0.04)', 'rgba(255,255,255,0.22)']
             }
             locations={[0, 0.55, 1]}
             style={StyleSheet.absoluteFill}
@@ -169,51 +169,41 @@ function GlassTabBar({ blurTarget }: { blurTarget?: RefObject<View | null> }) {
 
   return (
     <View pointerEvents="box-none" style={[styles.host, { bottom: Math.max(insets.bottom, 10) }]}>
-      <View style={styles.shadow}>
+      <View
+        style={[
+          styles.bar,
+          {
+            borderColor: dark ? 'rgba(255,255,255,0.26)' : 'rgba(255,255,255,0.55)',
+          },
+        ]}>
+        {/* 真模糊: 采样三个 tab 页的内容; 底栏本身没有任何实体底色 */}
+        <BlurView
+          blurTarget={blurTarget ?? undefined}
+          intensity={40}
+          tint="default"
+          blurMethod="dimezisBlurView"
+          blurReductionFactor={1}
+          style={StyleSheet.absoluteFill}
+        />
+        {/* 只允许极淡的自定义染色(默认 6%), 不是白色底板 */}
         <View
-          style={[
-            styles.bar,
-            {
-              borderColor: dark ? 'rgba(255,255,255,0.26)' : 'rgba(255,255,255,0.70)',
-              backgroundColor: glassBar ? 'transparent' : withAlpha(look.color, 0.97),
-            },
-          ]}>
-          {glassBar ? (
-            <>
-              {/* 真模糊: 采样三个 tab 页的内容, 只叠很淡的染色 → 通透的磨砂玻璃 */}
-              <BlurView
-                blurTarget={blurTarget ?? undefined}
-                intensity={100}
-                tint={dark ? 'dark' : 'light'}
-                blurMethod="dimezisBlurView"
-                blurReductionFactor={3}
-                style={StyleSheet.absoluteFill}
-              />
-              <View
-                pointerEvents="none"
-                style={[StyleSheet.absoluteFill, { backgroundColor: withAlpha(look.color, look.alpha) }]}
-              />
-              <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.04)' }]} />
-            </>
-          ) : (
-            <LinearGradient
-              colors={['rgba(255,255,255,0.34)', 'rgba(255,255,255,0.02)', 'rgba(255,255,255,0.16)']}
-              locations={[0, 0.5, 1]}
-              style={StyleSheet.absoluteFill}
-              pointerEvents="none"
-            />
-          )}
-          {/* 上缘高光: 玻璃边缘的折射 */}
-          <LinearGradient
-            colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0.06)', 'rgba(255,255,255,0)']}
-            locations={[0, 0.55, 1]}
-            style={styles.topSheen}
-            pointerEvents="none"
-          />
-          {content}
-          {/* 下缘细亮线 */}
-          <View pointerEvents="none" style={styles.bottomSheen} />
-        </View>
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, { backgroundColor: withAlpha(look.color, Math.min(look.alpha, 0.25)) }]}
+        />
+        {/* 模糊被调试开关关掉时的兜底底色(平时不渲染) */}
+        {!blurOn && (
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: withAlpha(look.color, 0.92) }]} />
+        )}
+        {/* 上缘高光: 仅贴边的一条, 不铺满 */}
+        <LinearGradient
+          colors={['rgba(255,255,255,0.34)', 'rgba(255,255,255,0.04)', 'rgba(255,255,255,0)']}
+          locations={[0, 0.55, 1]}
+          style={styles.topSheen}
+          pointerEvents="none"
+        />
+        {content}
+        {/* 下缘细亮线 */}
+        <View pointerEvents="none" style={styles.bottomSheen} />
       </View>
     </View>
   );
@@ -235,10 +225,7 @@ export default function NightTabs() {
     <View style={{ flex: 1 }}>
       <BlurTargetView ref={sceneTarget} style={{ flex: 1 }}>
         <Tabs
-          tabBarHidden={glass}
-          translucent={glass}
-          tabBarStyle={glass ? { backgroundColor: 'transparent' } : undefined}
-          activeIndicatorColor={glass ? 'transparent' : undefined}
+          tabBar={glass ? () => null : undefined}
           hapticFeedbackEnabled={true}
           sidebarAdaptable={false}>
           <Tabs.Screen
@@ -281,12 +268,6 @@ const styles = StyleSheet.create({
   },
   shadow: {
     borderRadius: BAR_H / 2,
-    // 柔和阴影, 只做一点点悬浮感(不要明显的黑色投影)
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.10,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 5,
   },
   bar: {
     height: BAR_H,
@@ -301,7 +282,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 26,
+    height: 12,
   },
   bottomSheen: {
     position: 'absolute',

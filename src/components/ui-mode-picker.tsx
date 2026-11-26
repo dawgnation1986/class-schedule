@@ -181,41 +181,25 @@ export function UiModePicker() {
             maxLength={7}
             style={[styles.hexInput, { color: colors.text, borderColor: glassLine }]}
           />
-          <View style={styles.barRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13 }}>透字模式</Text>
-              <Text style={{ color: colors.textSecondary, fontSize: 10.5, marginTop: 2 }}>
-                开启后底栏透出模糊壁纸；关闭为奶白实底
-              </Text>
+          {/* 底栏永远是透明玻璃, 只调节染色浓度 */}
+          <View style={{ marginTop: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ flex: 1, color: colors.text, fontWeight: '700', fontSize: 12.5 }}>玻璃染色浓度</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 11 }}>{Math.round(look.alpha * 100)}%</Text>
             </View>
-            <Switch
-              value={look.seeThrough}
-              onValueChange={(v) => void setTabBarLook({ seeThrough: v })}
-              trackColor={{ true: '#2563EB', false: 'rgba(128,128,128,0.35)' }}
-              thumbColor="#FFFFFF"
+            <GlassSlider
+              value={look.alpha}
+              min={0}
+              max={0.25}
+              activeColor={activeColor}
+              trackColor={glassLine}
+              onChange={(v) => previewTabBarLook({ alpha: v })}
+              onComplete={(v) => void setTabBarLook({ alpha: v })}
             />
+            <Text style={{ color: colors.textSecondary, fontSize: 10.5 }}>
+              0% 是纯模糊无染色；往右加一点点底栏颜色。底栏没有白色底板
+            </Text>
           </View>
-
-          {/* 透字浓度: 自己拖动调节, 实时预览 */}          {look.seeThrough && (
-            <View style={{ marginTop: 8 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ flex: 1, color: colors.text, fontWeight: '700', fontSize: 12.5 }}>透字浓度</Text>
-                <Text style={{ color: colors.textSecondary, fontSize: 11 }}>{Math.round(look.alpha * 100)}%</Text>
-              </View>
-              <GlassSlider
-                value={look.alpha}
-                min={0.02}
-                max={0.9}
-                activeColor={activeColor}
-                trackColor={glassLine}
-                onChange={(v) => previewTabBarLook({ alpha: v })}
-                onComplete={(v) => void setTabBarLook({ alpha: v })}
-              />
-              <Text style={{ color: colors.textSecondary, fontSize: 10.5 }}>
-                往左更透（能看见底下的毛玻璃色块），往右更接近实底
-              </Text>
-            </View>
-          )}
 
           {/* 液态模式: 实心白玻璃胶囊 + 液态折射边 */}
           <View style={styles.barRow}>
