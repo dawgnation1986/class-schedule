@@ -7,7 +7,7 @@
  * 稳定性说明: 动画使用 RN 内置 Animated(JS 线程驱动), 不用 reanimated worklet
  */
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, Animated, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useUiMode } from '@/hooks/use-ui-mode';
@@ -17,7 +17,7 @@ import { useNightGlassDisabled } from '@/hooks/use-night-glass';
 import { useTabBarLook } from '@/hooks/use-tab-bar-look';
 import { saveUiMode, type UiMode } from '@/lib/ui-mode';
 import { setNightGlassDisabled } from '@/lib/night-glass';
-import { previewTabBarLook, setTabBarLook, TAB_BAR_COLORS } from '@/lib/tab-bar-style';
+import { previewTabBarLook, resetTabBarLook, setTabBarLook, TAB_BAR_COLORS } from '@/lib/tab-bar-style';
 import { useBgSetting } from '@/lib/background';
 import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
 import { GlassSlider } from '@/components/glass-slider';
@@ -216,6 +216,21 @@ export function UiModePicker() {
               thumbColor="#FFFFFF"
             />
           </View>
+
+          {/* 调试: 清掉旧的底栏配置(tabbar-look-v1), 回到当前代码的默认值 */}
+          <Pressable
+            onPress={() => {
+              void resetTabBarLook().then(() => Alert.alert('已重置', '底栏旧配置已清除, 已恢复默认值'));
+            }}
+            style={({ pressed }) => [styles.barRow, pressed && { opacity: 0.6 }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13 }}>重置底栏配置</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 10.5, marginTop: 2 }}>
+                清除本地保存的底栏外观(不影响其他数据), 恢复默认
+              </Text>
+            </View>
+            <Ionicons name="refresh-circle-outline" size={22} color={colors.textSecondary} />
+          </Pressable>
         </View>
       )}
     </>

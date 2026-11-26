@@ -14,12 +14,13 @@ import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
 import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { useNightGlass } from '@/hooks/use-night-glass';
+import { useTabBarLook } from '@/hooks/use-tab-bar-look';
 import { useBlurTarget } from '@/components/glass-surface';
+import { withAlpha } from '@/lib/tab-bar-style';
 
 const { Navigator } = createNativeBottomTabNavigator();
 const Tabs = withLayoutContext(Navigator);
@@ -43,6 +44,7 @@ export function GlassTabBarOverlay() {
   const mode = useUiMode();
   const blurOn = useNightGlass();
   const blurTarget = useBlurTarget();
+  const look = useTabBarLook();
 
   const activeIndex = Math.max(
     0,
@@ -108,23 +110,26 @@ export function GlassTabBarOverlay() {
         blurMethod="dimezisBlurView"
         blurReductionFactor={1}
         style={styles.bar}>
-        {/* 只允许极淡的自定义染色; 默认无 → 底栏本体没有任何实体底色 */}
-        {!blurOn && <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(240,244,252,0.92)' }]} />}
+        {/* 染色浓度 > 0 时才叠一层自定义颜色(设置里那个滑条真正控制这里) */}
+        {look.alpha > 0 && (
+          <View
+            pointerEvents="none"
+            style={[StyleSheet.absoluteFill, { backgroundColor: withAlpha(look.color, look.alpha) }]}
+          />
+        )}
         <View style={styles.row} onLayout={(e) => setRowW(e.nativeEvent.layout.width)} {...pan.panHandlers}>
-          {/* 选中胶囊: 独立的浅蓝半透明层, 自己没有模糊(下面的底栏已经糊过了) */}
+          {/* 选中胶囊: 纯 View + 低透明度浅蓝, 验证位置/尺寸/层级 */}
           {itemW > 0 && (
             <Animated.View
               pointerEvents="none"
               style={[
                 styles.indicator,
-                { width: Math.max(0, itemW - CAPSULE_INSET * 2), transform: [{ translateX: x }] },
-              ]}>
-              <LinearGradient
-                colors={['rgba(147,197,253,0.30)', 'rgba(96,165,250,0.14)', 'rgba(147,197,253,0.22)']}
-                locations={[0, 0.5, 1]}
-                style={StyleSheet.absoluteFill}
-              />
-            </Animated.View>
+                look.liquid
+                  ? { width: Math.max(0, itemW - CAPSULE_INSET * 2), backgroundColor: 'rgba(100,160,255,0.18)' }
+                  : { width: Math.max(0, itemW - CAPSULE_INSET * 2), backgroundColor: 'rgba(255,255,255,0.55)' },
+                { transform: [{ translateX: x }] },
+              ]}
+            />
           )}
           {ITEMS.map((item, i) => {
             const on = i === activeIndex;
@@ -213,10 +218,9 @@ const styles = StyleSheet.create({
     top: 10,
     height: BAR_H - 20,
     borderRadius: (BAR_H - 20) / 2,
-    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.40)',
-    backgroundColor: 'rgba(96,165,250,0.10)',
+    borderColor: 'rgba(255,255,255,0.35)',
+    backgroundColor: 'rgba(100,160,255,0.18)',
   },
   label: { fontSize: 11, fontWeight: '600' },
 });
