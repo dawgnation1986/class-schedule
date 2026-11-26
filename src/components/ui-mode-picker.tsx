@@ -7,7 +7,7 @@
  * 稳定性说明: 动画使用 RN 内置 Animated(JS 线程驱动), 不用 reanimated worklet
  */
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useUiMode } from '@/hooks/use-ui-mode';
@@ -17,7 +17,7 @@ import { useNightGlassDisabled } from '@/hooks/use-night-glass';
 import { useTabBarLook } from '@/hooks/use-tab-bar-look';
 import { saveUiMode, type UiMode } from '@/lib/ui-mode';
 import { setNightGlassDisabled } from '@/lib/night-glass';
-import { previewTabBarLook, resetTabBarLook, setTabBarLook, TAB_BAR_COLORS } from '@/lib/tab-bar-style';
+import { previewTabBarLook, setTabBarLook, TAB_BAR_COLORS } from '@/lib/tab-bar-style';
 import { useBgSetting } from '@/lib/background';
 import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
 import { GlassSlider } from '@/components/glass-slider';
@@ -181,52 +181,49 @@ export function UiModePicker() {
             maxLength={7}
             style={[styles.hexInput, { color: colors.text, borderColor: glassLine }]}
           />
-          {/* 底栏永远是透明玻璃, 只调节染色浓度 */}
-          <View style={{ marginTop: 8 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={{ flex: 1, color: colors.text, fontWeight: '700', fontSize: 12.5 }}>玻璃染色浓度</Text>
-              <Text style={{ color: colors.textSecondary, fontSize: 11 }}>{Math.round(look.alpha * 100)}%</Text>
+          <View style={styles.barRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13 }}>透字模式</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 10.5, marginTop: 2 }}>
+                开启后底栏透出模糊壁纸；关闭为奶白实底
+              </Text>
             </View>
-            <GlassSlider
-              value={look.alpha}
-              min={0}
-              max={0.25}
-              activeColor={activeColor}
-              trackColor={glassLine}
-              onChange={(v) => previewTabBarLook({ alpha: v })}
-              onComplete={(v) => void setTabBarLook({ alpha: v })}
+            <Switch
+              value={look.seeThrough}
+              onValueChange={(v) => void setTabBarLook({ seeThrough: v })}
+              trackColor={{ true: '#2563EB', false: 'rgba(128,128,128,0.35)' }}
+              thumbColor="#FFFFFF"
             />
-            <Text style={{ color: colors.textSecondary, fontSize: 10.5 }}>
-              0% 是纯模糊无染色；往右加一点点底栏颜色。底栏没有白色底板
-            </Text>
           </View>
 
-          {/* 玻璃模糊强度: 越低越透亮(Android 白膜 = 0.44 × 强度) */}
-          <View style={{ marginTop: 10 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={{ flex: 1, color: colors.text, fontWeight: '700', fontSize: 12.5 }}>玻璃模糊强度</Text>
-              <Text style={{ color: colors.textSecondary, fontSize: 11 }}>{Math.round(look.blur)}</Text>
+          {/* 透字浓度: 自己拖动调节, 实时预览 */}
+          {look.seeThrough && (
+            <View style={{ marginTop: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ flex: 1, color: colors.text, fontWeight: '700', fontSize: 12.5 }}>透字浓度</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 11 }}>{Math.round(look.alpha * 100)}%</Text>
+              </View>
+              <GlassSlider
+                value={look.alpha}
+                min={0.02}
+                max={0.9}
+                activeColor={activeColor}
+                trackColor={glassLine}
+                onChange={(v) => previewTabBarLook({ alpha: v })}
+                onComplete={(v) => void setTabBarLook({ alpha: v })}
+              />
+              <Text style={{ color: colors.textSecondary, fontSize: 10.5 }}>
+                往左更透（能看见底下的毛玻璃色块），往右更接近实底
+              </Text>
             </View>
-            <GlassSlider
-              value={look.blur}
-              min={0}
-              max={100}
-              activeColor={activeColor}
-              trackColor={glassLine}
-              onChange={(v) => previewTabBarLook({ blur: v })}
-              onComplete={(v) => void setTabBarLook({ blur: v })}
-            />
-            <Text style={{ color: colors.textSecondary, fontSize: 10.5 }}>
-              越低越透亮、背后的字越清楚；越高越糊。Android 的白膜也会跟着变薄
-            </Text>
-          </View>
+          )}
 
           {/* 液态模式: 实心白玻璃胶囊 + 液态折射边 */}
           <View style={styles.barRow}>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13 }}>液态玻璃胶囊</Text>
+              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13 }}>液态模式</Text>
               <Text style={{ color: colors.textSecondary, fontSize: 10.5, marginTop: 2 }}>
-                选中项是独立的浅蓝玻璃胶囊；关闭则用纯白胶囊
+                选中项变成实心白玻璃珠 + 液态折射边，更接近 iOS 26
               </Text>
             </View>
             <Switch
@@ -236,21 +233,6 @@ export function UiModePicker() {
               thumbColor="#FFFFFF"
             />
           </View>
-
-          {/* 调试: 清掉旧的底栏配置(tabbar-look-v1), 回到当前代码的默认值 */}
-          <Pressable
-            onPress={() => {
-              void resetTabBarLook().then(() => Alert.alert('已重置', '底栏旧配置已清除, 已恢复默认值'));
-            }}
-            style={({ pressed }) => [styles.barRow, pressed && { opacity: 0.6 }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13 }}>重置底栏配置</Text>
-              <Text style={{ color: colors.textSecondary, fontSize: 10.5, marginTop: 2 }}>
-                清除本地保存的底栏外观(不影响其他数据), 恢复默认
-              </Text>
-            </View>
-            <Ionicons name="refresh-circle-outline" size={22} color={colors.textSecondary} />
-          </Pressable>
         </View>
       )}
     </>

@@ -1,35 +1,27 @@
-/**
- * 液态玻璃标签栏
+﻿/**
+ * 液态玻璃标签栏: 原生导航器 (react-native-bottom-tabs) + 自绘悬浮胶囊底栏
+ * 完全不经过 expo-router 内置的 JS 版 bottom-tabs —— 那条路径存在
+ * "Invalid hook call" 崩溃, 是液态玻璃模式闪退的根因。
  *
- * 关键结构 (expo-blur 57 / Android):
- * - 底栏必须渲染在根 BlurTargetView 的子树里: Dimezis BlurTarget 在生成快照时会自动把
- *   模糊视图自身排除, 所以既要"在里面"才不会坐标失效, 又不会自己糊自己。
- * - 之前两个错误: 1) 底栏自己套了一层只包含 <Tabs> 的内层 target(场景背景是透明的, 采样为空);
- *   2) 底栏挪到根 target 之外(采样坐标失效), 两种情况都只剩 BlurView 的白膜 = 灰白板。
- * - 原生导航栏不支持 tabBarHidden, 用该库支持的 tabBar={() => null} 关掉。
+ * 底栏选中态是一颗会拉伸、回弹的「水滴」: 切换时先拉长再弹回,
+ * 后面跟一颗延迟的拖尾水珠, 形成 duang 的流体感。
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { withLayoutContext, usePathname, useRouter } from 'expo-router';
 import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
 import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
+import { BlurTargetView, BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { useNightGlass } from '@/hooks/use-night-glass';
 import { useTabBarLook } from '@/hooks/use-tab-bar-look';
-import { useBlurTarget } from '@/components/glass-surface';
-import { withAlpha } from '@/lib/tab-bar-style';
+import { luminance, withAlpha } from '@/lib/tab-bar-style';
 
 const { Navigator } = createNativeBottomTabNavigator();
 const Tabs = withLayoutContext(Navigator);
-
-/** 底栏高度 */
-const BAR_H = 76;
-/** 选中胶囊左右内缩 */
-const CAPSULE_INSET = 10;
 
 const ITEMS = [
   { route: '/home', label: '主站', icon: 'compass-outline', active: 'compass' },
@@ -37,34 +29,42 @@ const ITEMS = [
   { route: '/profile', label: '我的', icon: 'person-outline', active: 'person' },
 ] as const;
 
-/** 悬浮玻璃底栏: 渲染在根布局 (_layout.tsx) 的 BlurTargetView 内 */
-export function GlassTabBarOverlay() {
+/** 悬浮底栏尺寸(与页面底部占位共用同一套常量, 保证三者一致) */
+export const GLASS_BAR_HEIGHT = 92;
+export const GLASS_BAR_GAP = 12;
+export const GLASS_BAR_MARGIN = 18;
+const INDICATOR_INSET = 9;
+
+/** 悬浮胶囊玻璃底栏: 毛玻璃 + 高光描边 + 水滴滑动指示器 */
+function GlassTabBar({ blurTarget }: { blurTarget?: RefObject<View | null> }) {
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
-  const mode = useUiMode();
   const blurOn = useNightGlass();
-  const blurTarget = useBlurTarget();
   const look = useTabBarLook();
-
+  const dark = luminance(look.color) < 0.5;
+  const fg = dark ? '#F4F7FF' : '#1E293B';
+  const fgDim = dark ? 'rgba(255,255,255,0.55)' : 'rgba(30,41,59,0.50)';
+  const fgActive = dark ? '#9CC8FF' : '#2563EB';
   const activeIndex = Math.max(
     0,
     ITEMS.findIndex((i) => pathname === i.route || pathname.startsWith(`${i.route}/`)),
   );
-  const isTab = ITEMS.some((i) => pathname === i.route || pathname.startsWith(`${i.route}/`));
 
+  // 段宽实测, 指示器按像素滑动
   const [rowW, setRowW] = useState(0);
   const itemW = rowW / ITEMS.length;
   const itemWRef = useRef(0);
   itemWRef.current = itemW;
-  const activeRef = useRef(0);
+  const activeRef = useRef(activeIndex);
   activeRef.current = activeIndex;
 
   const x = useRef(new Animated.Value(0)).current;
+  const stretch = useRef(new Animated.Value(0)).current;
   const lastX = useRef(0);
   const dragStart = useRef(0);
 
-  // 按住胶囊左右拖动: 跟手, 松手吸附最近一档并切换
+  // 按住底栏左右拖动: 水滴跟手, 松手吸附最近的一档并切换
   const pan = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 6 && Math.abs(g.dx) > Math.abs(g.dy),
@@ -72,6 +72,7 @@ export function GlassTabBarOverlay() {
         x.stopAnimation((v) => {
           dragStart.current = v;
         });
+        stretch.setValue(0.5);
       },
       onPanResponderMove: (_, g) => {
         const w = itemWRef.current;
@@ -86,8 +87,14 @@ export function GlassTabBarOverlay() {
         const raw = Math.min(max, Math.max(0, dragStart.current + g.dx));
         const idx = Math.min(ITEMS.length - 1, Math.max(0, Math.round(raw / w)));
         lastX.current = idx * w;
-        Animated.spring(x, { toValue: idx * w, friction: 9, tension: 110, useNativeDriver: true }).start();
+        Animated.parallel([
+          Animated.spring(x, { toValue: idx * w, friction: 5, tension: 140, useNativeDriver: true }),
+          Animated.spring(stretch, { toValue: 0, friction: 4, tension: 90, useNativeDriver: true }),
+        ]).start();
         if (idx !== activeRef.current) router.navigate(ITEMS[idx].route as never);
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(stretch, { toValue: 0, friction: 4, useNativeDriver: true }).start();
       },
     }),
   ).current;
@@ -96,87 +103,134 @@ export function GlassTabBarOverlay() {
     if (!itemW) return;
     const to = activeIndex * itemW;
     if (to === lastX.current) return;
-    Animated.spring(x, { toValue: to, friction: 9, tension: 110, useNativeDriver: true }).start();
+    Animated.parallel([
+      Animated.spring(x, { toValue: to, friction: 6, tension: 130, useNativeDriver: true }),
+      // 轻微回弹, 保持 duang 的手感; 不做缩放, 胶囊宽度始终一致
+      Animated.sequence([
+        Animated.timing(stretch, { toValue: 1, duration: 100, useNativeDriver: true }),
+        Animated.spring(stretch, { toValue: 0, friction: 4, tension: 90, useNativeDriver: true }),
+      ]),
+    ]).start();
     lastX.current = to;
-  }, [activeIndex, itemW, x]);
+  }, [activeIndex, itemW, x, stretch]);
 
-  if ((mode !== 'glass' && mode !== 'night') || !isTab) return null;
+  // 胶囊宽 = 每格宽减两侧内缩, 三等分完全等宽
+  const pillW = Math.max(0, itemW - INDICATOR_INSET * 2);
+  const glassBar = look.seeThrough && blurOn;
+
+  const content = (
+    <>
+      <View
+        pointerEvents="none"
+        style={[styles.sheen, { backgroundColor: dark ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.95)' }]}
+      />
+      <View style={styles.row} onLayout={(e) => setRowW(e.nativeEvent.layout.width)} {...pan.panHandlers}>
+        {/* 选中胶囊: 透字模式下是半透明玻璃, 实底模式下是白色胶囊 */}
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.indicator,
+            {
+              width: pillW,
+              backgroundColor: glassBar
+                ? dark
+                  ? 'rgba(255,255,255,0.16)'
+                  : look.liquid
+                    ? 'rgba(255,255,255,0.97)'
+                    : 'rgba(255,255,255,0.50)'
+                : dark
+                  ? 'rgba(255,255,255,0.22)'
+                  : 'rgba(255,255,255,0.94)',
+              borderColor: dark ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.96)',
+              borderWidth: look.liquid ? 1.5 : 1,
+              transform: [{ translateX: x }],
+            },
+          ]}>
+          <LinearGradient
+            colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']}
+            style={styles.pillGloss}
+            pointerEvents="none"
+          />
+        </Animated.View>
+        {ITEMS.map((item, i) => {
+          const on = i === activeIndex;
+          return (
+            <Pressable key={item.route} onPress={() => router.navigate(item.route as never)} style={styles.item}>
+              <Ionicons name={(on ? item.active : item.icon) as never} size={24} color={on ? fgActive : fgDim} />
+              <Text style={[styles.label, { color: on ? fgActive : fgDim }]}>{item.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </>
+  );
 
   return (
-    <View pointerEvents="box-none" style={[styles.host, { bottom: Math.max(insets.bottom, 10) }]}>
-      <BlurView
-        blurTarget={blurTarget ?? undefined}
-        intensity={blurOn ? look.blur : 0}
-        tint="default"
-        blurMethod="dimezisBlurView"
-        blurReductionFactor={1}
-        style={styles.bar}>
-        {/* 染色浓度 > 0 时才叠一层自定义颜色(设置里那个滑条真正控制这里) */}
-        {look.alpha > 0 && (
+    <View
+      pointerEvents="box-none"
+      style={[styles.host, { bottom: Math.max(insets.bottom, 10) }]}>
+      <View style={styles.shadow}>
+        {glassBar ? (
           <View
-            pointerEvents="none"
-            style={[StyleSheet.absoluteFill, { backgroundColor: withAlpha(look.color, look.alpha) }]}
-          />
-        )}
-        {/* 玻璃边缘: 顶部极窄高光 + 1px 描边(不做大面积填充) */}
-        <View pointerEvents="none" style={styles.outline} />
-        <LinearGradient
-          colors={['rgba(255,255,255,0.26)', 'rgba(255,255,255,0.03)', 'rgba(255,255,255,0)']}
-          locations={[0, 0.6, 1]}
-          style={styles.topSheen}
-          pointerEvents="none"
-        />
-        <View style={styles.row} onLayout={(e) => setRowW(e.nativeEvent.layout.width)} {...pan.panHandlers}>
-          {/* 选中胶囊: 独立玻璃层(与外层共用同一个采样目标) + 浅蓝染色 */}
-          {itemW > 0 && (
-            <Animated.View
+            style={[
+              styles.pill,
+              {
+                borderColor: dark ? 'rgba(255,255,255,0.34)' : 'rgba(255,255,255,0.90)',
+              },
+            ]}>
+            {/* 真正的毛玻璃: 指向页面的 BlurTargetView, 背后内容被糊掉后从底栏透出来 */}
+            <BlurView
+              blurTarget={blurTarget ?? undefined}
+              intensity={100}
+              tint={dark ? 'dark' : 'extraLight'}
+              blurMethod="dimezisBlurView"
+              blurReductionFactor={3}
+              style={StyleSheet.absoluteFill}
+            />
+            {/* 玻璃染色(拖动条调节浓度): 越低越透, 越高越接近奶白 */}
+            <View
               pointerEvents="none"
-              style={[
-                styles.indicator,
-                { width: Math.max(0, itemW - CAPSULE_INSET * 2), transform: [{ translateX: x }] },
-              ]}>
-              {blurOn && (
-                <BlurView
-                  blurTarget={blurTarget ?? undefined}
-                  intensity={Math.round(look.blur * 0.7)}
-                  tint="default"
-                  blurMethod="dimezisBlurView"
-                  blurReductionFactor={1}
-                  style={StyleSheet.absoluteFill}
-                />
-              )}
-              <LinearGradient
-                colors={
-                  look.liquid
-                    ? ['rgba(147,197,253,0.22)', 'rgba(96,165,250,0.10)', 'rgba(147,197,253,0.18)']
-                    : ['rgba(255,255,255,0.30)', 'rgba(255,255,255,0.06)', 'rgba(255,255,255,0.22)']
-                }
-                locations={[0, 0.5, 1]}
-                style={StyleSheet.absoluteFill}
-              />
-            </Animated.View>
-          )}
-          {ITEMS.map((item, i) => {
-            const on = i === activeIndex;
-            return (
-              <Pressable
-                key={item.route}
-                onPress={() => router.navigate(item.route as never)}
-                style={styles.item}>
-                <Ionicons
-                  name={(on ? item.active : item.icon) as never}
-                  size={24}
-                  color={on ? '#2563EB' : 'rgba(30,41,59,0.52)'}
-                />
-                <Text style={[styles.label, { color: on ? '#2563EB' : 'rgba(30,41,59,0.52)' }]}>
-                  {item.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        <View pointerEvents="none" style={styles.bottomLine} />
-      </BlurView>
+              style={[StyleSheet.absoluteFill, { backgroundColor: withAlpha(look.color, look.alpha) }]}
+            />
+            <LinearGradient
+              colors={['rgba(255,255,255,0.30)', 'rgba(255,255,255,0.02)', 'rgba(255,255,255,0.16)']}
+              locations={[0, 0.45, 1]}
+              style={StyleSheet.absoluteFill}
+              pointerEvents="none"
+            />
+            {content}
+            <LinearGradient
+              colors={['rgba(255,255,255,0.52)', 'rgba(255,255,255,0)']}
+              style={styles.rimTop}
+              pointerEvents="none"
+            />
+            <View pointerEvents="none" style={styles.bottomSheen} />
+          </View>
+        ) : (
+          <View
+            style={[
+              styles.pill,
+              {
+                backgroundColor: withAlpha(look.color, 0.99),
+                borderColor: dark ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.95)',
+              },
+            ]}>
+            <LinearGradient
+              colors={['rgba(255,255,255,0.34)', 'rgba(255,255,255,0.02)', 'rgba(255,255,255,0.16)']}
+              locations={[0, 0.5, 1]}
+              style={StyleSheet.absoluteFill}
+              pointerEvents="none"
+            />
+            {content}
+            <LinearGradient
+              colors={['rgba(255,255,255,0.40)', 'rgba(255,255,255,0)']}
+              style={styles.rimTop}
+              pointerEvents="none"
+            />
+            <View pointerEvents="none" style={styles.bottomSheen} />
+          </View>
+        )}
+      </View>
     </View>
   );
 }
@@ -185,93 +239,120 @@ export function GlassTabBarOverlay() {
 export function useGlassTabReserve(): number {
   const mode = useUiMode();
   const insets = useSafeAreaInsets();
-  return mode === 'glass' || mode === 'night' ? BAR_H + Math.max(insets.bottom, 10) + 16 : 0;
+  return mode === 'glass' || mode === 'night'
+    ? GLASS_BAR_HEIGHT + GLASS_BAR_GAP + Math.max(insets.bottom, 10) + 16
+    : 0;
 }
 
 export default function NightTabs() {
   const mode = useUiMode();
   const glass = mode === 'glass' || mode === 'night';
+  // 底栏模糊取景: 只包住三个页面, 底栏自己不在取景范围内(否则会糊到自己)
+  const sceneTarget = useRef<View>(null);
   return (
-    <Tabs tabBar={glass ? () => null : undefined} hapticFeedbackEnabled={true} sidebarAdaptable={false}>
-      <Tabs.Screen
-        name="home"
-        options={{
-          title: '主站',
-          tabBarIcon: () => require('@/assets/images/tabIcons/explore.png'),
-        }}
-      />
-      <Tabs.Screen
-        name="timetable"
-        options={{
-          title: '课表',
-          tabBarIcon: () => require('@/assets/images/tabIcons/home.png'),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: '我的',
-          tabBarIcon: () => require('@/assets/images/tabIcons/person.png'),
-        }}
-      />
-    </Tabs>
+    <View style={{ flex: 1 }}>
+      <BlurTargetView ref={sceneTarget} style={{ flex: 1 }}>
+        <Tabs
+          tabBarHidden={glass}
+          translucent={glass}
+          tabBarStyle={glass ? { backgroundColor: 'transparent' } : undefined}
+          activeIndicatorColor={glass ? 'transparent' : undefined}
+          hapticFeedbackEnabled={true}
+          sidebarAdaptable={false}>
+          <Tabs.Screen
+            name="home"
+            options={{
+              title: '主站',
+              sceneStyle: { backgroundColor: 'transparent' },
+              tabBarIcon: () => require('@/assets/images/tabIcons/explore.png'),
+            }}
+          />
+          <Tabs.Screen
+            name="timetable"
+            options={{
+              title: '课表',
+              sceneStyle: { backgroundColor: 'transparent' },
+              tabBarIcon: () => require('@/assets/images/tabIcons/home.png'),
+            }}
+          />
+          <Tabs.Screen
+            name="profile"
+            options={{
+              title: '我的',
+              sceneStyle: { backgroundColor: 'transparent' },
+              tabBarIcon: () => require('@/assets/images/tabIcons/person.png'),
+            }}
+          />
+        </Tabs>
+      </BlurTargetView>
+      {glass && <GlassTabBar blurTarget={sceneTarget} />}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   host: {
     position: 'absolute',
-    left: 16,
-    right: 16,
+    left: GLASS_BAR_MARGIN,
+    right: GLASS_BAR_MARGIN,
     zIndex: 100,
   },
-  bar: {
-    height: BAR_H,
-    borderRadius: BAR_H / 2,
+  shadow: {
+    borderRadius: GLASS_BAR_HEIGHT / 2,
+  },
+  pill: {
+    height: GLASS_BAR_HEIGHT,
+    borderRadius: GLASS_BAR_HEIGHT / 2,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.95)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
     overflow: 'hidden',
   },
-  outline: {
+  /** 玻璃上缘折射: 让底栏和页面内容接触的地方"像泡在水里" */
+  rimTop: {
     position: 'absolute',
     top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: BAR_H / 2,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.30)',
+    left: 16,
+    right: 16,
+    height: 16,
   },
-  topSheen: {
+  sheen: {
     position: 'absolute',
     top: 0,
-    left: 14,
-    right: 14,
-    height: 12,
-  },
-  bottomLine: {
-    position: 'absolute',
-    bottom: 0,
-    left: 24,
-    right: 24,
+    left: 20,
+    right: 20,
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.95)',
   },
-  row: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 0 },
+  bottomSheen: {
+    position: 'absolute',
+    bottom: 0,
+    left: 20,
+    right: 20,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.38)',
+  },
+  row: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   item: {
     flex: 1,
-    height: BAR_H,
+    height: GLASS_BAR_HEIGHT - INDICATOR_INSET * 2,
+    borderRadius: (GLASS_BAR_HEIGHT - INDICATOR_INSET * 2) / 2,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
   },
   indicator: {
     position: 'absolute',
-    left: CAPSULE_INSET,
-    top: 10,
-    height: BAR_H - 20,
-    borderRadius: (BAR_H - 20) / 2,
-    overflow: 'hidden',
+    left: INDICATOR_INSET,
+    top: INDICATOR_INSET,
+    bottom: INDICATOR_INSET,
+    borderRadius: (GLASS_BAR_HEIGHT - INDICATOR_INSET * 2) / 2,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.40)',
+    overflow: 'hidden',
   },
-  label: { fontSize: 11, fontWeight: '600' },
+  /** 胶囊上缘的一层水光, 让选中态像一颗玻璃珠 */
+  pillGloss: { position: 'absolute', top: 0, left: 8, right: 8, height: 18 },
+  label: { fontSize: 11, fontWeight: '700' },
 });

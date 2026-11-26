@@ -1,14 +1,14 @@
-/** 液态玻璃底栏外观: 颜色染色 + 染色浓度 + 液态胶囊 */
+/** 液态玻璃底栏外观: 颜色 + 是否透字(毛玻璃) + 透字浓度 + 液态模式 */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type TabBarLook = {
-  /** 底栏颜色(只作为极淡的染色, 默认 6%) */
+  /** 底栏颜色(透字模式下作为玻璃染色) */
   color: string;
-  /** 染色浓度 0~0.25(越小越透, 0 = 完全不染色) */
+  /** true = 透字毛玻璃; false = 奶白/纯色实底 */
+  seeThrough: boolean;
+  /** 透字模式染色浓度 0.02~0.98(越小越透) */
   alpha: number;
-  /** 玻璃模糊强度 0~100(越低越透亮; Android 上同时决定白膜 alpha = 0.44 × blur/100) */
-  blur: number;
-  /** 液态模式: 选中项是浅蓝玻璃胶囊 */
+  /** 液态模式: 实心白玻璃胶囊 + 液态折射边 */
   liquid: boolean;
 };
 
@@ -23,9 +23,7 @@ export const TAB_BAR_COLORS = [
   { name: '深空', value: '#20242E' },
 ] as const;
 
-const DEFAULT_LOOK: TabBarLook = { color: '#F7F3EA', alpha: 0.06, blur: 25, liquid: true };
-
-let look: TabBarLook = { ...DEFAULT_LOOK };
+let look: TabBarLook = { color: '#F7F3EA', seeThrough: false, alpha: 0.3, liquid: false };
 let primed = false;
 const subs = new Set<() => void>();
 
@@ -40,8 +38,8 @@ export async function primeTabBarLook(): Promise<void> {
     if (raw) {
       const p = JSON.parse(raw) as Partial<TabBarLook>;
       if (typeof p.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(p.color)) look.color = p.color;
-      if (typeof p.alpha === 'number' && p.alpha >= 0 && p.alpha <= 0.25) look.alpha = p.alpha;
-      if (typeof p.blur === 'number' && p.blur >= 0 && p.blur <= 100) look.blur = p.blur;
+      if (typeof p.seeThrough === 'boolean') look.seeThrough = p.seeThrough;
+      if (typeof p.alpha === 'number' && p.alpha >= 0.02 && p.alpha <= 0.98) look.alpha = p.alpha;
       if (typeof p.liquid === 'boolean') look.liquid = p.liquid;
     }
   } catch {
@@ -70,14 +68,6 @@ export async function setTabBarLook(patch: Partial<TabBarLook>): Promise<void> {
 /** 拖动调节时的实时预览(只改内存, 不写盘; 松手再 setTabBarLook 落盘) */
 export function previewTabBarLook(patch: Partial<TabBarLook>): void {
   look = { ...look, ...patch };
-  notify();
-}
-
-/** 调试用: 清掉旧的底栏配置(tabbar-look-v1), 回到当前代码的默认值 */
-export async function resetTabBarLook(): Promise<void> {
-  look = { ...DEFAULT_LOOK };
-  primed = true;
-  await AsyncStorage.removeItem(KEY).catch(() => {});
   notify();
 }
 

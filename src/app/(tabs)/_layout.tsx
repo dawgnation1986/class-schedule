@@ -1,23 +1,41 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, ThemeProvider, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { useEffect, useRef } from 'react';
 import { useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import AppTabs from '@/components/app-tabs';
+import { loadAccount } from '@/lib/account';
 
 SplashScreen.preventAutoHideAsync();
 
-/**
- * 启动路由统一由 src/app/index.tsx 决定(读取 account.startPage 后 replace 一次)。
- * 这里不再做二次跳转: 之前 StartPageGate 会在 TabsLayout 挂载完成后再次 replace,
- * 与 index 的跳转叠加, 在原生 Tabs 首次 attach / 选中事件派发期间连续切换页面。
- */
+/** 根据"默认起始页"设置, 启动时跳转到对应 tab (仅执行一次) */
+function StartPageGate() {
+  const router = useRouter();
+  const ran = useRef(false);
+  useEffect(() => {
+    if (ran.current) return;
+    ran.current = true;
+    (async () => {
+      try {
+        const acc = await loadAccount();
+        if (acc?.startPage === 'home') router.replace('/home');
+        else if (acc?.startPage === 'timetable') router.replace('/timetable');
+      } catch {
+        // 忽略, 停留在课表页
+      }
+    })();
+  }, [router]);
+  return null;
+}
+
 export default function TabsLayout() {
   const colorScheme = useColorScheme();
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <AnimatedSplashOverlay />
       <AppTabs />
+      <StartPageGate />
     </ThemeProvider>
   );
 }
