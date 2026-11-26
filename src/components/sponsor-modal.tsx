@@ -6,6 +6,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { fetchSponsor, sponsorPageUrl, type SponsorInfo } from '@/lib/sponsor';
 import { type Palette } from '@/constants/theme';
+import { AcrylicPanel, MaskBlur } from '@/components/glass-surface';
 
 export function SponsorModal({
   visible,
@@ -32,7 +33,8 @@ export function SponsorModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.mask} onPress={onClose}>
-        <Pressable style={[styles.box, { backgroundColor: colors.background }]} onPress={() => {}}>
+        <MaskBlur />
+        <AcrylicPanel radius={14} onPress={() => {}} style={[styles.box, { backgroundColor: colors.background }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Ionicons name="heart" size={20} color="#ef4444" />
             <Text style={{ color: colors.text, fontSize: 17, fontWeight: '800' }}>支持开发者</Text>
@@ -80,7 +82,7 @@ export function SponsorModal({
               <Text style={{ color: '#fff', fontWeight: '700' }}>在网页查看</Text>
             </Pressable>
           </View>
-        </Pressable>
+        </AcrylicPanel>
       </Pressable>
     </Modal>
   );

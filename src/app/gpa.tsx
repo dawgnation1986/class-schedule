@@ -10,7 +10,7 @@ import * as Sharing from 'expo-sharing';
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { PageBackdrop, usePageBackground } from '@/lib/background';
-import { GlassSurface } from '@/components/glass-surface';
+import { AcrylicPanel, GlassSurface, MaskBlur } from '@/components/glass-surface';
 import {
   getGradesStat,
   gradeKey,
@@ -403,10 +403,11 @@ export default function GpaScreen() {
       {/* 学分编辑 */}
       <Modal visible={!!editing} transparent animationType="fade" onRequestClose={() => setEditing(null)}>
         <Pressable style={styles.mask} onPress={() => setEditing(null)}>
-          <Pressable
+          <MaskBlur />
+          <AcrylicPanel
+            radius={18}
             style={[styles.modalCard, { backgroundColor: colors.background }]}
             onPress={() => {}}>
-            <GlassSurface radius={18} />
             <Text style={{ color: colors.text, fontWeight: '800', fontSize: 16 }} numberOfLines={1}>
               {editing?.name}
             </Text>
@@ -450,7 +451,7 @@ export default function GpaScreen() {
                 <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>保存</Text>
               </Pressable>
             </View>
-          </Pressable>
+          </AcrylicPanel>
         </Pressable>
       </Modal>
     </SafeAreaView>

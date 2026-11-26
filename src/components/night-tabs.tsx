@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 液态玻璃标签栏: 原生导航器 (react-native-bottom-tabs) + 自绘悬浮胶囊底栏
  * 完全不经过 expo-router 内置的 JS 版 bottom-tabs —— 那条路径存在
  * "Invalid hook call" 崩溃, 是液态玻璃模式闪退的根因。
@@ -28,6 +28,12 @@ const ITEMS = [
   { route: '/timetable', label: '课表', icon: 'calendar-outline', active: 'calendar' },
   { route: '/profile', label: '我的', icon: 'person-outline', active: 'person' },
 ] as const;
+
+/** 悬浮底栏尺寸(与页面底部占位共用同一套常量, 保证三者一致) */
+export const GLASS_BAR_HEIGHT = 92;
+export const GLASS_BAR_GAP = 12;
+export const GLASS_BAR_MARGIN = 18;
+const INDICATOR_INSET = 9;
 
 /** 悬浮胶囊玻璃底栏: 毛玻璃 + 高光描边 + 水滴滑动指示器 */
 function GlassTabBar() {
@@ -108,8 +114,8 @@ function GlassTabBar() {
     lastX.current = to;
   }, [activeIndex, itemW, x, stretch]);
 
-  // 指示器只做位移, 不做形变, 上下左右等宽
-  const stretchOpacity = stretch.interpolate({ inputRange: [0, 1], outputRange: [1, 0.9] });
+  // 胶囊宽 = 每格宽减两侧内缩, 三等分完全等宽
+  const pillW = Math.max(0, itemW - INDICATOR_INSET * 2);
 
   const content = (
     <>
@@ -124,10 +130,9 @@ function GlassTabBar() {
           style={[
             styles.indicator,
             {
-              width: Math.max(0, itemW - 24),
-              opacity: stretchOpacity,
-              backgroundColor: dark ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.62)',
-              borderColor: dark ? 'rgba(255,255,255,0.24)' : 'rgba(255,255,255,0.92)',
+              width: pillW,
+              backgroundColor: dark ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.94)',
+              borderColor: dark ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,1)',
               transform: [{ translateX: x }],
             },
           ]}
@@ -153,34 +158,46 @@ function GlassTabBar() {
       style={[styles.host, { bottom: Math.max(insets.bottom, 10) }]}>
       <View style={styles.shadow}>
         {glassBar ? (
-          <BlurView
-            intensity={80}
-            tint="light"
-            blurMethod="dimezisBlurView"
+          <View
             style={[
               styles.pill,
-              { borderColor: 'rgba(255,255,255,0.95)', backgroundColor: withAlpha(look.color, 0.82) },
+              {
+                // 透字模式: 模糊 + 高不透明度染色(0.94), 页面文字不会再从底栏里透出来
+                backgroundColor: withAlpha(look.color, 0.94),
+                borderColor: dark ? 'rgba(255,255,255,0.34)' : 'rgba(255,255,255,0.95)',
+              },
             ]}>
+            <BlurView
+              intensity={60}
+              tint={dark ? 'dark' : 'light'}
+              blurMethod="dimezisBlurView"
+              style={StyleSheet.absoluteFill}
+            />
             <View
               pointerEvents="none"
-              style={[StyleSheet.absoluteFill, { backgroundColor: withAlpha(look.color, 0.22) }]}
+              style={[StyleSheet.absoluteFill, { backgroundColor: withAlpha(look.color, 0.92) }]}
             />
             {/* 水感高光: 上缘亮、中部透、下缘再提亮, 模拟玻璃边缘的折射 */}
             <LinearGradient
-              colors={['rgba(255,255,255,0.42)', 'rgba(255,255,255,0.04)', 'rgba(255,255,255,0.20)']}
+              colors={['rgba(255,255,255,0.52)', 'rgba(255,255,255,0.05)', 'rgba(255,255,255,0.22)']}
               locations={[0, 0.45, 1]}
               style={StyleSheet.absoluteFill}
               pointerEvents="none"
             />
             {content}
+            <LinearGradient
+              colors={['rgba(255,255,255,0.50)', 'rgba(255,255,255,0)']}
+              style={styles.rimTop}
+              pointerEvents="none"
+            />
             <View pointerEvents="none" style={styles.bottomSheen} />
-          </BlurView>
+          </View>
         ) : (
           <View
             style={[
               styles.pill,
               {
-                backgroundColor: withAlpha(look.color, 0.98),
+                backgroundColor: withAlpha(look.color, 0.99),
                 borderColor: dark ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.95)',
               },
             ]}>
@@ -191,6 +208,11 @@ function GlassTabBar() {
               pointerEvents="none"
             />
             {content}
+            <LinearGradient
+              colors={['rgba(255,255,255,0.40)', 'rgba(255,255,255,0)']}
+              style={styles.rimTop}
+              pointerEvents="none"
+            />
             <View pointerEvents="none" style={styles.bottomSheen} />
           </View>
         )}
@@ -203,23 +225,28 @@ function GlassTabBar() {
 export function useGlassTabReserve(): number {
   const mode = useUiMode();
   const insets = useSafeAreaInsets();
-  return mode === 'glass' || mode === 'night' ? 80 + Math.max(insets.bottom, 10) + 16 : 0;
+  return mode === 'glass' || mode === 'night'
+    ? GLASS_BAR_HEIGHT + GLASS_BAR_GAP + Math.max(insets.bottom, 10) + 16
+    : 0;
 }
 
 export default function NightTabs() {
   const mode = useUiMode();
-  const insets = useSafeAreaInsets();
   const glass = mode === 'glass' || mode === 'night';
-  // 悬浮底栏为页面内容预留的高度: 胶囊 + 底部间距 + 安全区
-  const reserve = glass ? 80 + Math.max(insets.bottom, 10) + 12 : 0;
   return (
     <View style={{ flex: 1 }}>
-      <Tabs tabBarHidden={glass} translucent={glass} hapticFeedbackEnabled={true} sidebarAdaptable={false}>
+      <Tabs
+        tabBarHidden={glass}
+        translucent={glass}
+        tabBarStyle={glass ? { backgroundColor: 'transparent' } : undefined}
+        activeIndicatorColor={glass ? 'transparent' : undefined}
+        hapticFeedbackEnabled={true}
+        sidebarAdaptable={false}>
         <Tabs.Screen
           name="home"
           options={{
             title: '主站',
-            sceneStyle: { backgroundColor: 'transparent', paddingBottom: reserve },
+            sceneStyle: { backgroundColor: 'transparent' },
             tabBarIcon: () => require('@/assets/images/tabIcons/explore.png'),
           }}
         />
@@ -227,7 +254,7 @@ export default function NightTabs() {
           name="timetable"
           options={{
             title: '课表',
-            sceneStyle: { backgroundColor: 'transparent', paddingBottom: reserve },
+            sceneStyle: { backgroundColor: 'transparent' },
             tabBarIcon: () => require('@/assets/images/tabIcons/home.png'),
           }}
         />
@@ -235,7 +262,7 @@ export default function NightTabs() {
           name="profile"
           options={{
             title: '我的',
-            sceneStyle: { backgroundColor: 'transparent', paddingBottom: reserve },
+            sceneStyle: { backgroundColor: 'transparent' },
             tabBarIcon: () => require('@/assets/images/tabIcons/person.png'),
           }}
         />
@@ -248,22 +275,30 @@ export default function NightTabs() {
 const styles = StyleSheet.create({
   host: {
     position: 'absolute',
-    left: 18,
-    right: 18,
+    left: GLASS_BAR_MARGIN,
+    right: GLASS_BAR_MARGIN,
     zIndex: 100,
   },
   shadow: {
-    borderRadius: 40,
+    borderRadius: GLASS_BAR_HEIGHT / 2,
   },
   pill: {
-    height: 80,
-    borderRadius: 40,
+    height: GLASS_BAR_HEIGHT,
+    borderRadius: GLASS_BAR_HEIGHT / 2,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.95)',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
     overflow: 'hidden',
+  },
+  /** 玻璃上缘折射: 让底栏和页面内容接触的地方"像泡在水里" */
+  rimTop: {
+    position: 'absolute',
+    top: 0,
+    left: 16,
+    right: 16,
+    height: 16,
   },
   sheen: {
     position: 'absolute',
@@ -284,21 +319,19 @@ const styles = StyleSheet.create({
   row: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   item: {
     flex: 1,
-    height: 66,
-    borderRadius: 33,
+    height: GLASS_BAR_HEIGHT - INDICATOR_INSET * 2,
+    borderRadius: (GLASS_BAR_HEIGHT - INDICATOR_INSET * 2) / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 5,
   },
   indicator: {
     position: 'absolute',
-    left: 12,
-    top: 10,
-    bottom: 10,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255,255,255,0.62)',
+    left: INDICATOR_INSET,
+    top: INDICATOR_INSET,
+    bottom: INDICATOR_INSET,
+    borderRadius: (GLASS_BAR_HEIGHT - INDICATOR_INSET * 2) / 2,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.92)',
   },
   label: { fontSize: 11, fontWeight: '700' },
 });

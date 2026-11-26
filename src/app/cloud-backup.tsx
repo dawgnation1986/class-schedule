@@ -23,7 +23,7 @@ import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { NightCard, NightGlowBackground } from '@/components/night-kit';
-import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
+import { AcrylicPanel, GlassSurface, GLASS_LINE, MaskBlur } from '@/components/glass-surface';
 import { useBgSetting, usePageBackground } from '@/lib/background';
 import { loadProfile, type UserProfile } from '@/lib/profile';
 import { BACKUP_SECTIONS, exportBackup, importBackup } from '@/lib/backup';
@@ -655,7 +655,8 @@ export default function CloudBackupScreen() {
 
       <Modal visible={!!renameId} transparent animationType="fade" onRequestClose={() => setRenameId(null)}>
         <Pressable style={styles.modalMask} onPress={() => setRenameId(null)}>
-          <Pressable style={[styles.modalBox, { backgroundColor: colors.background }]} onPress={() => {}}>
+          <MaskBlur />
+          <AcrylicPanel radius={14} onPress={() => {}} style={[styles.modalBox, { backgroundColor: colors.background }]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>重命名备份</Text>
             <TextInput
               value={renameText}
@@ -675,7 +676,7 @@ export default function CloudBackupScreen() {
                 <Text style={{ color: renameText.trim() ? '#fff' : colors.textSecondary, fontWeight: '700' }}>保存</Text>
               </Pressable>
             </View>
-          </Pressable>
+          </AcrylicPanel>
         </Pressable>
       </Modal>
     </SafeAreaView>

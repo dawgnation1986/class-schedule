@@ -24,7 +24,7 @@ import { useUiMode } from '@/hooks/use-ui-mode';
 import { usePageBackground, useBgSetting } from '@/lib/background';
 import { NightGlowBackground, NightCard, NightPrimaryButton } from '@/components/night-kit';
 import { useGlassTabReserve } from '@/components/night-tabs';
-import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
+import { AcrylicPanel, GlassSurface, GLASS_LINE, MaskBlur } from '@/components/glass-surface';
 import { AboutGithub } from '@/components/about-github';
 import { PORTAL_SITE, clearSession, loadLoginPage, submitLogin, tryRestoreSession, type LoginState, type PortalApp } from '@/lib/portal';
 import { loadAccount, saveAccount } from '@/lib/account';
@@ -435,8 +435,9 @@ export default function PortalScreen() {
       {/* OCR 服务设置(可选): 自定义接口 → 百度 OCR → ocr.space 依次尝试 */}
       <Modal visible={ocrKeyOpen} transparent animationType="fade" onRequestClose={() => setOcrKeyOpen(false)}>
         <View style={styles.modalMask}>
+          <MaskBlur />
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setOcrKeyOpen(false)} />
-          <View style={[styles.modalBox, { backgroundColor: colors.background }]}>
+          <AcrylicPanel radius={16} style={[styles.modalBox, { backgroundColor: colors.background }]}>
             <ScrollView style={{ maxHeight: 430 }} keyboardShouldPersistTaps="handled">
               <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800' }}>识别服务设置（可选）</Text>
               <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 6, lineHeight: 18 }}>
@@ -482,7 +483,7 @@ export default function PortalScreen() {
                 <Text style={{ color: '#fff', fontWeight: '700' }}>保存</Text>
               </Pressable>
             </View>
-          </View>
+          </AcrylicPanel>
         </View>
       </Modal>
     </SafeAreaView>

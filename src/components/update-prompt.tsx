@@ -5,6 +5,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useTheme } from '@/hooks/use-theme';
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { NightCard, NightPrimaryButton } from '@/components/night-kit';
+import { AcrylicPanel, MaskBlur } from '@/components/glass-surface';
 import { ApkDownload } from '@/components/download-view';
 import { checkUpdate, type UpdateInfo } from '@/lib/updates';
 
@@ -13,7 +14,7 @@ export function UpdatePrompt() {
   const uiMode = useUiMode();
   const night = uiMode === 'night';
   // 墨夜模式: 弹窗容器交给 NightCard 重绘(去掉原背景色)
-  const BoxWrap: ElementType = night ? NightCard : View;
+  const BoxWrap: ElementType = night ? NightCard : AcrylicPanel;
   const [info, setInfo] = useState<UpdateInfo | null>(null);
   const [downloading, setDownloading] = useState(false);
 
@@ -43,7 +44,8 @@ export function UpdatePrompt() {
         setInfo(null);
       }}>
       <View style={styles.mask}>
-        <BoxWrap style={night ? styles.box : [styles.box, { backgroundColor: colors.background }]}>
+        <MaskBlur />
+        <BoxWrap {...(night ? {} : { radius: 16 })} style={night ? styles.box : [styles.box, { backgroundColor: colors.background }]}>
           <Text style={[styles.title, { color: colors.text }]}>
             发现{info.prerelease ? '体验版' : '新版本'} v{info.latest}
           </Text>

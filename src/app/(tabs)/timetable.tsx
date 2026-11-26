@@ -28,7 +28,7 @@ import { useUiMode } from '@/hooks/use-ui-mode';
 import { usePageBackground, useBgSetting, PageBackdrop } from '@/lib/background';
 import { NightGlowBackground, NightCard } from '@/components/night-kit';
 import { useGlassTabReserve } from '@/components/night-tabs';
-import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
+import { AcrylicPanel, GlassSurface, GLASS_LINE, MaskBlur } from '@/components/glass-surface';
 import {
   beijingNow,
   fetchTimetable,
@@ -147,7 +147,8 @@ function DatePickModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.modalMask} onPress={onClose}>
-        <Pressable style={[styles.modalBox, { backgroundColor: colors.background }]} onPress={() => {}}>
+        <MaskBlur />
+        <AcrylicPanel radius={14} onPress={() => {}} style={[styles.modalBox, { backgroundColor: colors.background }]}>
           <Text style={[styles.modalTitle, { color: colors.text }]}>选择查询日期</Text>
           <View style={styles.calHead}>
             <Pressable onPress={() => setView((v) => (v.m === 1 ? { y: v.y - 1, m: 12 } : { ...v, m: v.m - 1 }))} hitSlop={8}>
@@ -183,7 +184,7 @@ function DatePickModal({
               <Text style={{ color: '#fff', fontWeight: '700' }}>查询</Text>
             </Pressable>
           </View>
-        </Pressable>
+        </AcrylicPanel>
       </Pressable>
     </Modal>
   );
@@ -1214,7 +1215,8 @@ function ClassicScreen() {
       {/* 课程详情卡 */}
       <Modal visible={!!detailCell} transparent animationType="fade" onRequestClose={() => setDetailCell(null)}>
         <Pressable style={styles.modalMask} onPress={() => setDetailCell(null)}>
-          <Pressable style={[styles.modalBox, { backgroundColor: colors.background }]} onPress={() => {}}>
+          <MaskBlur />
+          <AcrylicPanel radius={14} onPress={() => {}} style={[styles.modalBox, { backgroundColor: colors.background }]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>{detailCell?.name}</Text>
             {[
               ['节次', detailCell?.period],
@@ -1284,7 +1286,7 @@ function ClassicScreen() {
                 <Text style={{ color: '#fff', fontWeight: '700' }}>记这节课的作业</Text>
               </Pressable>
             </View>
-          </Pressable>
+          </AcrylicPanel>
         </Pressable>
       </Modal>
       <DatePickModal

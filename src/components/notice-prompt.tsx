@@ -9,13 +9,14 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { NightCard, NightPrimaryButton } from '@/components/night-kit';
+import { AcrylicPanel, MaskBlur } from '@/components/glass-surface';
 import { fetchNoticeList, getNoticeReadIds, markNoticeRead, type NoticeInfo } from '@/lib/notice';
 
 export function NoticePrompt() {
   const colors = useTheme();
   const uiMode = useUiMode();
   const night = uiMode === 'night';
-  const BoxWrap: ElementType = night ? NightCard : View;
+  const BoxWrap: ElementType = night ? NightCard : AcrylicPanel;
   const router = useRouter();
   const [info, setInfo] = useState<NoticeInfo | null>(null);
   const [total, setTotal] = useState(0);
@@ -55,7 +56,8 @@ export function NoticePrompt() {
   return (
     <Modal visible transparent animationType="fade" onRequestClose={dismiss}>
       <View style={styles.mask}>
-        <BoxWrap style={night ? styles.box : [styles.box, { backgroundColor: colors.background }]}>
+        <MaskBlur />
+        <BoxWrap {...(night ? {} : { radius: 16 })} style={night ? styles.box : [styles.box, { backgroundColor: colors.background }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Text style={{ fontSize: 18 }}>📣</Text>
             <Text style={[styles.title, { color: colors.text }]}>{info.title}</Text>

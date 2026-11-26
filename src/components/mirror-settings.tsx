@@ -12,7 +12,7 @@ import {
   toggleBuiltinMirror,
   type Mirror,
 } from '@/lib/gh-mirrors';
-import { GlassSurface } from '@/components/glass-surface';
+import { AcrylicPanel, GlassSurface, MaskBlur } from '@/components/glass-surface';
 
 export function MirrorSettings({
   visible,
@@ -86,10 +86,10 @@ export function MirrorSettings({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.mask}>
+        <MaskBlur />
         {/* 背景遮罩单独一层: 不用 Pressable 包住内容, 否则会抢走列表的拖动手势 */}
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={[styles.box, { backgroundColor: colors.background }]}>
-          <GlassSurface radius={16} />
+        <AcrylicPanel radius={16} style={[styles.box, { backgroundColor: colors.background }]}>
           <Text style={[styles.title, { color: colors.text }]}>下载镜像设置</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
             下载时自动测速，从快到慢依次尝试
@@ -143,7 +143,7 @@ export function MirrorSettings({
               <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>完成</Text>
             </Pressable>
           </View>
-        </View>
+        </AcrylicPanel>
       </View>
     </Modal>
   );

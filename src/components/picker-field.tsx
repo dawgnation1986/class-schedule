@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Spacing, type Palette } from '@/constants/theme';
-import { GlassSurface } from '@/components/glass-surface';
+import { AcrylicPanel, GlassSurface, MaskBlur } from '@/components/glass-surface';
 import type { Option } from '@/lib/timetable';
 
 /** 简单的选择器: 按钮 + 弹出选项列表 (设置页/临时查询页共用)
@@ -49,7 +49,8 @@ export function PickerField({
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.modalMask} onPress={() => setOpen(false)}>
-          <View style={[styles.modalBox, { backgroundColor: colors.background }]}>
+          <MaskBlur intensity={22} />
+          <AcrylicPanel radius={16} style={styles.modalBox}>
             <ScrollView style={{ maxHeight: 400 }}>
               {options.map((o) => (
                 <Pressable
@@ -63,7 +64,7 @@ export function PickerField({
                 </Pressable>
               ))}
             </ScrollView>
-          </View>
+          </AcrylicPanel>
         </Pressable>
       </Modal>
     </View>

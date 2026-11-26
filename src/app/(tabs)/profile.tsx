@@ -29,6 +29,7 @@ import { usePageBackground, useBgSetting } from '@/lib/background';
 import { useNightGlassDisabled } from '@/hooks/use-night-glass';
 import { useGlassTabReserve } from '@/components/night-tabs';
 import { NightGlowBackground, NightCard } from '@/components/night-kit';
+import { AcrylicPanel, MaskBlur } from '@/components/glass-surface';
 import { getThemeMode, saveThemeMode, subscribeTheme, themeModeLabel, type ThemeMode } from '@/lib/theme';
 import { getWeatherCity, setWeatherCity } from '@/lib/weather';
 import { addCountdown, loadCountdowns, removeCountdown, subscribeCountdowns, type Countdown } from '@/lib/countdowns';
@@ -164,7 +165,8 @@ function TimesEditorModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.modalMask} onPress={onClose}>
-        <Pressable style={[styles.modalBox, { backgroundColor: colors.background }]} onPress={() => {}}>
+        <MaskBlur />
+        <AcrylicPanel radius={14} onPress={() => {}} style={[styles.modalBox, { backgroundColor: colors.background }]}>
           <Text style={[styles.modalTitle, { color: colors.text }]}>编辑作息时间</Text>
           <Text style={[styles.modalHint, { color: colors.textSecondary }]}>
             直接修改各节起止时间，保存后立即生效（倒计时/通知/今日课程都按此计算）
@@ -202,7 +204,7 @@ function TimesEditorModal({
               <Text style={{ color: '#fff', fontWeight: '700' }}>保存</Text>
             </Pressable>
           </View>
-        </Pressable>
+        </AcrylicPanel>
       </Pressable>
     </Modal>
   );
@@ -241,7 +243,8 @@ function JsonImportModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.modalMask} onPress={onClose}>
-        <Pressable style={[styles.modalBox, { backgroundColor: colors.background }]} onPress={() => {}}>
+        <MaskBlur />
+        <AcrylicPanel radius={14} onPress={() => {}} style={[styles.modalBox, { backgroundColor: colors.background }]}>
           <Text style={[styles.modalTitle, { color: colors.text }]}>JSON 导入作息</Text>
           <Text style={[styles.modalHint, { color: colors.textSecondary }]}>
             支持格式（键=大节，值=起止时间）：
@@ -269,7 +272,7 @@ function JsonImportModal({
               <Text style={{ color: text.trim() ? '#fff' : colors.textSecondary, fontWeight: '700' }}>导入</Text>
             </Pressable>
           </View>
-        </Pressable>
+        </AcrylicPanel>
       </Pressable>
     </Modal>
   );
@@ -1544,7 +1547,8 @@ export default function ProfileScreen() {
       {/* 导出备份: 展示 JSON + 系统分享 */}
       <Modal visible={bkOutOpen} transparent animationType="fade" onRequestClose={() => setBkOutOpen(false)}>
         <Pressable style={styles.modalMask} onPress={() => setBkOutOpen(false)}>
-          <Pressable style={[styles.modalBox, { backgroundColor: colors.background }]} onPress={() => {}}>
+          <MaskBlur />
+          <AcrylicPanel radius={14} onPress={() => {}} style={[styles.modalBox, { backgroundColor: colors.background }]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>备份内容</Text>
             {(() => {
               const s = summarizeBackup(bkJson);
@@ -1593,13 +1597,14 @@ export default function ProfileScreen() {
                 <Text style={{ color: '#fff', fontWeight: '700' }}>分享 / 复制</Text>
               </Pressable>
             </View>
-          </Pressable>
+          </AcrylicPanel>
         </Pressable>
       </Modal>
       {/* 导入备份: 粘贴 JSON 恢复 */}
       <Modal visible={bkInOpen} transparent animationType="fade" onRequestClose={() => setBkInOpen(false)}>
         <Pressable style={styles.modalMask} onPress={() => setBkInOpen(false)}>
-          <Pressable style={[styles.modalBox, { backgroundColor: colors.background }]} onPress={() => {}}>
+          <MaskBlur />
+          <AcrylicPanel radius={14} onPress={() => {}} style={[styles.modalBox, { backgroundColor: colors.background }]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>导入备份</Text>
             <Text style={{ color: colors.textSecondary, fontSize: 13, lineHeight: 20 }}>
               粘贴之前导出的备份 JSON，导入后请退出并重新打开 App 使设置全部生效。
@@ -1636,12 +1641,13 @@ export default function ProfileScreen() {
                 <Text style={{ color: bkText.trim() ? '#fff' : colors.textSecondary, fontWeight: '700' }}>导入</Text>
               </Pressable>
             </View>
-          </Pressable>
+          </AcrylicPanel>
         </Pressable>
       </Modal>
       <Modal visible={wxOpen} transparent animationType="fade" onRequestClose={() => setWxOpen(false)}>
         <Pressable style={styles.modalMask} onPress={() => setWxOpen(false)}>
-          <Pressable style={[styles.modalBox, { backgroundColor: colors.background }]} onPress={() => {}}>
+          <MaskBlur />
+          <AcrylicPanel radius={14} onPress={() => {}} style={[styles.modalBox, { backgroundColor: colors.background }]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>天气城市</Text>
             <Text style={{ color: colors.textSecondary, fontSize: 13, lineHeight: 20 }}>
               输入城市名（如：长沙、儋州、海口），保存后天气立即按新城市查询；留空保存则恢复自动定位。
@@ -1680,12 +1686,13 @@ export default function ProfileScreen() {
                 <Text style={{ color: '#fff', fontWeight: '700' }}>保存</Text>
               </Pressable>
             </View>
-          </Pressable>
+          </AcrylicPanel>
         </Pressable>
       </Modal>
       <Modal visible={siteOpen} transparent animationType="fade" onRequestClose={() => setSiteOpen(false)}>
         <Pressable style={styles.modalMask} onPress={() => setSiteOpen(false)}>
-          <Pressable style={[styles.modalBox, { backgroundColor: colors.background }]} onPress={() => {}}>
+          <MaskBlur />
+          <AcrylicPanel radius={14} onPress={() => {}} style={[styles.modalBox, { backgroundColor: colors.background }]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>官网接口地址</Text>
             <Text style={{ color: colors.textSecondary, fontSize: 13, lineHeight: 20 }}>
               App 从官网拉取公告与赞助收款码。地址填站点根（不带 /api/config.php），默认 {DEFAULT_SITE_URL}
@@ -1732,7 +1739,7 @@ export default function ProfileScreen() {
                 <Text style={{ color: '#fff', fontWeight: '700' }}>保存</Text>
               </Pressable>
             </View>
-          </Pressable>
+          </AcrylicPanel>
         </Pressable>
       </Modal>
     </SafeAreaView>
