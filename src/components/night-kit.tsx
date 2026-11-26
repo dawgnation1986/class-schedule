@@ -21,7 +21,6 @@ import { BlurView } from 'expo-blur';
 
 import { useTheme } from '@/hooks/use-theme';
 import { useNightGlass } from '@/hooks/use-night-glass';
-import { useBlurTarget } from '@/components/glass-surface';
 import { useGlassSkin } from '@/hooks/use-glass-skin';
 
 export const NightTint = {
@@ -81,7 +80,6 @@ export function NightCard({
 }) {
   const glassSkin = useGlassSkin();
   const blurOn = useNightGlass();
-  const blurTarget = useBlurTarget();
 
   if (!glassSkin) {
     return (
@@ -106,7 +104,7 @@ export function NightCard({
 
   return (
     <View style={[styles.glassShadow, style]}>
-      <BlurView blurTarget={blurTarget ?? undefined} intensity={48} tint="dark" blurMethod="dimezisBlurView" style={styles.glassCard}>
+      <BlurView intensity={48} tint="dark" blurMethod="dimezisBlurView" style={styles.glassCard}>
         <View pointerEvents="none" style={styles.glassTint} />
         <LinearGradient
           pointerEvents="none"
