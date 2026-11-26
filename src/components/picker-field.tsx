@@ -49,18 +49,25 @@ export function PickerField({
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.modalMask} onPress={() => setOpen(false)}>
-          <MaskBlur intensity={22} />
-          <AcrylicPanel radius={16} style={styles.modalBox}>
+          <MaskBlur intensity={26} />
+          <AcrylicPanel radius={14} style={styles.modalBox}>
             <ScrollView style={{ maxHeight: 400 }}>
               {options.map((o) => (
                 <Pressable
                   key={o.value}
-                  style={[styles.optionRow, o.value === value && { backgroundColor: colors.backgroundSelected }]}
+                  style={[
+                    styles.optionRow,
+                    o.value === value && {
+                      backgroundColor: glass ? 'rgba(37,99,235,0.14)' : colors.backgroundSelected,
+                    },
+                  ]}
                   onPress={() => {
                     setOpen(false);
                     onPick(o);
                   }}>
-                  <Text style={{ color: colors.text }}>{o.label}</Text>
+                  <Text style={{ color: o.value === value && glass ? '#2563EB' : colors.text, fontWeight: o.value === value ? '600' : '400' }}>
+                    {o.label}
+                  </Text>
                 </Pressable>
               ))}
             </ScrollView>
@@ -75,7 +82,7 @@ const styles = StyleSheet.create({
   fieldWrap: { marginBottom: Spacing.three },
   fieldLabel: { fontSize: 13, marginBottom: 6 },
   pickerBtn: { borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12 },
-  modalMask: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: Spacing.three },
-  modalBox: { borderRadius: 14, padding: Spacing.two },
-  optionRow: { paddingVertical: 12, paddingHorizontal: Spacing.two, borderRadius: 8 },
+  modalMask: { flex: 1, backgroundColor: 'rgba(0,0,0,0.40)', justifyContent: 'center', padding: Spacing.four },
+  modalBox: { borderRadius: 14, padding: 10 },
+  optionRow: { paddingVertical: 12, paddingHorizontal: 12, borderRadius: 9 },
 });

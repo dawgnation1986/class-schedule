@@ -13,6 +13,7 @@ export function UpdatePrompt() {
   const colors = useTheme(); // 墨夜模式下返回深色配色
   const uiMode = useUiMode();
   const night = uiMode === 'night';
+  const glass = uiMode === 'glass';
   // 墨夜模式: 弹窗容器交给 NightCard 重绘(去掉原背景色)
   const BoxWrap: ElementType = night ? NightCard : AcrylicPanel;
   const [info, setInfo] = useState<UpdateInfo | null>(null);
@@ -44,15 +45,24 @@ export function UpdatePrompt() {
         setInfo(null);
       }}>
       <View style={styles.mask}>
-        <MaskBlur />
-        <BoxWrap {...(night ? {} : { radius: 16 })} style={night ? styles.box : [styles.box, { backgroundColor: colors.background }]}>
+        <MaskBlur intensity={30} />
+        <BoxWrap
+          {...(night ? {} : { radius: 14 })}
+          style={[styles.box, !night && !glass && { backgroundColor: colors.background }]}>
           <Text style={[styles.title, { color: colors.text }]}>
             发现{info.prerelease ? '体验版' : '新版本'} v{info.latest}
           </Text>
           <Text style={[styles.sub, { color: colors.textSecondary }]}>当前版本 v{info.current}</Text>
           {!!info.notes && (
             <ScrollView style={styles.notesBox} nestedScrollEnabled>
-              <Text style={[styles.notes, { color: colors.textSecondary, backgroundColor: colors.backgroundElement }]}>
+              <Text
+                style={[
+                  styles.notes,
+                  {
+                    color: colors.textSecondary,
+                    backgroundColor: glass ? 'rgba(255,255,255,0.45)' : colors.backgroundElement,
+                  },
+                ]}>
                 {info.notes.trim()}
               </Text>
             </ScrollView>
@@ -63,8 +73,13 @@ export function UpdatePrompt() {
             <View style={styles.btnRow}>
               <Pressable
                 onPress={() => setInfo(null)}
-                style={[styles.btn, { backgroundColor: colors.backgroundElement }]}>
-                <Text style={{ color: colors.text, fontSize: 15 }}>取消</Text>
+                style={[
+                  styles.btn,
+                  glass
+                    ? { backgroundColor: 'rgba(255,255,255,0.60)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.85)' }
+                    : { backgroundColor: colors.backgroundElement },
+                ]}>
+                <Text style={{ color: colors.text, fontSize: 15 }}>关闭</Text>
               </Pressable>
               {night ? (
                 <NightPrimaryButton
@@ -88,8 +103,8 @@ export function UpdatePrompt() {
 }
 
 const styles = StyleSheet.create({
-  mask: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 32 },
-  box: { width: '100%', maxWidth: 360, borderRadius: 16, padding: 20 },
+  mask: { flex: 1, backgroundColor: 'rgba(0,0,0,0.40)', alignItems: 'center', justifyContent: 'center', padding: 28 },
+  box: { width: '100%', maxWidth: 340, borderRadius: 14, padding: 18 },
   title: { fontSize: 17, fontWeight: '800' },
   sub: { fontSize: 13, marginTop: 4 },
   notesBox: { maxHeight: 160, marginTop: 12 },
