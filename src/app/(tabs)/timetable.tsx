@@ -745,7 +745,9 @@ function ClassicScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
+    <SafeAreaView
+      style={[styles.safe, { backgroundColor: pageBg }, glassReserve > 0 && { paddingBottom: glassReserve }]}
+      edges={['top']}>
       {/* 墨夜背景: 深空渐变 + 顶部辉光(绝对定位铺满, 原版模式不渲染) */}
       {night && <NightGlowBackground>{null}</NightGlowBackground>}
       <View style={styles.header}>
