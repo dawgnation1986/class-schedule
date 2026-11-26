@@ -116,6 +116,7 @@ function GlassTabBar() {
 
   // 胶囊宽 = 每格宽减两侧内缩, 三等分完全等宽
   const pillW = Math.max(0, itemW - INDICATOR_INSET * 2);
+  const glassBar = look.seeThrough && blurOn;
 
   const content = (
     <>
@@ -124,19 +125,30 @@ function GlassTabBar() {
         style={[styles.sheen, { backgroundColor: dark ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.95)' }]}
       />
       <View style={styles.row} onLayout={(e) => setRowW(e.nativeEvent.layout.width)} {...pan.panHandlers}>
-        {/* 水滴指示器 */}
+        {/* 选中胶囊: 透字模式下是半透明玻璃, 实底模式下是白色胶囊 */}
         <Animated.View
           pointerEvents="none"
           style={[
             styles.indicator,
             {
               width: pillW,
-              backgroundColor: dark ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.94)',
-              borderColor: dark ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,1)',
+              backgroundColor: glassBar
+                ? dark
+                  ? 'rgba(255,255,255,0.16)'
+                  : 'rgba(255,255,255,0.50)'
+                : dark
+                  ? 'rgba(255,255,255,0.22)'
+                  : 'rgba(255,255,255,0.94)',
+              borderColor: dark ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.96)',
               transform: [{ translateX: x }],
             },
-          ]}
-        />
+          ]}>
+          <LinearGradient
+            colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']}
+            style={styles.pillGloss}
+            pointerEvents="none"
+          />
+        </Animated.View>
         {ITEMS.map((item, i) => {
           const on = i === activeIndex;
           return (
@@ -150,8 +162,6 @@ function GlassTabBar() {
     </>
   );
 
-  const glassBar = look.seeThrough && blurOn;
-
   return (
     <View
       pointerEvents="box-none"
@@ -162,31 +172,29 @@ function GlassTabBar() {
             style={[
               styles.pill,
               {
-                // 透字模式: 模糊 + 高不透明度染色(0.94), 页面文字不会再从底栏里透出来
-                backgroundColor: withAlpha(look.color, 0.94),
-                borderColor: dark ? 'rgba(255,255,255,0.34)' : 'rgba(255,255,255,0.95)',
+                borderColor: dark ? 'rgba(255,255,255,0.34)' : 'rgba(255,255,255,0.90)',
               },
             ]}>
+            {/* 真·透字模式: 强模糊 + 很淡的染色, 壁纸能从底栏里透出来 */}
             <BlurView
-              intensity={60}
+              intensity={100}
               tint={dark ? 'dark' : 'light'}
               blurMethod="dimezisBlurView"
               style={StyleSheet.absoluteFill}
             />
             <View
               pointerEvents="none"
-              style={[StyleSheet.absoluteFill, { backgroundColor: withAlpha(look.color, 0.92) }]}
+              style={[StyleSheet.absoluteFill, { backgroundColor: withAlpha(look.color, 0.26) }]}
             />
-            {/* 水感高光: 上缘亮、中部透、下缘再提亮, 模拟玻璃边缘的折射 */}
             <LinearGradient
-              colors={['rgba(255,255,255,0.52)', 'rgba(255,255,255,0.05)', 'rgba(255,255,255,0.22)']}
+              colors={['rgba(255,255,255,0.36)', 'rgba(255,255,255,0.02)', 'rgba(255,255,255,0.16)']}
               locations={[0, 0.45, 1]}
               style={StyleSheet.absoluteFill}
               pointerEvents="none"
             />
             {content}
             <LinearGradient
-              colors={['rgba(255,255,255,0.50)', 'rgba(255,255,255,0)']}
+              colors={['rgba(255,255,255,0.52)', 'rgba(255,255,255,0)']}
               style={styles.rimTop}
               pointerEvents="none"
             />
@@ -332,6 +340,9 @@ const styles = StyleSheet.create({
     bottom: INDICATOR_INSET,
     borderRadius: (GLASS_BAR_HEIGHT - INDICATOR_INSET * 2) / 2,
     borderWidth: 1,
+    overflow: 'hidden',
   },
+  /** 胶囊上缘的一层水光, 让选中态像一颗玻璃珠 */
+  pillGloss: { position: 'absolute', top: 0, left: 8, right: 8, height: 18 },
   label: { fontSize: 11, fontWeight: '700' },
 });
