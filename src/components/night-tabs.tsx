@@ -119,6 +119,7 @@ export function GlassTabBarOverlay() {
           />
         )}
         {/* 玻璃边缘: 顶部极窄高光 + 1px 描边(不做大面积填充) */}
+        <View pointerEvents="none" style={styles.outline} />
         <LinearGradient
           colors={['rgba(255,255,255,0.26)', 'rgba(255,255,255,0.03)', 'rgba(255,255,255,0)']}
           locations={[0, 0.6, 1]}
@@ -228,6 +229,14 @@ const styles = StyleSheet.create({
     height: BAR_H,
     borderRadius: BAR_H / 2,
     overflow: 'hidden',
+  },
+  outline: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: BAR_H / 2,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.30)',
   },

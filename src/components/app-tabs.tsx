@@ -20,7 +20,10 @@ class NightTabsBoundary extends Component<{ children: ReactNode }, { failed: boo
     void saveUiMode('original');
   }
   render() {
-    if (this.state.failed) return <NativeTabsFallback />;
+    // 不在这里直接挂原版导航器: 同一帧内"卸载 NightTabs + 挂载 NativeTabs"正是
+    // TabsNavigationStateObserverRegistry.clear during emission 的触发方式。
+    // 这里只清空, 交给外层 AppTabs 在下一帧统一换成原版导航器。
+    if (this.state.failed) return null;
     return this.props.children;
   }
 }
