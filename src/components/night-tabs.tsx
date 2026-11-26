@@ -13,14 +13,13 @@ import { withLayoutContext, usePathname, useRouter } from 'expo-router';
 import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
 import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
+import { BlurView as NativeBlurView } from '@react-native-community/blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { useNightGlass } from '@/hooks/use-night-glass';
 import { useTabBarLook } from '@/hooks/use-tab-bar-look';
-import { useBlurTarget } from '@/components/glass-surface';
 import { withAlpha } from '@/lib/tab-bar-style';
 
 const { Navigator } = createNativeBottomTabNavigator();
@@ -44,8 +43,9 @@ export function GlassTabBarOverlay() {
   const insets = useSafeAreaInsets();
   const mode = useUiMode();
   const blurOn = useNightGlass();
-  const blurTarget = useBlurTarget();
   const look = useTabBarLook();
+  // 滑条 0~100 → 原生 blurRadius 0~25(该库上限 25)
+  const radius = Math.min(25, Math.round(look.blur / 4));
 
   const activeIndex = Math.max(
     0,
@@ -104,13 +104,21 @@ export function GlassTabBarOverlay() {
 
   return (
     <View pointerEvents="box-none" style={[styles.host, { bottom: Math.max(insets.bottom, 10) }]}>
-      <BlurView
-        blurTarget={blurTarget ?? undefined}
-        intensity={blurOn ? look.blur : 0}
-        tint="default"
-        blurMethod="dimezisBlurView"
-        blurReductionFactor={1}
-        style={styles.bar}>
+      <View style={styles.bar}>
+        {/*
+          原生模糊(Android: Dimezis BlurView, 直接采样 decor content, 无白膜 ——
+          expo-blur 那种 alpha = 0.44 x intensity 的白色覆盖层在这里不存在,
+          overlayColor 传 transparent 即 0 白膜)。
+          注意该库的 JS 层把原生视图写死 pointerEvents="none", 所以内容必须放在它外面。
+        */}
+        {blurOn && radius > 0 && (
+          <NativeBlurView
+            blurRadius={radius}
+            overlayColor="transparent"
+            autoUpdate
+            style={StyleSheet.absoluteFill}
+          />
+        )}
         {/* 染色浓度 > 0 时才叠一层自定义颜色(设置里那个滑条真正控制这里) */}
         {look.alpha > 0 && (
           <View
@@ -127,7 +135,7 @@ export function GlassTabBarOverlay() {
           pointerEvents="none"
         />
         <View style={styles.row} onLayout={(e) => setRowW(e.nativeEvent.layout.width)} {...pan.panHandlers}>
-          {/* 选中胶囊: 独立玻璃层(与外层共用同一个采样目标) + 浅蓝染色 */}
+          {/* 选中胶囊: 独立玻璃层(浅蓝染色 + 上缘水光), 位置与当前 Tab 对齐 */}
           {itemW > 0 && (
             <Animated.View
               pointerEvents="none"
@@ -135,25 +143,16 @@ export function GlassTabBarOverlay() {
                 styles.indicator,
                 { width: Math.max(0, itemW - CAPSULE_INSET * 2), transform: [{ translateX: x }] },
               ]}>
-              {blurOn && (
-                <BlurView
-                  blurTarget={blurTarget ?? undefined}
-                  intensity={Math.round(look.blur * 0.7)}
-                  tint="default"
-                  blurMethod="dimezisBlurView"
-                  blurReductionFactor={1}
-                  style={StyleSheet.absoluteFill}
-                />
-              )}
               <LinearGradient
                 colors={
                   look.liquid
-                    ? ['rgba(147,197,253,0.22)', 'rgba(96,165,250,0.10)', 'rgba(147,197,253,0.18)']
-                    : ['rgba(255,255,255,0.30)', 'rgba(255,255,255,0.06)', 'rgba(255,255,255,0.22)']
+                    ? ['rgba(147,197,253,0.26)', 'rgba(96,165,250,0.12)', 'rgba(147,197,253,0.20)']
+                    : ['rgba(255,255,255,0.34)', 'rgba(255,255,255,0.10)', 'rgba(255,255,255,0.24)']
                 }
                 locations={[0, 0.5, 1]}
                 style={StyleSheet.absoluteFill}
               />
+              <View pointerEvents="none" style={styles.capsuleEdge} />
             </Animated.View>
           )}
           {ITEMS.map((item, i) => {
@@ -176,7 +175,7 @@ export function GlassTabBarOverlay() {
           })}
         </View>
         <View pointerEvents="none" style={styles.bottomLine} />
-      </BlurView>
+      </View>
     </View>
   );
 }
@@ -274,4 +273,12 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.40)',
   },
   label: { fontSize: 11, fontWeight: '600' },
+  capsuleEdge: {
+    position: 'absolute',
+    top: 0,
+    left: 10,
+    right: 10,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.65)',
+  },
 });
