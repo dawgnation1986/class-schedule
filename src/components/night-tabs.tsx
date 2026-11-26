@@ -124,30 +124,30 @@ function GlassTabBar({ blurTarget }: { blurTarget?: RefObject<View | null> }) {
               width: Math.max(0, itemW - CAPSULE_INSET * 2),
               backgroundColor: look.liquid
                 ? dark
-                  ? 'rgba(96,165,250,0.26)'
-                  : 'rgba(96,165,250,0.20)'
+                  ? 'rgba(96,165,250,0.16)'
+                  : 'rgba(96,165,250,0.10)'
                 : dark
-                  ? 'rgba(255,255,255,0.18)'
-                  : 'rgba(255,255,255,0.88)',
-              borderColor: dark ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.62)',
+                  ? 'rgba(255,255,255,0.12)'
+                  : 'rgba(255,255,255,0.30)',
+              borderColor: dark ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.30)',
               transform: [{ translateX: x }],
             },
           ]}>
           {glassBar && (
             <BlurView
               blurTarget={blurTarget ?? undefined}
-              intensity={30}
+              intensity={22}
               tint="default"
               blurMethod="dimezisBlurView"
-              blurReductionFactor={3}
+              blurReductionFactor={2}
               style={StyleSheet.absoluteFill}
             />
           )}
           <LinearGradient
             colors={
               look.liquid
-                ? ['rgba(191,219,254,0.34)', 'rgba(96,165,250,0.06)', 'rgba(147,197,253,0.20)']
-                : ['rgba(255,255,255,0.40)', 'rgba(255,255,255,0.04)', 'rgba(255,255,255,0.22)']
+                ? ['rgba(147,197,253,0.16)', 'rgba(96,165,250,0.02)', 'rgba(147,197,253,0.10)']
+                : ['rgba(255,255,255,0.22)', 'rgba(255,255,255,0.02)', 'rgba(255,255,255,0.12)']
             }
             locations={[0, 0.55, 1]}
             style={StyleSheet.absoluteFill}
@@ -173,13 +173,13 @@ function GlassTabBar({ blurTarget }: { blurTarget?: RefObject<View | null> }) {
         style={[
           styles.bar,
           {
-            borderColor: dark ? 'rgba(255,255,255,0.26)' : 'rgba(255,255,255,0.55)',
+            borderColor: dark ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.30)',
           },
         ]}>
         {/* 真模糊: 采样三个 tab 页的内容; 底栏本身没有任何实体底色 */}
         <BlurView
           blurTarget={blurTarget ?? undefined}
-          intensity={40}
+          intensity={25}
           tint="default"
           blurMethod="dimezisBlurView"
           blurReductionFactor={1}
@@ -196,7 +196,7 @@ function GlassTabBar({ blurTarget }: { blurTarget?: RefObject<View | null> }) {
         )}
         {/* 上缘高光: 仅贴边的一条, 不铺满 */}
         <LinearGradient
-          colors={['rgba(255,255,255,0.34)', 'rgba(255,255,255,0.04)', 'rgba(255,255,255,0)']}
+          colors={['rgba(255,255,255,0.22)', 'rgba(255,255,255,0.02)', 'rgba(255,255,255,0)']}
           locations={[0, 0.55, 1]}
           style={styles.topSheen}
           pointerEvents="none"
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
     left: 24,
     right: 24,
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.35)',
+    backgroundColor: 'rgba(255,255,255,0.20)',
   },
   row: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   item: {
