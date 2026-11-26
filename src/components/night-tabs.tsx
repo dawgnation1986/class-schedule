@@ -14,6 +14,7 @@ import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
 import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useUiMode } from '@/hooks/use-ui-mode';
@@ -117,19 +118,42 @@ export function GlassTabBarOverlay() {
             style={[StyleSheet.absoluteFill, { backgroundColor: withAlpha(look.color, look.alpha) }]}
           />
         )}
+        {/* 玻璃边缘: 顶部极窄高光 + 1px 描边(不做大面积填充) */}
+        <LinearGradient
+          colors={['rgba(255,255,255,0.26)', 'rgba(255,255,255,0.03)', 'rgba(255,255,255,0)']}
+          locations={[0, 0.6, 1]}
+          style={styles.topSheen}
+          pointerEvents="none"
+        />
         <View style={styles.row} onLayout={(e) => setRowW(e.nativeEvent.layout.width)} {...pan.panHandlers}>
-          {/* 选中胶囊: 纯 View + 低透明度浅蓝, 验证位置/尺寸/层级 */}
+          {/* 选中胶囊: 独立玻璃层(与外层共用同一个采样目标) + 浅蓝染色 */}
           {itemW > 0 && (
             <Animated.View
               pointerEvents="none"
               style={[
                 styles.indicator,
-                look.liquid
-                  ? { width: Math.max(0, itemW - CAPSULE_INSET * 2), backgroundColor: 'rgba(100,160,255,0.18)' }
-                  : { width: Math.max(0, itemW - CAPSULE_INSET * 2), backgroundColor: 'rgba(255,255,255,0.55)' },
-                { transform: [{ translateX: x }] },
-              ]}
-            />
+                { width: Math.max(0, itemW - CAPSULE_INSET * 2), transform: [{ translateX: x }] },
+              ]}>
+              {blurOn && (
+                <BlurView
+                  blurTarget={blurTarget ?? undefined}
+                  intensity={30}
+                  tint="default"
+                  blurMethod="dimezisBlurView"
+                  blurReductionFactor={1}
+                  style={StyleSheet.absoluteFill}
+                />
+              )}
+              <LinearGradient
+                colors={
+                  look.liquid
+                    ? ['rgba(147,197,253,0.22)', 'rgba(96,165,250,0.10)', 'rgba(147,197,253,0.18)']
+                    : ['rgba(255,255,255,0.30)', 'rgba(255,255,255,0.06)', 'rgba(255,255,255,0.22)']
+                }
+                locations={[0, 0.5, 1]}
+                style={StyleSheet.absoluteFill}
+              />
+            </Animated.View>
           )}
           {ITEMS.map((item, i) => {
             const on = i === activeIndex;
@@ -150,6 +174,7 @@ export function GlassTabBarOverlay() {
             );
           })}
         </View>
+        <View pointerEvents="none" style={styles.bottomLine} />
       </BlurView>
     </View>
   );
@@ -203,7 +228,23 @@ const styles = StyleSheet.create({
     height: BAR_H,
     borderRadius: BAR_H / 2,
     overflow: 'hidden',
-    // 没有任何 backgroundColor / 描边 / 高光
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.30)',
+  },
+  topSheen: {
+    position: 'absolute',
+    top: 0,
+    left: 14,
+    right: 14,
+    height: 12,
+  },
+  bottomLine: {
+    position: 'absolute',
+    bottom: 0,
+    left: 24,
+    right: 24,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.18)',
   },
   row: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 0 },
   item: {
@@ -215,12 +256,13 @@ const styles = StyleSheet.create({
   },
   indicator: {
     position: 'absolute',
+    left: CAPSULE_INSET,
     top: 10,
     height: BAR_H - 20,
     borderRadius: (BAR_H - 20) / 2,
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
-    backgroundColor: 'rgba(100,160,255,0.18)',
+    borderColor: 'rgba(255,255,255,0.40)',
   },
   label: { fontSize: 11, fontWeight: '600' },
 });

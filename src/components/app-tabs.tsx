@@ -1,11 +1,11 @@
-import { Component, type ReactNode } from 'react';
+import { Component, useEffect, useState, type ReactNode } from 'react';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { useColorScheme } from 'react-native';
+import { useColorScheme, View } from 'react-native';
 
 import { Colors } from '@/constants/theme';
 import { usePageBackground } from '@/lib/background';
 import { saveUiMode } from '@/lib/ui-mode';
-import { useUiMode } from '@/hooks/use-ui-mode';
+import { useUiModeState } from '@/hooks/use-ui-mode';
 import NightTabs from '@/components/night-tabs';
 
 /** 墨夜标签栏运行时出错时自动回退到原版 NativeTabs, 避免整个 App 闪退 */
@@ -50,11 +50,39 @@ function NativeTabsFallback() {
 }
 
 export default function AppTabs() {
-  const uiMode = useUiMode();
+  const { mode, ready } = useUiModeState();
+  const glass = mode === 'glass' || mode === 'night';
 
-  // 液态玻璃: 隐藏原生栏, 使用悬浮胶囊玻璃底栏
-  if (uiMode === 'glass' || uiMode === 'night') {
-    return <NightTabsBoundary><NightTabs /></NightTabsBoundary>;
+  /**
+   * 导航器挂载状态机:
+   * - pending: 模式还没从 AsyncStorage 读出来 → 只渲染空占位, 不挂载任何原生 Tabs
+   * - original / glass: 已确认, 挂载对应导航器
+   * 首次从 pending 进入时直接按已确认模式挂载(不做二次替换);
+   * 运行期切换模式推迟到下一帧, 避免在原生选中事件同步派发过程中卸载 TabsHost
+   * (否则触发 [RNScreens] TabsNavigationStateObserverRegistry.clear during emission)。
+   */
+  const [nav, setNav] = useState<'pending' | 'original' | 'glass'>('pending');
+
+  useEffect(() => {
+    if (!ready) return;
+    const target = glass ? 'glass' : 'original';
+    if (nav === 'pending') {
+      setNav(target);
+      return;
+    }
+    if (nav === target) return;
+    const id = requestAnimationFrame(() => setNav(target));
+    return () => cancelAnimationFrame(id);
+  }, [ready, glass, nav]);
+
+  if (nav === 'pending') return <View style={{ flex: 1 }} />;
+
+  if (nav === 'glass') {
+    return (
+      <NightTabsBoundary>
+        <NightTabs />
+      </NightTabsBoundary>
+    );
   }
 
   return <NativeTabsFallback />;
