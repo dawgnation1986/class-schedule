@@ -201,6 +201,26 @@ export function UiModePicker() {
             </Text>
           </View>
 
+          {/* 玻璃模糊强度: 越低越透亮(Android 白膜 = 0.44 × 强度) */}
+          <View style={{ marginTop: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ flex: 1, color: colors.text, fontWeight: '700', fontSize: 12.5 }}>玻璃模糊强度</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 11 }}>{Math.round(look.blur)}</Text>
+            </View>
+            <GlassSlider
+              value={look.blur}
+              min={0}
+              max={100}
+              activeColor={activeColor}
+              trackColor={glassLine}
+              onChange={(v) => previewTabBarLook({ blur: v })}
+              onComplete={(v) => void setTabBarLook({ blur: v })}
+            />
+            <Text style={{ color: colors.textSecondary, fontSize: 10.5 }}>
+              越低越透亮、背后的字越清楚；越高越糊。Android 的白膜也会跟着变薄
+            </Text>
+          </View>
+
           {/* 液态模式: 实心白玻璃胶囊 + 液态折射边 */}
           <View style={styles.barRow}>
             <View style={{ flex: 1 }}>

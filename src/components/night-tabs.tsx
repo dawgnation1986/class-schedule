@@ -106,7 +106,7 @@ export function GlassTabBarOverlay() {
     <View pointerEvents="box-none" style={[styles.host, { bottom: Math.max(insets.bottom, 10) }]}>
       <BlurView
         blurTarget={blurTarget ?? undefined}
-        intensity={blurOn ? 25 : 0}
+        intensity={blurOn ? look.blur : 0}
         tint="default"
         blurMethod="dimezisBlurView"
         blurReductionFactor={1}
@@ -138,7 +138,7 @@ export function GlassTabBarOverlay() {
               {blurOn && (
                 <BlurView
                   blurTarget={blurTarget ?? undefined}
-                  intensity={18}
+                  intensity={Math.round(look.blur * 0.7)}
                   tint="default"
                   blurMethod="dimezisBlurView"
                   blurReductionFactor={1}

@@ -6,6 +6,8 @@ export type TabBarLook = {
   color: string;
   /** 染色浓度 0~0.25(越小越透, 0 = 完全不染色) */
   alpha: number;
+  /** 玻璃模糊强度 0~100(越低越透亮; Android 上同时决定白膜 alpha = 0.44 × blur/100) */
+  blur: number;
   /** 液态模式: 选中项是浅蓝玻璃胶囊 */
   liquid: boolean;
 };
@@ -21,7 +23,7 @@ export const TAB_BAR_COLORS = [
   { name: '深空', value: '#20242E' },
 ] as const;
 
-const DEFAULT_LOOK: TabBarLook = { color: '#F7F3EA', alpha: 0.06, liquid: true };
+const DEFAULT_LOOK: TabBarLook = { color: '#F7F3EA', alpha: 0.06, blur: 25, liquid: true };
 
 let look: TabBarLook = { ...DEFAULT_LOOK };
 let primed = false;
@@ -39,6 +41,7 @@ export async function primeTabBarLook(): Promise<void> {
       const p = JSON.parse(raw) as Partial<TabBarLook>;
       if (typeof p.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(p.color)) look.color = p.color;
       if (typeof p.alpha === 'number' && p.alpha >= 0 && p.alpha <= 0.25) look.alpha = p.alpha;
+      if (typeof p.blur === 'number' && p.blur >= 0 && p.blur <= 100) look.blur = p.blur;
       if (typeof p.liquid === 'boolean') look.liquid = p.liquid;
     }
   } catch {
