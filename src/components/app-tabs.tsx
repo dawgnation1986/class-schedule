@@ -1,92 +1,46 @@
-import { Component, useEffect, useState, type ReactNode } from 'react';
-import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { useColorScheme, View } from 'react-native';
+/**
+ * 底部导航容器: 全 App 只使用「同一个」原生导航器(bottom-tabs)。
+ *
+ * 为什么不再按模式切换两套导航器:
+ * 冷启动日志里的
+ *   java.lang.IllegalStateException: [RNScreens] TabsNavigationStateObserverRegistry.clear during emission
+ * 就是「原生 TabsHost 在首次选中事件派发期间被卸载」造成的。只要在运行时卸载/重建原生
+ * TabsHost, 无论延迟一帧还是十帧, 都可能落进同一窗口。所以现在:
+ *   - 导航器永远只有一个, 不随模式变化卸载;
+ *   - 原版模式 = 显示系统原生 TabBar;
+ *   - 液态玻璃模式 = tabBar={() => null} 隐藏原生栏, 只叠加悬浮玻璃层。
+ * 切换模式只改一个 prop, 不销毁原生导航宿主。
+ */
+import { Component, type ReactNode } from 'react';
+import { View } from 'react-native';
 
-import { Colors } from '@/constants/theme';
-import { usePageBackground } from '@/lib/background';
 import { saveUiMode } from '@/lib/ui-mode';
 import { useUiModeState } from '@/hooks/use-ui-mode';
 import NightTabs from '@/components/night-tabs';
 
-/** 墨夜标签栏运行时出错时自动回退到原版 NativeTabs, 避免整个 App 闪退 */
+/** 玻璃底栏运行时出现 JS 异常时, 只回退到"原版模式"(同一个导航器, 不重建) */
 class NightTabsBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() {
     return { failed: true };
   }
   componentDidCatch(err: unknown) {
-    console.warn('[NightTabs] crashed, fallback to native tabs:', err);
-    // 自愈: 持久化回退到原版模式, 下次启动不再进入墨夜标签栏
+    console.warn('[NightTabs] crashed, fallback to native tab bar:', err);
     void saveUiMode('original');
   }
   render() {
-    // 不在这里直接挂原版导航器: 同一帧内"卸载 NightTabs + 挂载 NativeTabs"正是
-    // TabsNavigationStateObserverRegistry.clear during emission 的触发方式。
-    // 这里只清空, 交给外层 AppTabs 在下一帧统一换成原版导航器。
     if (this.state.failed) return null;
     return this.props.children;
   }
 }
 
-function NativeTabsFallback() {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
-  return (
-    <NativeTabs
-      backgroundColor={usePageBackground(colors)}
-      indicatorColor={colors.backgroundElement}
-      labelStyle={{ selected: { color: colors.text } }}>
-      <NativeTabs.Trigger name="home" contentStyle={{ backgroundColor: 'transparent' }}>
-        <NativeTabs.Trigger.Label>主站</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon src={require('@/assets/images/tabIcons/explore.png')} renderingMode="template" />
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="timetable" contentStyle={{ backgroundColor: 'transparent' }}>
-        <NativeTabs.Trigger.Label>课表</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon src={require('@/assets/images/tabIcons/home.png')} renderingMode="template" />
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="profile" contentStyle={{ backgroundColor: 'transparent' }}>
-        <NativeTabs.Trigger.Label>我的</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon src={require('@/assets/images/tabIcons/person.png')} renderingMode="template" />
-      </NativeTabs.Trigger>
-    </NativeTabs>
-  );
-}
-
 export default function AppTabs() {
-  const { mode, ready } = useUiModeState();
-  const glass = mode === 'glass' || mode === 'night';
-
-  /**
-   * 导航器挂载状态机:
-   * - pending: 模式还没从 AsyncStorage 读出来 → 只渲染空占位, 不挂载任何原生 Tabs
-   * - original / glass: 已确认, 挂载对应导航器
-   * 首次从 pending 进入时直接按已确认模式挂载(不做二次替换);
-   * 运行期切换模式推迟到下一帧, 避免在原生选中事件同步派发过程中卸载 TabsHost
-   * (否则触发 [RNScreens] TabsNavigationStateObserverRegistry.clear during emission)。
-   */
-  const [nav, setNav] = useState<'pending' | 'original' | 'glass'>('pending');
-
-  useEffect(() => {
-    if (!ready) return;
-    const target = glass ? 'glass' : 'original';
-    if (nav === 'pending') {
-      setNav(target);
-      return;
-    }
-    if (nav === target) return;
-    const id = requestAnimationFrame(() => setNav(target));
-    return () => cancelAnimationFrame(id);
-  }, [ready, glass, nav]);
-
-  if (nav === 'pending') return <View style={{ flex: 1 }} />;
-
-  if (nav === 'glass') {
-    return (
-      <NightTabsBoundary>
-        <NightTabs />
-      </NightTabsBoundary>
-    );
-  }
-
-  return <NativeTabsFallback />;
+  const { ready } = useUiModeState();
+  // 模式没读出来之前不挂载原生导航器(也避免首帧按默认值挂载后再重建)
+  if (!ready) return <View style={{ flex: 1 }} />;
+  return (
+    <NightTabsBoundary>
+      <NightTabs />
+    </NightTabsBoundary>
+  );
 }
