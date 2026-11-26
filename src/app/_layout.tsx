@@ -11,6 +11,7 @@ import { BlurTargetProvider } from '@/components/glass-surface';
 import { UpdatePrompt } from '@/components/update-prompt';
 import { NoticePrompt } from '@/components/notice-prompt';
 import { CoachTour, startCoachTour, shouldShowTour } from '@/components/tour';
+import { GlassTabBarOverlay } from '@/components/night-tabs';
 import { OnboardingModal, shouldShowOnboarding } from '@/components/onboarding';
 import { AgreementModal, shouldShowAgreement } from '@/components/agreement';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -128,6 +129,8 @@ export default function RootLayout() {
             <Stack.Screen name="today" />
           </Stack>
         </BlurTargetView>
+        {/* 悬浮玻璃底栏: 必须在 BlurTargetView 之外, 才能真正采样到壁纸 + 页面内容 */}
+        <GlassTabBarOverlay />
         <AnimatedSplashOverlay />
         <UpdatePrompt />
         <NoticePrompt />
