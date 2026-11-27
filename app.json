@@ -2,7 +2,7 @@
     "expo":  {
                  "name":  "学生综合管理平台",
                  "slug":  "class-schedule",
-                 "version": "1.19.26",
+                 "version": "1.19.27",
                  "orientation":  "portrait",
                  "icon":  "./assets/images/student-icon.png",
                  "scheme":  "classschedule",
@@ -15,6 +15,7 @@
                                  "usesCleartextTraffic":  true,
                                  "permissions":  [
                                                      "REQUEST_INSTALL_PACKAGES",
+                                                     "RECEIVE_BOOT_COMPLETED",
                                                      "SCHEDULE_EXACT_ALARM",
                                                      "USE_EXACT_ALARM",
                                                      "POST_NOTIFICATIONS",

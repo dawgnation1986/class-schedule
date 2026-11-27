@@ -39,6 +39,7 @@ import { OnboardingModal } from '@/components/onboarding';
 import { startCoachTour, TourTarget, registerTourScroller } from '@/components/tour';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { checkUpdate, currentVersion, type UpdateInfo } from '@/lib/updates';
+import { openAutoStartSettings, openBatteryWhitelist } from '@/lib/autostart';
 
 type FieldKey = 'xb' | 'zy' | 'bj';
 
@@ -272,6 +273,44 @@ export default function SettingsScreen() {
 
         {/* 界面设置: 原版界面 / 墨夜主题(水滴动效切换, 立即生效) — "自定义"档微调用 */}
         <UiModePicker />
+
+        {/* 自启动与后台: Android 没有统一的"自启动权限", 只能把用户送到系统白名单页面 */}
+        <CardWrap style={cardStyle(styles.guideCard)}>
+          <GlassSurface radius={12} />
+          {night ? (
+            <NightSectionHeader title="自启动与后台" />
+          ) : (
+            <Text style={{ color: colors.text, fontWeight: '800', fontSize: 15 }}>自启动与后台</Text>
+          )}
+          <Pressable
+            onPress={() => void openAutoStartSettings()}
+            style={({ pressed }) => [styles.guideRow, pressed && { opacity: 0.6 }]}>
+            <View style={[styles.guideIcon, { backgroundColor: '#0ea5e9' }]}>
+              <Ionicons name="power" size={19} color="#fff" />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14.5 }}>开机自启动</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+                打开系统自启动管理, 把本应用加入白名单; 否则重启后提醒/小组件可能不刷新
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+          </Pressable>
+          <Pressable
+            onPress={() => void openBatteryWhitelist()}
+            style={({ pressed }) => [styles.guideRow, pressed && { opacity: 0.6 }]}>
+            <View style={[styles.guideIcon, { backgroundColor: '#16a34a' }]}>
+              <Ionicons name="battery-charging" size={19} color="#fff" />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14.5 }}>电池优化白名单</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+                允许后台运行, 避免息屏后课程提醒被系统清理
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+          </Pressable>
+        </CardWrap>
 
         {/* 教程设置(常驻): 交互式新手引导 + 图文教程 */}
         <TourTarget id="st.guide">
