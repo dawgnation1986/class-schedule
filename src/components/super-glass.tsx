@@ -1,5 +1,5 @@
 /**
- * SuperGlass 材质层: 更厚实的液态玻璃(真模糊 + 多层高光/双描边)
+ * SuperGlass 材质层: 更厚实的液态玻璃(多层高光 + 双描边 + 斜向光斑)
  *
  * 用法与 GlassSurface 一致 —— 放进绝对定位容器里当作某块控件的"玻璃底":
  *   <View style={styles.card}>
@@ -8,54 +8,43 @@
  *   </View>
  *
  * - SuperGlass 开启且处于液态玻璃界面模式时才渲染, 否则返回 null(不影响原版界面)
- * - 与普通卡片(GlassSurface, 12% 白 + 中等模糊)相比刻意做了区分: 模糊更重, 多了斜向光斑、
- *   顶部高光、双描边和内圈, 看起来是"一块厚玻璃"而不是一层白膜
- * - 关闭原生毛玻璃时退化为纯高光层, 仍然比普通卡片更像玻璃
+ * - 刻意不用 BlurView: expo-blur 的 BlurView 在弹窗(Modal 独立 window)里指向主 window 的
+ *   BlurTargetView 会在 onAttachedToWindow 里抛 BlurViewConfigurationException 直接闪退
+ *   (1.19.30 的崩溃就是这么来的)。这里只用纯 view 叠层做玻璃质感, 零原生风险。
+ * - 与普通卡片(GlassSurface, 12% 白 + 模糊)相比: 边缘更亮更厚、多了斜向光斑和内折光环,
+ *   看起来是"一块厚玻璃"而不是一层白膜。
  */
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import { BlurView } from 'expo-blur';
 
-import { useBlurTarget } from '@/components/glass-surface';
-import { useNightGlassDisabled } from '@/hooks/use-night-glass';
 import { useSuperGlass } from '@/hooks/use-super-glass';
 import { useUiMode } from '@/hooks/use-ui-mode';
 
 type Props = {
   radius?: number;
-  /** 玻璃染色; 默认几乎透明, 让背后内容真正透出来 */
+  /** 玻璃染色; 默认很淡, 让背后内容透出来 */
   tint?: string;
   style?: StyleProp<ViewStyle>;
 };
 
-export function SuperGlass({ radius = 16, tint = 'rgba(255,255,255,0.06)', style }: Props) {
+export function SuperGlass({ radius = 16, tint = 'rgba(255,255,255,0.10)', style }: Props) {
   const on = useSuperGlass();
   const mode = useUiMode();
-  const blurOff = useNightGlassDisabled();
-  const target = useBlurTarget();
   if (!on || mode !== 'glass') return null;
 
-  const wrap: StyleProp<ViewStyle> = [
-    StyleSheet.absoluteFill,
-    { borderRadius: radius, overflow: 'hidden' },
-    style,
-  ];
   const inset = Math.max(6, radius * 0.5);
 
   return (
-    <View pointerEvents="none" style={wrap}>
-      {/* 重模糊: 比普通卡片(48)重得多, 背后内容被揉开但仍透出来 */}
-      {!blurOff && (
-        <BlurView
-          blurTarget={target ?? undefined}
-          intensity={92}
-          tint="light"
-          blurMethod="dimezisBlurView"
-          style={StyleSheet.absoluteFill}
-        />
-      )}
-      {/* 冷白染色 */}
+    <View
+      pointerEvents="none"
+      style={[
+        StyleSheet.absoluteFill,
+        { borderRadius: radius, overflow: 'hidden' },
+        style,
+      ]}>
+      {/* 主体染色 */}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: tint }]} />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(198,220,255,0.10)' }]} />
+      {/* 冷白偏蓝的玻璃色 */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(198,220,255,0.12)' }]} />
       {/* 斜向光斑(液态玻璃的"流动感") */}
       <View
         style={{
@@ -65,8 +54,19 @@ export function SuperGlass({ radius = 16, tint = 'rgba(255,255,255,0.06)', style
           width: radius * 3.2,
           height: radius * 2.2,
           borderRadius: radius,
-          backgroundColor: 'rgba(255,255,255,0.16)',
+          backgroundColor: 'rgba(255,255,255,0.18)',
           transform: [{ rotate: '-22deg' }],
+        }}
+      />
+      {/* 底部折光带(厚玻璃的透镜感) */}
+      <View
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: radius * 0.9,
+          backgroundColor: 'rgba(255,255,255,0.10)',
         }}
       />
       {/* 顶部高光 */}
@@ -88,14 +88,14 @@ export function SuperGlass({ radius = 16, tint = 'rgba(255,255,255,0.06)', style
           left: inset,
           right: inset,
           height: 1,
-          backgroundColor: 'rgba(255,255,255,0.45)',
+          backgroundColor: 'rgba(255,255,255,0.50)',
         }}
       />
       {/* 外描边 */}
       <View
         style={[
           StyleSheet.absoluteFill,
-          { borderRadius: radius, borderWidth: 1, borderColor: 'rgba(255,255,255,0.78)' },
+          { borderRadius: radius, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.80)' },
         ]}
       />
       {/* 内圈(厚玻璃的折光边) */}
@@ -106,7 +106,7 @@ export function SuperGlass({ radius = 16, tint = 'rgba(255,255,255,0.06)', style
             borderRadius: Math.max(1, radius - 2),
             margin: 2,
             borderWidth: 1,
-            borderColor: 'rgba(255,255,255,0.34)',
+            borderColor: 'rgba(255,255,255,0.36)',
           },
         ]}
       />
@@ -124,5 +124,5 @@ export function SuperGlassPill({
   tint?: string;
   style?: StyleProp<ViewStyle>;
 }) {
-  return <SuperGlass radius={height / 2} tint={tint ?? 'rgba(255,255,255,0.14)'} style={style} />;
+  return <SuperGlass radius={height / 2} tint={tint ?? 'rgba(255,255,255,0.16)'} style={style} />;
 }

@@ -14,11 +14,9 @@ import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
-import { GLASS_LINE, useBlurTarget } from '@/components/glass-surface';
-import { useNightGlassDisabled } from '@/hooks/use-night-glass';
+import { GLASS_LINE } from '@/components/glass-surface';
 import { useUiMode } from '@/hooks/use-ui-mode';
 
 const { Navigator } = createNativeBottomTabNavigator();
@@ -33,23 +31,12 @@ const ITEMS = [
   { route: '/profile', label: '我的', icon: 'person-outline', active: 'person' },
 ] as const;
 
-/** 底栏玻璃底: 真模糊 + 低透明度白染色 + 高光/描边(与卡片同材质) */
+/** 底栏玻璃底: 低透明度白染色 + 高光/描边(没有任何实心底板) */
 function BarGlass() {
-  const target = useBlurTarget();
-  const blurOff = useNightGlassDisabled();
   return (
     <View
       pointerEvents="none"
       style={[StyleSheet.absoluteFill, { borderRadius: BAR_H / 2, overflow: 'hidden' }]}>
-      {!blurOff && (
-        <BlurView
-          blurTarget={target ?? undefined}
-          intensity={55}
-          tint="light"
-          blurMethod="dimezisBlurView"
-          style={StyleSheet.absoluteFill}
-        />
-      )}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.16)' }]} />
       <View style={styles.sheen} />
       <View
