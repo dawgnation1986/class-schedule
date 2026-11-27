@@ -8,13 +8,15 @@
  *   </View>
  *
  * - SuperGlass 开启且处于液态玻璃界面模式时才渲染, 否则返回 null(不影响原版界面)
+ * - 底层用 expo-android-glass-view 的 AndroidGlassView(原生折射/染色), 上面再叠高光与描边
  * - 刻意不用 BlurView: expo-blur 的 BlurView 在弹窗(Modal 独立 window)里指向主 window 的
  *   BlurTargetView 会在 onAttachedToWindow 里抛 BlurViewConfigurationException 直接闪退
- *   (1.19.30 的崩溃就是这么来的)。这里只用纯 view 叠层做玻璃质感, 零原生风险。
+ *   (1.19.30 的崩溃就是这么来的)。
  * - 与普通卡片(GlassSurface, 12% 白 + 模糊)相比: 边缘更亮更厚、多了斜向光斑和内折光环,
  *   看起来是"一块厚玻璃"而不是一层白膜。
  */
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { AndroidGlassView } from 'expo-android-glass-view';
 
 import { useSuperGlass } from '@/hooks/use-super-glass';
 import { useUiMode } from '@/hooks/use-ui-mode';
@@ -41,6 +43,19 @@ export function SuperGlass({ radius = 16, tint = 'rgba(255,255,255,0.10)', style
         { borderRadius: radius, overflow: 'hidden' },
         style,
       ]}>
+      {/* 原生玻璃底层(Expo Android Glass View): 折射/染色/明暗由原生绘制 */}
+      {Platform.OS === 'android' && (
+        <AndroidGlassView
+          pointerEvents="none"
+          style={StyleSheet.absoluteFill}
+          cornerRadius={radius}
+          tintColor="transparent"
+          fallbackColor="rgba(255,255,255,0.30)"
+          theme="light"
+          blurRadius={0}
+          interactive={false}
+        />
+      )}
       {/* 主体染色 */}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: tint }]} />
       {/* 冷白偏蓝的玻璃色 */}

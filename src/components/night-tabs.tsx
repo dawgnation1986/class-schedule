@@ -1,28 +1,31 @@
 /**
- * 液态玻璃标签栏: 原生导航器 (react-native-bottom-tabs) + 自绘悬浮玻璃底栏
+ * 液态玻璃标签栏: 原生导航器 (react-native-bottom-tabs) + 原生玻璃 TabBar
  *
- * 底栏材质与页面卡片(GlassSurface)一致:
- * - 低透明度白染色 + 顶部高光 + 1px 白描边, 没有任何实心底板(纯 View 叠层, 不用原生模糊,
- *   因为树内的 BlurView 指向祖先 BlurTargetView 会在同一个 window 里自捕获而闪退)
- * - 选中项是独立浅蓝玻璃胶囊: 点击平滑位移; 横向拖动可把胶囊"捏起来"扫到任意 Tab
+ * 玻璃部分用 expo-android-glass-view:
+ * - Android 13+ 由 GlassBackdropSource 把页面内容录进 RenderNode, 玻璃直接采样,
+ *   不存在 expo-blur 那种 "alpha = 0.44 x intensity" 的白色覆盖膜
+ * - 边缘折射(refraction)、模糊、染色、可拖拽水滴全部由 Jetpack Compose 原生绘制
+ * - Android 17 QPR / SDK 37.2+ 直接使用系统 setBackdropRenderEffect, 效果更接近 iOS 26
+ * - 低版本自动退化为 fallbackColor 平面, 不会崩溃
  *
- * 不再使用 expo-android-glass-view 的 AndroidGlassTabs: 它的 backdropSource 采样路径在真机上
- * 采出来是黑底(有内容的地方才透出内容, 空白处发黑), 与"通透"正好相反。
+ * 空处发黑的修复: 采样源里必须自带背景图层。之前 Wallpaper/自定义背景只画在采样源外面,
+ * 源里空白处是透明的, 玻璃采样到透明再合成就是黑色(有内容处能透、空处发黑)。
+ * 现在把同一套背景再铺一份到源内, 空处采样到的是壁纸/流光, 不再是黑。
  */
 import { usePathname, useRouter, withLayoutContext } from 'expo-router';
 import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AndroidGlassTabs, GlassBackdropSource } from 'expo-android-glass-view';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
-import { GLASS_LINE } from '@/components/glass-surface';
+import { BackgroundLayer, GlassWallpaper } from '@/lib/background';
 import { useUiMode } from '@/hooks/use-ui-mode';
 
 const { Navigator } = createNativeBottomTabNavigator();
 const Tabs = withLayoutContext(Navigator);
 
-/** 悬浮玻璃底栏高度 */
+/** 原生玻璃底栏高度(与库的默认 64dp 胶囊一致) */
 const BAR_H = 64;
 
 const ITEMS = [
@@ -31,25 +34,7 @@ const ITEMS = [
   { route: '/profile', label: '我的', icon: 'person-outline', active: 'person' },
 ] as const;
 
-/** 底栏玻璃底: 低透明度白染色 + 高光/描边(没有任何实心底板) */
-function BarGlass() {
-  return (
-    <View
-      pointerEvents="none"
-      style={[StyleSheet.absoluteFill, { borderRadius: BAR_H / 2, overflow: 'hidden' }]}>
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.16)' }]} />
-      <View style={styles.sheen} />
-      <View
-        style={[
-          StyleSheet.absoluteFill,
-          { borderRadius: BAR_H / 2, borderWidth: 1, borderColor: GLASS_LINE },
-        ]}
-      />
-    </View>
-  );
-}
-
-/** 悬浮玻璃底栏: 玻璃胶囊底 + 可长按拖动/横扫的液态选中胶囊 */
+/** 悬浮玻璃底栏: 原生玻璃胶囊 + 可拖拽水滴 */
 function GlassTabBar() {
   const router = useRouter();
   const pathname = usePathname();
@@ -59,139 +44,33 @@ function GlassTabBar() {
     ITEMS.findIndex((i) => pathname === i.route || pathname.startsWith(`${i.route}/`)),
   );
 
-  const [rowW, setRowW] = useState(0);
-  const itemW = rowW / ITEMS.length;
-  const x = useRef(new Animated.Value(0)).current;
-  /** 0 静止 / 1 被按住拖动(胶囊放大 + 外发光, 模仿液态水滴被捏起来) */
-  const lift = useRef(new Animated.Value(0)).current;
-  const dragging = useRef(false);
-  const dragFrom = useRef(0);
-  const dragNow = useRef(0);
-
-  useEffect(() => {
-    if (!itemW || dragging.current) return;
-    Animated.spring(x, {
-      toValue: activeIndex * itemW,
-      friction: 9,
-      tension: 90,
-      useNativeDriver: true,
-    }).start();
-  }, [activeIndex, itemW, x]);
-
-  const pan = useMemo(() => {
-    const maxX = Math.max(0, itemW * (ITEMS.length - 1));
-    const settle = (idx: number) => {
-      dragging.current = false;
-      Animated.spring(x, {
-        toValue: idx * itemW,
-        friction: 9,
-        tension: 90,
-        useNativeDriver: true,
-      }).start();
-      Animated.spring(lift, {
-        toValue: 0,
-        friction: 8,
-        tension: 120,
-        useNativeDriver: true,
-      }).start();
-      if (idx !== activeIndex) router.navigate(ITEMS[idx].route as never);
-    };
-    return PanResponder.create({
-      // 单击仍然交给 Pressable, 只有明显的横向滑动才接管
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_e, g) =>
-        Math.abs(g.dx) > 6 && Math.abs(g.dx) > Math.abs(g.dy) * 1.2,
-      onPanResponderGrant: () => {
-        dragging.current = true;
-        dragFrom.current = activeIndex * itemW;
-        dragNow.current = activeIndex * itemW;
-        x.stopAnimation((v: number) => {
-          dragFrom.current = v;
-          dragNow.current = v;
-        });
-        Animated.spring(lift, {
-          toValue: 1,
-          friction: 7,
-          tension: 140,
-          useNativeDriver: true,
-        }).start();
-      },
-      onPanResponderMove: (_e, g) => {
-        if (!itemW) return;
-        const v = Math.min(maxX, Math.max(0, dragFrom.current + g.dx));
-        dragNow.current = v;
-        x.setValue(v);
-      },
-      onPanResponderRelease: () => {
-        if (!itemW) {
-          settle(activeIndex);
-          return;
-        }
-        settle(Math.min(ITEMS.length - 1, Math.max(0, Math.round(dragNow.current / itemW))));
-      },
-      onPanResponderTerminate: () => settle(activeIndex),
-      onPanResponderTerminationRequest: () => false,
-    });
-  }, [activeIndex, itemW, router, x, lift]);
-
   return (
-    <View pointerEvents="box-none" style={[styles.host, { bottom: Math.max(insets.bottom, 10) }]}>
-      <View style={styles.bar}>
-        <BarGlass />
-        <View
-          style={styles.row}
-          onLayout={(e) => setRowW(e.nativeEvent.layout.width)}
-          {...pan.panHandlers}>
-          {itemW > 0 && (
-            <>
-              {/* 被捏起时的外发光 */}
-              <Animated.View
-                pointerEvents="none"
-                style={[
-                  styles.capsuleGlow,
-                  {
-                    width: itemW - 12,
-                    opacity: lift,
-                    transform: [{ translateX: x }, { scale: 1.12 }],
-                  },
-                ]}
-              />
-              <Animated.View
-                pointerEvents="none"
-                style={[
-                  styles.capsule,
-                  {
-                    width: itemW - 12,
-                    transform: [
-                      { translateX: x },
-                      {
-                        scale: lift.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [1, 1.08],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              />
-            </>
-          )}
-          {ITEMS.map((item, i) => {
-            const on = i === activeIndex;
-            const color = on ? '#2563EB' : 'rgba(60,60,67,0.62)';
-            return (
-              <Pressable
-                key={item.route}
-                onPress={() => router.navigate(item.route as never)}
-                style={styles.item}>
-                <Ionicons name={(on ? item.active : item.icon) as never} size={24} color={color} />
-                <Text style={[styles.label, { color }]}>{item.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-    </View>
+    <AndroidGlassTabs
+      backdropSource="screen"
+      selectedIndex={activeIndex}
+      onTabSelected={(i) => router.navigate(ITEMS[i].route as never)}
+      accentColor="#2563EB"
+      theme="light"
+      glassEffectStyle="clear"
+      tintColor="rgba(255,255,255,0.10)"
+      fallbackColor="rgba(246,249,255,0.55)"
+      style={[styles.bar, { bottom: Math.max(insets.bottom, 10) }]}>
+      {ITEMS.map((item, i) => {
+        const on = i === activeIndex;
+        return (
+          <View key={item.route} style={styles.item}>
+            <Ionicons
+              name={(on ? item.active : item.icon) as never}
+              size={24}
+              color={on ? '#2563EB' : 'rgba(60,60,67,0.62)'}
+            />
+            <Text style={[styles.label, { color: on ? '#2563EB' : 'rgba(60,60,67,0.62)' }]}>
+              {item.label}
+            </Text>
+          </View>
+        );
+      })}
+    </AndroidGlassTabs>
   );
 }
 
@@ -207,81 +86,58 @@ export default function NightTabs() {
   const glass = mode === 'glass' || mode === 'night';
   return (
     <View style={{ flex: 1 }}>
-      <Tabs
-        tabBar={glass ? () => null : undefined}
-        hapticFeedbackEnabled={true}
-        sidebarAdaptable={false}>
-        <Tabs.Screen
-          name="home"
-          options={{
-            title: '主站',
-            sceneStyle: { backgroundColor: 'transparent' },
-            tabBarIcon: () => require('@/assets/images/tabIcons/explore.png'),
-          }}
-        />
-        <Tabs.Screen
-          name="timetable"
-          options={{
-            title: '课表',
-            sceneStyle: { backgroundColor: 'transparent' },
-            tabBarIcon: () => require('@/assets/images/tabIcons/home.png'),
-          }}
-        />
-        <Tabs.Screen
-          name="profile"
-          options={{
-            title: '我的',
-            sceneStyle: { backgroundColor: 'transparent' },
-            tabBarIcon: () => require('@/assets/images/tabIcons/person.png'),
-          }}
-        />
-      </Tabs>
+      {/* 玻璃的采样源: 背景 + 三个 tab 页的内容; 底栏必须放在它外面, 否则会采到自己 */}
+      <GlassBackdropSource name="screen" style={{ flex: 1 }}>
+        {/* 源内的背景副本: 让"没有内容的地方"也采到壁纸, 而不是透明(透明=黑) */}
+        {glass && (
+          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+            <GlassWallpaper />
+            <BackgroundLayer />
+          </View>
+        )}
+        <Tabs
+          tabBar={glass ? () => null : undefined}
+          hapticFeedbackEnabled={true}
+          sidebarAdaptable={false}>
+          <Tabs.Screen
+            name="home"
+            options={{
+              title: '主站',
+              sceneStyle: { backgroundColor: 'transparent' },
+              tabBarIcon: () => require('@/assets/images/tabIcons/explore.png'),
+            }}
+          />
+          <Tabs.Screen
+            name="timetable"
+            options={{
+              title: '课表',
+              sceneStyle: { backgroundColor: 'transparent' },
+              tabBarIcon: () => require('@/assets/images/tabIcons/home.png'),
+            }}
+          />
+          <Tabs.Screen
+            name="profile"
+            options={{
+              title: '我的',
+              sceneStyle: { backgroundColor: 'transparent' },
+              tabBarIcon: () => require('@/assets/images/tabIcons/person.png'),
+            }}
+          />
+        </Tabs>
+      </GlassBackdropSource>
       {glass && <GlassTabBar />}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  host: {
+  bar: {
     position: 'absolute',
     left: 16,
     right: 16,
-    zIndex: 100,
-  },
-  bar: {
     height: BAR_H,
-    borderRadius: BAR_H / 2,
-  },
-  sheen: {
-    position: 'absolute',
-    top: 0,
-    left: 14,
-    right: 14,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-  },
-  row: { flex: 1, flexDirection: 'row', alignItems: 'center' },
-  capsuleGlow: {
-    position: 'absolute',
-    left: 6,
-    top: 6,
-    bottom: 6,
-    borderRadius: (BAR_H - 12) / 2,
-    backgroundColor: 'rgba(255,255,255,0.30)',
-  },
-  capsule: {
-    position: 'absolute',
-    left: 6,
-    top: 6,
-    bottom: 6,
-    borderRadius: (BAR_H - 12) / 2,
-    backgroundColor: 'rgba(37,99,235,0.14)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.55)',
   },
   item: {
-    flex: 1,
-    height: BAR_H,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
