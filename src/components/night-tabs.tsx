@@ -1,18 +1,18 @@
 /**
  * 液态玻璃标签栏: 原生导航器 (react-native-bottom-tabs) + 自绘悬浮玻璃底栏
  *
- * 底栏材质与页面卡片(GlassSurface)完全一致:
- * - expo-blur 的 BlurView 指向根布局的 BlurTargetView, 真正模糊底下的页面内容(透字)
- * - 白色低透明度染色 + 顶部高光 + 1px 白描边, 没有任何实心底板
- * - 选中项是独立浅蓝玻璃胶囊, 用 Animated.spring 平滑位移
+ * 底栏材质与页面卡片(GlassSurface)一致:
+ * - 低透明度白染色 + 顶部高光 + 1px 白描边, 没有任何实心底板(纯 View 叠层, 不用原生模糊,
+ *   因为树内的 BlurView 指向祖先 BlurTargetView 会在同一个 window 里自捕获而闪退)
+ * - 选中项是独立浅蓝玻璃胶囊: 点击平滑位移; 横向拖动可把胶囊"捏起来"扫到任意 Tab
  *
  * 不再使用 expo-android-glass-view 的 AndroidGlassTabs: 它的 backdropSource 采样路径在真机上
  * 采出来是黑底(有内容的地方才透出内容, 空白处发黑), 与"通透"正好相反。
  */
 import { usePathname, useRouter, withLayoutContext } from 'expo-router';
 import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
@@ -49,7 +49,7 @@ function BarGlass() {
   );
 }
 
-/** 悬浮玻璃底栏: 玻璃胶囊底 + 自绘浅蓝玻璃选中胶囊 */
+/** 悬浮玻璃底栏: 玻璃胶囊底 + 可长按拖动/横扫的液态选中胶囊 */
 function GlassTabBar() {
   const router = useRouter();
   const pathname = usePathname();
@@ -62,8 +62,14 @@ function GlassTabBar() {
   const [rowW, setRowW] = useState(0);
   const itemW = rowW / ITEMS.length;
   const x = useRef(new Animated.Value(0)).current;
+  /** 0 静止 / 1 被按住拖动(胶囊放大 + 外发光, 模仿液态水滴被捏起来) */
+  const lift = useRef(new Animated.Value(0)).current;
+  const dragging = useRef(false);
+  const dragFrom = useRef(0);
+  const dragNow = useRef(0);
+
   useEffect(() => {
-    if (!itemW) return;
+    if (!itemW || dragging.current) return;
     Animated.spring(x, {
       toValue: activeIndex * itemW,
       friction: 9,
@@ -72,16 +78,103 @@ function GlassTabBar() {
     }).start();
   }, [activeIndex, itemW, x]);
 
+  const pan = useMemo(() => {
+    const maxX = Math.max(0, itemW * (ITEMS.length - 1));
+    const settle = (idx: number) => {
+      dragging.current = false;
+      Animated.spring(x, {
+        toValue: idx * itemW,
+        friction: 9,
+        tension: 90,
+        useNativeDriver: true,
+      }).start();
+      Animated.spring(lift, {
+        toValue: 0,
+        friction: 8,
+        tension: 120,
+        useNativeDriver: true,
+      }).start();
+      if (idx !== activeIndex) router.navigate(ITEMS[idx].route as never);
+    };
+    return PanResponder.create({
+      // 单击仍然交给 Pressable, 只有明显的横向滑动才接管
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_e, g) =>
+        Math.abs(g.dx) > 6 && Math.abs(g.dx) > Math.abs(g.dy) * 1.2,
+      onPanResponderGrant: () => {
+        dragging.current = true;
+        dragFrom.current = activeIndex * itemW;
+        dragNow.current = activeIndex * itemW;
+        x.stopAnimation((v: number) => {
+          dragFrom.current = v;
+          dragNow.current = v;
+        });
+        Animated.spring(lift, {
+          toValue: 1,
+          friction: 7,
+          tension: 140,
+          useNativeDriver: true,
+        }).start();
+      },
+      onPanResponderMove: (_e, g) => {
+        if (!itemW) return;
+        const v = Math.min(maxX, Math.max(0, dragFrom.current + g.dx));
+        dragNow.current = v;
+        x.setValue(v);
+      },
+      onPanResponderRelease: () => {
+        if (!itemW) {
+          settle(activeIndex);
+          return;
+        }
+        settle(Math.min(ITEMS.length - 1, Math.max(0, Math.round(dragNow.current / itemW))));
+      },
+      onPanResponderTerminate: () => settle(activeIndex),
+      onPanResponderTerminationRequest: () => false,
+    });
+  }, [activeIndex, itemW, router, x, lift]);
+
   return (
     <View pointerEvents="box-none" style={[styles.host, { bottom: Math.max(insets.bottom, 10) }]}>
       <View style={styles.bar}>
         <BarGlass />
-        <View style={styles.row} onLayout={(e) => setRowW(e.nativeEvent.layout.width)}>
+        <View
+          style={styles.row}
+          onLayout={(e) => setRowW(e.nativeEvent.layout.width)}
+          {...pan.panHandlers}>
           {itemW > 0 && (
-            <Animated.View
-              pointerEvents="none"
-              style={[styles.capsule, { width: itemW - 12, transform: [{ translateX: x }] }]}
-            />
+            <>
+              {/* 被捏起时的外发光 */}
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.capsuleGlow,
+                  {
+                    width: itemW - 12,
+                    opacity: lift,
+                    transform: [{ translateX: x }, { scale: 1.12 }],
+                  },
+                ]}
+              />
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.capsule,
+                  {
+                    width: itemW - 12,
+                    transform: [
+                      { translateX: x },
+                      {
+                        scale: lift.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [1, 1.08],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              />
+            </>
           )}
           {ITEMS.map((item, i) => {
             const on = i === activeIndex;
@@ -168,6 +261,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.92)',
   },
   row: { flex: 1, flexDirection: 'row', alignItems: 'center' },
+  capsuleGlow: {
+    position: 'absolute',
+    left: 6,
+    top: 6,
+    bottom: 6,
+    borderRadius: (BAR_H - 12) / 2,
+    backgroundColor: 'rgba(255,255,255,0.30)',
+  },
   capsule: {
     position: 'absolute',
     left: 6,
