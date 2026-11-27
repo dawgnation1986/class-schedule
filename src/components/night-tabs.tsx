@@ -46,7 +46,9 @@ function GlassTabBar() {
       onTabSelected={(i) => router.navigate(ITEMS[i].route as never)}
       accentColor="#2563EB"
       theme="light"
-      glassEffectStyle="regular"
+      glassEffectStyle="clear"
+      tintColor="rgba(255,255,255,0.10)"
+      fallbackColor="rgba(246,249,255,0.55)"
       style={[styles.bar, { bottom: Math.max(insets.bottom, 10) }]}>
       {ITEMS.map((item, i) => {
         const on = i === activeIndex;

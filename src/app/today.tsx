@@ -10,6 +10,7 @@ import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { PageBackdrop, usePageBackground } from '@/lib/background';
 import { GlassSurface } from '@/components/glass-surface';
+import { SuperGlassPill } from '@/components/super-glass';
 import {
   beijingNow,
   fetchTimetable,
@@ -114,6 +115,7 @@ export default function TodayScreen() {
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top']}>
       <PageBackdrop />      <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <SuperGlassPill height={24} />
           <Ionicons name="arrow-back" size={22} color={colors.text} />
           <Text style={{ color: colors.text, fontSize: 16 }}>返回</Text>
         </Pressable>

@@ -19,6 +19,7 @@ import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { PageBackdrop, usePageBackground, useBgSetting } from '@/lib/background';
 import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
+import { SuperGlassPill } from '@/components/super-glass';
 import { addTodo, clearDone, loadTodos, removeTodo, toggleTodo, type Todo } from '@/lib/todos';
 
 const DAY_NAMES = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
@@ -158,6 +159,7 @@ export default function TodosScreen() {
       <PageBackdrop />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <SuperGlassPill height={24} />
           <Ionicons name="arrow-back" size={22} color={colors.text} />
           <Text style={{ color: colors.text, fontSize: 16 }}>返回</Text>
         </Pressable>

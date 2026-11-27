@@ -27,6 +27,7 @@ import { useUiMode } from '@/hooks/use-ui-mode';
 import { PageBackdrop, useBgSetting, usePageBackground } from '@/lib/background';
 import { NightCard, NightGlowBackground } from '@/components/night-kit';
 import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
+import { SuperGlass } from '@/components/super-glass';
 import { fetchRandomRecord, type BbhjRecord } from '@/lib/bbhj';
 
 const SITE = 'https://baobeihuijia.com/bbhj/';
@@ -155,6 +156,7 @@ export default function WelfareScreen() {
       {/* 顶部标题 + 切换 tab */}
       <View style={styles.headerRow}>
         <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backIcon}>
+          <SuperGlass radius={16} />
           <Ionicons name="arrow-back" size={22} color={colors.text} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: colors.text }]}>公益专栏</Text>

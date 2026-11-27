@@ -24,6 +24,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { NightCard, NightGlowBackground } from '@/components/night-kit';
 import { AcrylicPanel, GlassSurface, GLASS_LINE, MaskBlur } from '@/components/glass-surface';
+import { SuperGlassPill } from '@/components/super-glass';
 import { useBgSetting, usePageBackground } from '@/lib/background';
 import { loadProfile, type UserProfile } from '@/lib/profile';
 import { BACKUP_SECTIONS, exportBackup, importBackup } from '@/lib/backup';
@@ -305,6 +306,7 @@ export default function CloudBackupScreen() {
       {night && <NightGlowBackground>{null}</NightGlowBackground>}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backBtn}>
+          <SuperGlassPill height={26} />
           <Ionicons name="arrow-back" size={22} color={colors.text} />
           <Text style={[styles.title, { color: colors.text }]}>云端备份</Text>
         </Pressable>

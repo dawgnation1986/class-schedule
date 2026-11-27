@@ -6,6 +6,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import Constants from 'expo-constants';
 
 import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
+import { SuperGlass } from '@/components/super-glass';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useUiMode } from '@/hooks/use-ui-mode';
@@ -51,6 +52,7 @@ export default function AboutProjectScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.headerRow}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backBtn}>
+            <SuperGlass radius={12} />
             <Ionicons name="arrow-back" size={22} color={colors.text} />
           </Pressable>
           <Text style={[styles.title, { color: colors.text }]}>关于本项目</Text>

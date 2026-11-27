@@ -11,6 +11,7 @@ import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { PageBackdrop, usePageBackground } from '@/lib/background';
 import { AcrylicPanel, GlassSurface, MaskBlur } from '@/components/glass-surface';
+import { SuperGlassPill } from '@/components/super-glass';
 import {
   getGradesStat,
   gradeKey,
@@ -140,6 +141,7 @@ export default function GpaScreen() {
       <PageBackdrop />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <SuperGlassPill height={24} />
           <Ionicons name="arrow-back" size={22} color={colors.text} />
           <Text style={{ color: colors.text, fontSize: 16 }}>返回</Text>
         </Pressable>

@@ -11,6 +11,8 @@ import { BlurView } from 'expo-blur';
 
 import { useUiMode } from '@/hooks/use-ui-mode';
 import { useNightGlassDisabled } from '@/hooks/use-night-glass';
+import { useSuperGlass } from '@/hooks/use-super-glass';
+import { SuperGlass } from '@/components/super-glass';
 
 /**
  * expo-blur 57 起, Android 必须给 BlurView 传 blurTarget(指向一个 BlurTargetView),
@@ -76,6 +78,7 @@ export function AcrylicPanel({
   const mode = useUiMode();
   const blurOff = useNightGlassDisabled();
   const target = useBlurTarget();
+  const superOn = useSuperGlass();
   const on = mode === 'glass' && !blurOff;
   const merged = [
     style,
@@ -93,14 +96,23 @@ export function AcrylicPanel({
         <View
           pointerEvents="none"
           style={[StyleSheet.absoluteFill, { borderRadius: radius, overflow: 'hidden' }]}>
-          <BlurView
-            blurTarget={target ?? undefined}
-            intensity={intensity}
-            tint="light"
-            blurMethod="dimezisBlurView"
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.10)' }]} />
+          {superOn ? (
+            <>
+              <SuperGlass radius={radius} tint="rgba(255,255,255,0.12)" />
+              <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.52)' }]} />
+            </>
+          ) : (
+            <>
+              <BlurView
+                blurTarget={target ?? undefined}
+                intensity={intensity}
+                tint="light"
+                blurMethod="dimezisBlurView"
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.10)' }]} />
+            </>
+          )}
           <View style={styles.sheen} />
         </View>
       )}
@@ -130,7 +142,10 @@ export function GlassSurface({
 }) {
   const mode = useUiMode();
   const blurOff = useNightGlassDisabled();
+  const superOn = useSuperGlass();
   if (mode !== 'glass' || blurOff) return null;
+  // SuperGlass 模式: 换成原生液态玻璃材质, 彻底避开 expo-blur 的白色覆盖膜
+  if (superOn) return <SuperGlass radius={radius} />;
   return (
     <View
       pointerEvents="none"

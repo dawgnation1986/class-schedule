@@ -18,6 +18,7 @@ import { BackgroundLayer, GlassWallpaper, primeBackground } from '@/lib/backgrou
 import { primeScheduleTimes } from '@/lib/schedule-times';
 import { primeThemeMode } from '@/lib/theme';
 import { primeUiMode } from '@/lib/ui-mode';
+import { primeSuperGlass } from '@/lib/super-glass';
 import { primeThemePreset } from '@/lib/theme-preset';
 import { primeNightGlass } from '@/lib/night-glass';
 import { primeGlassSkin } from '@/lib/glass-skin';
@@ -52,6 +53,7 @@ export default function RootLayout() {
     void primeScheduleTimes();
     void primeThemeMode();
     void primeUiMode();
+    void primeSuperGlass();
     void primeThemePreset();
     void primeNightGlass();
     void primeGlassSkin();

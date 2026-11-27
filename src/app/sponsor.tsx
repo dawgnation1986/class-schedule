@@ -13,6 +13,7 @@ import { useUiMode } from '@/hooks/use-ui-mode';
 import { useBgSetting, PageBackdrop, usePageBackground } from '@/lib/background';
 import { NightCard, NightGlowBackground } from '@/components/night-kit';
 import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
+import { SuperGlass } from '@/components/super-glass';
 import { fetchSponsor, sponsorPageUrl, type SponsorInfo } from '@/lib/sponsor';
 
 export default function SponsorScreen() {
@@ -47,6 +48,7 @@ export default function SponsorScreen() {
         <Pressable
           onPress={() => router.back()}
           style={[styles.backBtn, glass && { borderWidth: 1, borderColor: glassLine }, { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
+          <SuperGlass radius={10} />
           <Text style={{ color: colors.text, fontSize: 14 }}>← 返回</Text>
         </Pressable>
         <Text style={[styles.title, { color: colors.text }]}>支持开发者</Text>

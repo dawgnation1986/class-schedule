@@ -8,6 +8,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { PageBackdrop, usePageBackground, useBgSetting } from '@/lib/background';
 import { PickerField } from '@/components/picker-field';
 import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
+import { SuperGlass } from '@/components/super-glass';
 import {
   loadInitial,
   selectDepartment,
@@ -124,6 +125,7 @@ export default function TempQueryScreen() {
         <Pressable
           onPress={() => router.back()}
           style={[styles.backBtn, glassBorder(), { backgroundColor: glass ? 'transparent' : colors.backgroundElement }]}>
+          <SuperGlass radius={8} />
           <Text style={{ color: colors.text, fontSize: 14 }}>← 返回</Text>
         </Pressable>
         <Text style={[styles.title, { color: colors.text }]}>查询其他班级课表</Text>

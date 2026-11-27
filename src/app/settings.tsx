@@ -40,6 +40,8 @@ import { startCoachTour, TourTarget, registerTourScroller } from '@/components/t
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { checkUpdate, currentVersion, type UpdateInfo } from '@/lib/updates';
 import { openAutoStartSettings, openBatteryWhitelist } from '@/lib/autostart';
+import { setSuperGlass } from '@/lib/super-glass';
+import { useSuperGlass } from '@/hooks/use-super-glass';
 
 type FieldKey = 'xb' | 'zy' | 'bj';
 
@@ -61,6 +63,7 @@ export default function SettingsScreen() {
   const glassBorder = (active = false) =>
     glass ? { borderWidth: 1, borderColor: active ? 'rgba(37,99,235,0.55)' : glassLine } : null;
   const night = uiMode === 'night';
+  const superGlass = useSuperGlass();
   // 墨夜模式: 卡片容器交给 NightCard 重绘, 去掉原背景/玻璃描边, 保留圆角与内边距
   const CardWrap: ElementType = night ? NightCard : View;
   const cardStyle = (base: ViewStyle): StyleProp<ViewStyle> =>
@@ -273,6 +276,35 @@ export default function SettingsScreen() {
 
         {/* 界面设置: 原版界面 / 墨夜主题(水滴动效切换, 立即生效) — "自定义"档微调用 */}
         <UiModePicker />
+
+        {/* SuperGlass: 全站原生液态玻璃材质开关(依赖 expo-android-glass-view) */}
+        <CardWrap style={cardStyle(styles.guideCard)}>
+          <GlassSurface radius={12} />
+          <Pressable
+            onPress={() => setSuperGlass(!superGlass)}
+            style={({ pressed }) => [styles.guideRow, pressed && { opacity: 0.6 }]}>
+            <View style={[styles.guideIcon, { backgroundColor: '#6366f1' }]}>
+              <Ionicons name="sparkles" size={19} color="#fff" />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={{ color: colors.text, fontWeight: '800', fontSize: 15 }}>SuperGlass 全局液态玻璃</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+                卡片、控件、弹窗、下拉与返回键统一使用原生液态玻璃材质(需液态玻璃界面)
+              </Text>
+            </View>
+            <View
+              style={{
+                paddingHorizontal: 10,
+                paddingVertical: 4,
+                borderRadius: 11,
+                backgroundColor: superGlass ? '#2563EB' : 'rgba(120,120,128,0.20)',
+              }}>
+              <Text style={{ color: superGlass ? '#fff' : colors.textSecondary, fontSize: 12, fontWeight: '700' }}>
+                {superGlass ? '开' : '关'}
+              </Text>
+            </View>
+          </Pressable>
+        </CardWrap>
 
         {/* 自启动与后台: Android 没有统一的"自启动权限", 只能把用户送到系统白名单页面 */}
         <CardWrap style={cardStyle(styles.guideCard)}>

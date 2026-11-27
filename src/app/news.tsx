@@ -26,6 +26,7 @@ import { useUiMode } from '@/hooks/use-ui-mode';
 import { PageBackdrop, useBgSetting, usePageBackground } from '@/lib/background';
 import { NightCard, NightGlowBackground } from '@/components/night-kit';
 import { GlassSurface, GLASS_LINE } from '@/components/glass-surface';
+import { SuperGlass } from '@/components/super-glass';
 import { fetchDailyNews, fetchNewsArticle, type NewsArticle, type NewsItem } from '@/lib/news';
 
 export default function NewsScreen() {
@@ -214,6 +215,7 @@ export default function NewsScreen() {
           <PageBackdrop />
           <View style={styles.readerHead}>
             <Pressable onPress={closeReader} hitSlop={10} style={styles.readerBack}>
+              <SuperGlass radius={17} />
               <Ionicons name="arrow-back" size={22} color={colors.text} />
             </Pressable>
             <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', flex: 1 }}>新闻正文</Text>
