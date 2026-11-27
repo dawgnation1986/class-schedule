@@ -23,7 +23,7 @@ export const TAB_BAR_COLORS = [
   { name: '深空', value: '#20242E' },
 ] as const;
 
-let look: TabBarLook = { color: '#F7F3EA', seeThrough: false, alpha: 0.3, liquid: false };
+let look: TabBarLook = { color: '#F7F3EA', seeThrough: true, alpha: 0.06, liquid: true };
 let primed = false;
 const subs = new Set<() => void>();
 
@@ -39,7 +39,7 @@ export async function primeTabBarLook(): Promise<void> {
       const p = JSON.parse(raw) as Partial<TabBarLook>;
       if (typeof p.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(p.color)) look.color = p.color;
       if (typeof p.seeThrough === 'boolean') look.seeThrough = p.seeThrough;
-      if (typeof p.alpha === 'number' && p.alpha >= 0.02 && p.alpha <= 0.98) look.alpha = p.alpha;
+      if (typeof p.alpha === 'number' && p.alpha >= 0 && p.alpha <= 0.25) look.alpha = p.alpha;
       if (typeof p.liquid === 'boolean') look.liquid = p.liquid;
     }
   } catch {
