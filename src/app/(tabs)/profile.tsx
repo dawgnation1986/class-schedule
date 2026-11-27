@@ -83,6 +83,8 @@ import {
 import { ThemePresetPicker } from '@/components/theme-preset-picker';
 import { adoptCustomForBackground } from '@/lib/theme-preset';
 import { UiModePicker } from '@/components/ui-mode-picker';
+import { setSuperGlass } from '@/lib/super-glass';
+import { useSuperGlass } from '@/hooks/use-super-glass';
 import { OnboardingModal } from '@/components/onboarding';
 import { TourTarget, registerTourScroller, registerTourResetter, startCoachTour } from '@/components/tour';
 import { AgreementModal } from '@/components/agreement';
@@ -300,6 +302,7 @@ export default function ProfileScreen() {
   const bgSetting = useBgSetting();
   // 控件全透明模式: 设了背景图且开启开关 → 按钮/卡片/输入框只留文字 + 1px 外轮廓
   const glass = !!bgSetting.ctrl;
+  const superGlass = useSuperGlass();
   const glassLine = scheme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.30)';
   const glassBorder = (active = false) =>
     glass ? { borderWidth: 1, borderColor: active ? 'rgba(37,99,235,0.55)' : glassLine } : null;
@@ -427,6 +430,7 @@ export default function ProfileScreen() {
     { title: '自定义配色 / 自定义颜色 (调色板)', kw: '自定义 配色 颜色 调色板 色卡 hex 底色 卡片 文字', hint: '外观与个性化', icon: 'options-outline' as const, go: () => goSection('appearance') },
     { title: '控件主色 (按钮/链接颜色)', kw: '主色 控件 按钮 链接 颜色 accent', hint: '外观与个性化', icon: 'brush-outline' as const, go: () => goSection('appearance') },
     { title: '界面设置 (原版界面/液态玻璃)', kw: '界面 设置 液态玻璃 毛玻璃 原版 主题 模式 切换', hint: '外观与个性化', icon: 'contrast-outline' as const, go: () => goSection('appearance') },
+    { title: 'SuperGlass 全局液态玻璃', kw: 'superglass 玻璃 液态 全局 材质 卡片 控件 弹窗 按钮 毛玻璃', hint: '外观与个性化', icon: 'sparkles-outline' as const, go: () => goSection('appearance') },
     { title: '外观模式 (跟随系统/浅色/深色)', kw: '外观 模式 浅色 深色 跟随 系统 亮色 暗色', hint: '外观与个性化', icon: 'sunny-outline' as const, go: () => goSection('appearance') },
     { title: '自定义背景图 (背景/壁纸/透明度/控件透明)', kw: '背景 壁纸 图片 透明度 控件 全透明 毛玻璃', hint: '外观与个性化', icon: 'image-outline' as const, go: () => goSection('appearance') },
     { title: '班级课表设置 (系部/专业/班级)', kw: '班级 课表 系部 专业 设置 校园 数据', hint: '课表与学习', icon: 'school-outline' as const, go: () => { goSection('schedule'); router.push('/settings' as never); } },
@@ -957,6 +961,47 @@ export default function ProfileScreen() {
         {section === 'appearance' && (
         <>
         <ThemePresetPicker />
+
+        {/* SuperGlass: 全站统一液态玻璃材质(卡片/控件/弹窗/下拉/按钮) */}
+        <CardWrap style={cardStyle([styles.section, styles.subCard])}>
+          <Pressable
+            onPress={() => setSuperGlass(!superGlass)}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <View
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 9,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: '#6366f1',
+              }}>
+              <Ionicons name="sparkles" size={17} color="#fff" />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={[styles.secTitle, { color: colors.text }]}>SuperGlass 全局液态玻璃</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+                卡片、控件、弹窗、下拉与按钮统一换成更厚实的液态玻璃材质(需液态玻璃界面)
+              </Text>
+            </View>
+            <View
+              style={{
+                paddingHorizontal: 10,
+                paddingVertical: 4,
+                borderRadius: 11,
+                backgroundColor: superGlass ? '#2563EB' : 'rgba(120,120,128,0.20)',
+              }}>
+              <Text
+                style={{
+                  color: superGlass ? '#fff' : colors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: '700',
+                }}>
+                {superGlass ? '开' : '关'}
+              </Text>
+            </View>
+          </Pressable>
+        </CardWrap>
 
         {/* 界面设置: 原版界面 / 墨夜主题 */}
         <UiModePicker />
