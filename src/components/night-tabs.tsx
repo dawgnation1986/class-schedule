@@ -1,26 +1,30 @@
 /**
- * 液态玻璃标签栏: 原生导航器 (react-native-bottom-tabs) + 原生玻璃 TabBar
+ * 液态玻璃标签栏: 原生导航器 (react-native-bottom-tabs) + 自绘悬浮玻璃底栏
  *
- * 玻璃部分换成 expo-android-glass-view:
- * - Android 13+ 由 GlassBackdropSource 把页面内容录进 RenderNode, 玻璃直接采样,
- *   不存在 expo-blur 那种 "alpha = 0.44 x intensity" 的白色覆盖膜
- * - 边缘折射(refraction)、模糊、染色、可拖拽水滴全部由 Jetpack Compose 原生绘制
- * - Android 17 QPR / SDK 37.2+ 直接使用系统 setBackdropRenderEffect, 效果更接近 iOS 26
- * - 低版本自动退化为 fallbackColor 平面, 不会崩溃
+ * 底栏材质与页面卡片(GlassSurface)完全一致:
+ * - expo-blur 的 BlurView 指向根布局的 BlurTargetView, 真正模糊底下的页面内容(透字)
+ * - 白色低透明度染色 + 顶部高光 + 1px 白描边, 没有任何实心底板
+ * - 选中项是独立浅蓝玻璃胶囊, 用 Animated.spring 平滑位移
+ *
+ * 不再使用 expo-android-glass-view 的 AndroidGlassTabs: 它的 backdropSource 采样路径在真机上
+ * 采出来是黑底(有内容的地方才透出内容, 空白处发黑), 与"通透"正好相反。
  */
 import { usePathname, useRouter, withLayoutContext } from 'expo-router';
 import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AndroidGlassTabs, GlassBackdropSource } from 'expo-android-glass-view';
+import { BlurView } from 'expo-blur';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
+import { GLASS_LINE, useBlurTarget } from '@/components/glass-surface';
+import { useNightGlassDisabled } from '@/hooks/use-night-glass';
 import { useUiMode } from '@/hooks/use-ui-mode';
 
 const { Navigator } = createNativeBottomTabNavigator();
 const Tabs = withLayoutContext(Navigator);
 
-/** 原生玻璃底栏高度(与库的默认 64dp 胶囊一致) */
+/** 悬浮玻璃底栏高度 */
 const BAR_H = 64;
 
 const ITEMS = [
@@ -29,7 +33,36 @@ const ITEMS = [
   { route: '/profile', label: '我的', icon: 'person-outline', active: 'person' },
 ] as const;
 
-/** 悬浮玻璃底栏: 原生玻璃胶囊 + 可拖拽水滴 */
+/** 底栏玻璃底: 真模糊 + 低透明度白染色 + 高光/描边(与卡片同材质) */
+function BarGlass() {
+  const target = useBlurTarget();
+  const blurOff = useNightGlassDisabled();
+  return (
+    <View
+      pointerEvents="none"
+      style={[StyleSheet.absoluteFill, { borderRadius: BAR_H / 2, overflow: 'hidden' }]}>
+      {!blurOff && (
+        <BlurView
+          blurTarget={target ?? undefined}
+          intensity={55}
+          tint="light"
+          blurMethod="dimezisBlurView"
+          style={StyleSheet.absoluteFill}
+        />
+      )}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.16)' }]} />
+      <View style={styles.sheen} />
+      <View
+        style={[
+          StyleSheet.absoluteFill,
+          { borderRadius: BAR_H / 2, borderWidth: 1, borderColor: GLASS_LINE },
+        ]}
+      />
+    </View>
+  );
+}
+
+/** 悬浮玻璃底栏: 玻璃胶囊底 + 自绘浅蓝玻璃选中胶囊 */
 function GlassTabBar() {
   const router = useRouter();
   const pathname = usePathname();
@@ -39,33 +72,46 @@ function GlassTabBar() {
     ITEMS.findIndex((i) => pathname === i.route || pathname.startsWith(`${i.route}/`)),
   );
 
+  const [rowW, setRowW] = useState(0);
+  const itemW = rowW / ITEMS.length;
+  const x = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!itemW) return;
+    Animated.spring(x, {
+      toValue: activeIndex * itemW,
+      friction: 9,
+      tension: 90,
+      useNativeDriver: true,
+    }).start();
+  }, [activeIndex, itemW, x]);
+
   return (
-    <AndroidGlassTabs
-      backdropSource="screen"
-      selectedIndex={activeIndex}
-      onTabSelected={(i) => router.navigate(ITEMS[i].route as never)}
-      accentColor="#2563EB"
-      theme="light"
-      glassEffectStyle="clear"
-      tintColor="rgba(255,255,255,0.10)"
-      fallbackColor="rgba(246,249,255,0.55)"
-      style={[styles.bar, { bottom: Math.max(insets.bottom, 10) }]}>
-      {ITEMS.map((item, i) => {
-        const on = i === activeIndex;
-        return (
-          <View key={item.route} style={styles.item}>
-            <Ionicons
-              name={(on ? item.active : item.icon) as never}
-              size={24}
-              color={on ? '#2563EB' : 'rgba(60,60,67,0.62)'}
+    <View pointerEvents="box-none" style={[styles.host, { bottom: Math.max(insets.bottom, 10) }]}>
+      <View style={styles.bar}>
+        <BarGlass />
+        <View style={styles.row} onLayout={(e) => setRowW(e.nativeEvent.layout.width)}>
+          {itemW > 0 && (
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.capsule, { width: itemW - 12, transform: [{ translateX: x }] }]}
             />
-            <Text style={[styles.label, { color: on ? '#2563EB' : 'rgba(60,60,67,0.62)' }]}>
-              {item.label}
-            </Text>
-          </View>
-        );
-      })}
-    </AndroidGlassTabs>
+          )}
+          {ITEMS.map((item, i) => {
+            const on = i === activeIndex;
+            const color = on ? '#2563EB' : 'rgba(60,60,67,0.62)';
+            return (
+              <Pressable
+                key={item.route}
+                onPress={() => router.navigate(item.route as never)}
+                style={styles.item}>
+                <Ionicons name={(on ? item.active : item.icon) as never} size={24} color={color} />
+                <Text style={[styles.label, { color }]}>{item.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+    </View>
   );
 }
 
@@ -81,51 +127,73 @@ export default function NightTabs() {
   const glass = mode === 'glass' || mode === 'night';
   return (
     <View style={{ flex: 1 }}>
-      {/* 玻璃的采样源: 三个 tab 页的内容; 底栏必须放在它外面, 否则会采到自己 */}
-      <GlassBackdropSource name="screen" style={{ flex: 1 }}>
-        <Tabs
-          tabBar={glass ? () => null : undefined}
-          hapticFeedbackEnabled={true}
-          sidebarAdaptable={false}>
-          <Tabs.Screen
-            name="home"
-            options={{
-              title: '主站',
-              sceneStyle: { backgroundColor: 'transparent' },
-              tabBarIcon: () => require('@/assets/images/tabIcons/explore.png'),
-            }}
-          />
-          <Tabs.Screen
-            name="timetable"
-            options={{
-              title: '课表',
-              sceneStyle: { backgroundColor: 'transparent' },
-              tabBarIcon: () => require('@/assets/images/tabIcons/home.png'),
-            }}
-          />
-          <Tabs.Screen
-            name="profile"
-            options={{
-              title: '我的',
-              sceneStyle: { backgroundColor: 'transparent' },
-              tabBarIcon: () => require('@/assets/images/tabIcons/person.png'),
-            }}
-          />
-        </Tabs>
-      </GlassBackdropSource>
+      <Tabs
+        tabBar={glass ? () => null : undefined}
+        hapticFeedbackEnabled={true}
+        sidebarAdaptable={false}>
+        <Tabs.Screen
+          name="home"
+          options={{
+            title: '主站',
+            sceneStyle: { backgroundColor: 'transparent' },
+            tabBarIcon: () => require('@/assets/images/tabIcons/explore.png'),
+          }}
+        />
+        <Tabs.Screen
+          name="timetable"
+          options={{
+            title: '课表',
+            sceneStyle: { backgroundColor: 'transparent' },
+            tabBarIcon: () => require('@/assets/images/tabIcons/home.png'),
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: '我的',
+            sceneStyle: { backgroundColor: 'transparent' },
+            tabBarIcon: () => require('@/assets/images/tabIcons/person.png'),
+          }}
+        />
+      </Tabs>
       {glass && <GlassTabBar />}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  bar: {
+  host: {
     position: 'absolute',
     left: 16,
     right: 16,
+    zIndex: 100,
+  },
+  bar: {
     height: BAR_H,
+    borderRadius: BAR_H / 2,
+  },
+  sheen: {
+    position: 'absolute',
+    top: 0,
+    left: 14,
+    right: 14,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+  },
+  row: { flex: 1, flexDirection: 'row', alignItems: 'center' },
+  capsule: {
+    position: 'absolute',
+    left: 6,
+    top: 6,
+    bottom: 6,
+    borderRadius: (BAR_H - 12) / 2,
+    backgroundColor: 'rgba(37,99,235,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.55)',
   },
   item: {
+    flex: 1,
+    height: BAR_H,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
